@@ -1,6 +1,6 @@
 # Design system foundation
 
-KZ Home uses an understated house mark, a distinctive `KZ Home.` wordmark, natural photography, spacious layout, and sage accents. The dashboard emphasizes rooms and everyday actions. There are no technical telemetry widgets, account impersonation, or unavailable-feature navigation.
+KZ Home v0.2 retains the house mark, `KZ Home.` wordmark, Manrope and sage accents. Compact headings, consistent surfaces and purposeful spacing make it a control interface. Home prioritizes status, offline-device attention and favorites. Room cards use photography for recognition; a small desktop room identifier replaces the previous room banner. The Home hero and marketing scene introduction were removed.
 
 ## Tokens
 
@@ -19,22 +19,24 @@ KZ Home uses an understated house mark, a distinctive `KZ Home.` wordmark, natur
 | `--color-scene-*` | Restrained contextual scene surfaces |
 | `--shadow-*`, `--duration-fast`, `--ease-out` | Small depth and interaction feedback |
 
-The hero’s photo scrim and photo labels use stable white/dark overlays for legibility in either theme. Blur is limited to the small desktop photo caption. There is no general glass UI. State is always described with text and/or control semantics as well as color.
+Photo labels use stable white/dark overlays for legibility in either theme. No blur, glow or decorative gradient remains. State is described with text and control semantics as well as color. Pending colors and warning surfaces now have their own light/dark semantic tokens. Navigation/action text and backgrounds change together when switching themes; removing background-color animation avoids transient low contrast.
 
 ## Components
 
-Shared foundations include Button, Switch, RangeControl, StatePanel, InlineError, PageHeading, SectionHeading, and Wordmark. Feature cards own their product semantics: DeviceCard understands a device capability, RoomCard summarizes a room, and SceneControls reports scene execution. A UI component never imports mock data or makes network requests.
+Shared foundations include Button, Switch, RangeControl, StatePanel, InlineError, PageHeading, SectionHeading, Wordmark, StatusBadge and Feedback. Feedback covers pending, confirmed success, partial availability, offline and failure tones, with status/alert semantics. Feature cards own product semantics: DeviceCard understands a device capability, RoomCard summarizes a room, and SceneControls reports execution. A UI component never imports fixtures or makes network requests.
 
-Switch uses a native button with `role="switch"`, a meaningful label, and `aria-checked`. Sliders use native range inputs, visible labels/values, and device-specific accessible names. They keep a draft while moving and commit on release, key-up or blur. Cards are semantic articles or links; action cards are buttons. There are no click-only divs or nested interactive room-card controls.
+Switch uses a native button with `role="switch"`, a meaningful label, and `aria-checked`. Offline switches are natively disabled. Pending controls use guarded `aria-disabled` to keep keyboard focus. Sliders use native range inputs with visible labels/values and device-specific accessible names. They preview a draft while moving, commit on release/key-up/blur, discard old/rejected drafts, and cancel interrupted pointer movement. They retain the same input node across responses.
+
+Room cards are links, devices are articles, and scene cards are articles with dedicated Run scene buttons. Native `details` expose scene actions and offline-device links. There are no nested buttons inside clickable cards. Card heading levels follow their enclosing section/page. Confirmation is shown only after a repository result; full, partial and no-update scene results have distinct text and tone.
 
 ## Responsive behavior
 
-- Desktop: persistent sidebar, broad hero, and four-column room/device/scene grids.
+- Desktop: persistent sidebar, compact status band, four-column Home grids and two-column room control groups/detailed scenes.
 - Tablet: a narrower sidebar and two-column grids.
 - Mobile below 768px: compact header, two-column grids, and bottom navigation with safe-area padding.
-- Compact 320px: devices and appearance choices become single-column; summary labels and actions adapt.
+- Compact 320px: devices, scenes and appearance choices become single-column; summary labels and actions adapt.
 
-The page footer reserves space for fixed mobile navigation. Grids use `minmax(0, 1fr)` and cards tolerate wrapping. At high zoom, the same breakpoints provide mobile layout. Browser tests inspect overflow from 320px through 1440px; manual screenshot review supplements them.
+The page footer reserves space for fixed mobile navigation. Grids use `minmax(0, 1fr)` and tolerate wrapping. Mobile room detail omits its identification photo so controls stay prominent. At high zoom the same breakpoints provide mobile layout. The test matrix explicitly includes 1440, 1024, 834, 390 and 320px. Switches and range inputs reserve 44px of height; Run scene buttons, details summaries and navigation links also have practical touch targets.
 
 ## Accessibility and motion
 

@@ -25,24 +25,24 @@ export const initialHome: HomeSnapshot = {
     { id: 'office-plug', roomId: 'office', name: 'Desk power', kind: 'relay', connection: 'online', on: true, favorite: false },
   ],
   scenes: [
-    { id: 'morning', name: 'Good morning', description: 'Open up. Ease into the day.', icon: 'sunrise', actions: [
+    { id: 'morning', name: 'Good morning', description: 'Open curtains and brighten shared spaces.', icon: 'sunrise', actions: [
       { type: 'set-position', deviceId: 'living-curtains', position: 100 },
       { type: 'set-position', deviceId: 'bedroom-curtains', position: 100 },
       { type: 'set-power', deviceId: 'kitchen-pendant', on: true },
       { type: 'set-brightness', deviceId: 'living-main', brightness: 80 },
     ] },
-    { id: 'evening', name: 'Cozy evening', description: 'Softer light. A slower pace.', icon: 'sofa', actions: [
+    { id: 'evening', name: 'Cozy evening', description: 'Dim lights and close living-room curtains.', icon: 'sofa', actions: [
       { type: 'set-brightness', deviceId: 'living-main', brightness: 35 },
       { type: 'set-position', deviceId: 'living-curtains', position: 0 },
       { type: 'set-brightness', deviceId: 'bedroom-lamp', brightness: 25 },
     ] },
-    { id: 'night', name: 'Good night', description: 'Lights out. Rest easy.', icon: 'moon', actions: [
+    { id: 'night', name: 'Good night', description: 'Turn off lights and close bedroom curtains.', icon: 'moon', actions: [
       { type: 'set-power', deviceId: 'living-main', on: false },
       { type: 'set-power', deviceId: 'kitchen-pendant', on: false },
       { type: 'set-power', deviceId: 'bedroom-lamp', on: false },
       { type: 'set-position', deviceId: 'bedroom-curtains', position: 0 },
     ] },
-    { id: 'away', name: 'Leaving home', description: 'Switch off the everyday.', icon: 'away', actions: [
+    { id: 'away', name: 'Leaving home', description: 'Switch off lights and selected power outlets.', icon: 'away', actions: [
       { type: 'set-power', deviceId: 'living-main', on: false },
       { type: 'set-power', deviceId: 'kitchen-pendant', on: false },
       { type: 'set-power', deviceId: 'bedroom-lamp', on: false },

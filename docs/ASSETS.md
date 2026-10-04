@@ -1,6 +1,6 @@
 # Local visual assets
 
-Interior photographs are stored locally in `public/images/`. The running app does not contact an image CDN. They illustrate the sample home and do not represent a customer’s actual rooms.
+Interior photographs are stored locally in `public/images/`. The running app does not contact an image CDN. In v0.2 they are limited to room cards and a compact desktop room identifier; Home no longer uses a photographic hero. No new visual assets were added. They illustrate the sample home and do not represent a customer’s actual rooms.
 
 | File | Download source |
 | --- | --- |
