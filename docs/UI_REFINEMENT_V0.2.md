@@ -1,5 +1,8 @@
 # KZ Home v0.2 — product UI/UX refinement
 
+Historical milestone report. Current integration behavior and validation are in
+[v0.3 Core foundation](CORE_FOUNDATION_V0.3.md).
+
 Implemented on `feature/ui-refinement-v0.2`, starting from a clean working tree at `28a8aae`. README, every existing document, source/configuration files, fixtures, repository behavior and tests were inspected before editing. The backend and firmware repositories were not accessed.
 
 ## Architecture

@@ -28,5 +28,5 @@ export function useHomeControls() {
     onMutate: () => queryClient.cancelQueries({ queryKey: homeKey }),
     onSuccess: (result: SceneResult) => queryClient.setQueryData(homeKey, result.home),
   });
-  return { command, scene, pending };
+  return { command, scene, pending, readOnly: repository.readOnly === true };
 }

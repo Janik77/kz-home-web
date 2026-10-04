@@ -29,10 +29,11 @@ interface DeviceBase {
 }
 
 export type Device = DeviceBase & (
-  | { kind: 'light'; on: boolean; brightness: number }
+  | { kind: 'light'; on: boolean; brightness: number | null }
   | { kind: 'relay'; on: boolean }
   | { kind: 'curtain'; position: number }
   | { kind: 'sensor'; temperature: number; humidity: number; measuredAt: string }
+  | { kind: 'other'; typeLabel: string; readings: { label: string; value: string }[]; temperature?: number; humidity?: number }
 );
 
 export type DeviceCommand =
@@ -44,8 +45,9 @@ export interface Scene {
   id: string;
   name: string;
   description: string;
-  icon: 'sunrise' | 'sofa' | 'moon' | 'away';
+  icon: 'sunrise' | 'sofa' | 'moon' | 'away' | 'scene';
   actions: DeviceCommand[];
+  readActions?: { deviceId: string; description: string }[];
 }
 
 export interface HomeSnapshot {
