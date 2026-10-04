@@ -6,6 +6,7 @@ import { DeviceGrid } from './device-grid';
 const groups: { kind: Device['kind']; label: string }[] = [
   { kind: 'light', label: 'Lighting' }, { kind: 'curtain', label: 'Curtains' },
   { kind: 'relay', label: 'Power' }, { kind: 'sensor', label: 'Climate & sensors' },
+  { kind: 'other', label: 'Reported states' },
 ];
 
 export function DeviceGroups({ devices, rooms }: { devices: Device[]; rooms: Room[] }) {

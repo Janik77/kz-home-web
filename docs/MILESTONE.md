@@ -1,6 +1,6 @@
 # Foundation 0.1 milestone report
 
-This is a historical report of v0.1. Its validation and Git state describe that milestone only. See [v0.2 UI refinement](UI_REFINEMENT_V0.2.md) for the current behavior, checks and changed-file inventory.
+This is a historical report of v0.1. Its validation and Git state describe that milestone only. See [v0.2 UI refinement](UI_REFINEMENT_V0.2.md) for the previous UI milestone and [v0.3 Core foundation](CORE_FOUNDATION_V0.3.md) for current behavior and validation.
 
 Implemented on `feature/web-foundation-v0.1`. The initial repository contained only `README.md` and untracked IDE settings. Those settings were inspected and preserved; `.idea/` is now ignored. Backend and firmware repositories were not accessed.
 

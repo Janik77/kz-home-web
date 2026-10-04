@@ -40,6 +40,16 @@ The page footer reserves space for fixed mobile navigation. Grids use `minmax(0,
 
 ## Accessibility and motion
 
+v0.3 preserves these tokens and layouts. The sign-in/house-selection surfaces
+reuse Wordmark, PageHeading, Button, StatePanel and Feedback. Form fields are
+native, labeled, at least 48px tall, and use 16px text. Core mode has a persistent
+read-only connection bar with Refresh home and Account & homes; it remains visible
+at 320px even when the small topbar badge is hidden. Core rooms without photos use
+neutral token surfaces. Unsupported/partial device states are readable rather
+than hidden, and Core scenes have neutral surfaces and inspectable read actions.
+Mock controls retain existing presentation/behavior. Authentication messages are
+status/alert feedback; sign-in mounts focus its heading and update the title.
+
 The shell includes a skip link, labeled navigation and a main landmark. Route navigation focuses main content. Controls have visible focus outlines and generous targets; switches reserve a 44px target despite their smaller visual track. Feedback uses polite live regions; errors use alerts. Offline controls are disabled with a written reason, and offline last-known state is never counted as active.
 
 Hover effects are small. `prefers-reduced-motion` disables significant transitions and animated loading motion. Theme follows OS changes in system mode, initializes before paint, and tolerates blocked browser storage.

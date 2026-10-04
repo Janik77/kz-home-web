@@ -6,8 +6,10 @@ import { DeviceGroups } from '../devices/device-groups';
 import { HomeDataBoundary } from '../home/home-data-boundary';
 import { AvailabilityNotice } from '../home/availability-notice';
 import { getRoomSummary } from '../../domain/selectors';
+import { useRepository } from '../../app/services';
 
 export function RoomPage() {
+  const readOnly = useRepository().readOnly;
   const { roomId } = useParams();
   return <HomeDataBoundary>{(home) => {
     const room = home.rooms.find((item) => item.id === roomId);
@@ -23,9 +25,9 @@ export function RoomPage() {
           {summary.temperature !== null && <div><dt>Temperature</dt><dd>{summary.temperature.toFixed(1)}°C</dd></div>}
           {summary.humidity !== null && <div><dt>Humidity</dt><dd>{summary.humidity.toFixed(0)}%</dd></div>}
         </dl></div>
-        <img className="room-intro__image" src={room.image} alt="" style={{ objectPosition: room.imagePosition }} width="800" height="520" />
+        {room.image && <img className="room-intro__image" src={room.image} alt="" style={{ objectPosition: room.imagePosition }} width="800" height="520" />}
       </div>
-      <AvailabilityNotice devices={devices} rooms={home.rooms} />
+      <AvailabilityNotice devices={devices} rooms={home.rooms} readOnly={readOnly === true} />
       <DeviceGroups devices={devices} rooms={home.rooms} />
     </div>;
   }}</HomeDataBoundary>;

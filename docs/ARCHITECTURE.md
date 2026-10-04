@@ -11,10 +11,11 @@ There is no Redux/Zustand, CSS framework, UI component framework, form framework
 ## Dependency direction
 
 ```text
-main.tsx -> providers + injected HomeRepository -> App + routes
+main.tsx -> validated configuration + service factory -> providers + HomeRepository -> App
 features -> shared UI + query hooks + domain
 query hooks -> repository boundary + Query cache
 mock adapter -> frontend domain + isolated fixtures
+Core adapter -> authenticated HTTP + validated DTOs -> frontend domain
 domain -> no React, transport, browser, or UI dependencies
 ```
 
@@ -57,7 +58,40 @@ In this adapter, zero brightness turns a light off. Turning it on from zero rest
 7. Handle stale measurements, disconnects, permission failures, reconnection and partial scene failures. Align any real-time mechanism with Core’s supported browser transport, with cleanup and cache updates in the data layer. Do not expose firmware MQTT credentials or connect MQTT directly from the browser.
 8. Add contract tests against verified responses, then end-to-end tests with a controlled Core environment. Keep existing fixture/interaction tests as independent frontend coverage.
 
-The frontend currently knows nothing about Core’s endpoint paths, wire payloads, session scheme, or event protocol. Backend and firmware repositories were not accessed.
+## v0.3 Core foundation
+
+The stack and dependency direction remain. Core was inspected read-only at
+`d1124e4`; [verified contracts](CORE_HTTP_CONTRACT.md) and
+[configuration/session procedure](CORE_INTEGRATION.md) replace speculative API
+integration. No dependency was added. Firmware was not accessed.
+
+`config/environment.ts` validates public mode/base URL. `data/create-services.ts`
+selects a mock repository or a Core session/repository factory once at composition.
+The HTTP client owns fetch, abort/timeout handling, JSON and safe typed errors.
+Runtime DTO checks and pure mapping remain inside data/core. Authentication has a
+small memory-only external store, exposed to the workspace via useSyncExternalStore;
+no JWT decoding, credential persistence or fabricated permission client exists.
+
+CoreWorkspace gates the routes until /auth/me and accessible-house reads succeed.
+Each house mounts its own repository and QueryClient, using the existing homeKey
+within that isolated scope. House changes/signout cancel and clear old caches.
+HomeRepository adds an optional readOnly capability so existing mock test doubles
+remain compatible. Core mutations reject before HTTP; UI controls respect that
+capability. Only auth POSTs are enabled. Mock mutations retain their serialization,
+confirmed-state and feedback behavior.
+
+The domain adds a general read-only device state variant and scene read-action
+descriptions for Core capabilities the mock control model cannot represent.
+Light brightness can be unknown; it is never defaulted to 0/100. Core single-field
+climate contributes only available numeric data to summaries. No mock imagery,
+favorite flags, house location, scene-purpose copy or measurement timestamps are
+invented. Raw DTOs never enter feature components.
+
+RuntimeContext carries UI connection identity and account/house actions only.
+Session credentials remain private to CoreSession and outside React/Query caches.
+Core reads are manually refreshed and are not atomic or real-time. Query read
+retry is disabled in Core scopes; the session allows only one authenticated GET
+retry after rotation, never automatic device or rotating-refresh retries.
 
 ## Growing the product
 

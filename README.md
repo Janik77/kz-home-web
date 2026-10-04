@@ -1,8 +1,8 @@
 # KZ Home Web
 
-A consumer control interface for KZ Home, built independently of `kz-home-core` and `kz-home-firmware`. The current milestone is **v0.2: product UI/UX refinement**.
+A consumer interface for KZ Home. The current milestone is **v0.3: real Core integration foundation**, using the verified contract of the separate `kz-home-core` repository. Firmware remains separate.
 
-Home opens with connectivity, lighting and climate status, offline-device attention, and frequently used controls. Rooms provide availability summaries and grouped control surfaces. Scenes show their purpose, affected rooms/devices and inspectable actions, with explicit execution results. Appearance settings remain simple. **All home data and commands are simulated** behind the existing repository boundary. The interface labels this as a local preview. No authentication, backend transport, MQTT, or deployment infrastructure is included.
+Home, Rooms, room detail, Scenes and appearance settings retain the v0.2 design. **Mock mode** remains an isolated local preview with simulated controls. **Core mode** provides real JSON login, in-memory bearer sessions, house selection and read-only home data through the existing repository boundary. Real device control and scene execution are deliberately unavailable. No browser MQTT, frontend backend or deployment infrastructure is included.
 
 ## Development
 
@@ -29,6 +29,7 @@ For browser tests, either install Playwright’s Chromium once or use an existin
 ```sh
 npx playwright install chromium
 npm run test:e2e
+npm run test:e2e:core # Core frontend against intercepted contract responses, not live Core
 ```
 
 ```powershell
@@ -58,12 +59,15 @@ src/
   data/
     home-repository.ts Application data boundary (not a wire contract)
     mock/              Fixtures and isolated in-memory adapter
+    core/              HTTP, session, validated DTOs, mapping, read-only adapter
+  config/              Validated public environment selection
   features/
     home/              Dashboard, query/control hooks, data states, summary
     rooms/             Overview, floor filter, room detail and cards
     devices/           Device cards and command presentation
     scenes/            Quick controls, scene details and feedback
     settings/          Appearance preference and preview information
+    auth/              Real Core sign-in/session feedback
   styles/              Semantic tokens, global rules, components and layout
   test/                Unit/component test setup
 e2e/                   Rendered browser tests
@@ -71,15 +75,17 @@ public/                Local imagery, favicon, pre-paint theme initialization
 docs/                  Architecture, design system and image sources
 ```
 
-See [architecture and Core integration](docs/ARCHITECTURE.md), [design system](docs/DESIGN_SYSTEM.md), [image sources](docs/ASSETS.md), the [v0.2 report](docs/UI_REFINEMENT_V0.2.md), and the [historical v0.1 report](docs/MILESTONE.md).
+See [architecture](docs/ARCHITECTURE.md), [verified Core contract](docs/CORE_HTTP_CONTRACT.md), [Core configuration and local procedure](docs/CORE_INTEGRATION.md), [v0.3 report](docs/CORE_FOUNDATION_V0.3.md), [design system](docs/DESIGN_SYSTEM.md), [image sources](docs/ASSETS.md), and the historical [v0.2](docs/UI_REFINEMENT_V0.2.md) / [v0.1](docs/MILESTONE.md) reports.
 
-## Mock data and future Core integration
+## Mock and Core modes
 
-Only `src/data/mock/` defines the sample home or simulates device changes. `src/main.tsx` injects that adapter through `RepositoryProvider`. Features use query hooks and domain models; they never import fixtures, perform network requests, or know transport details.
+Only `src/data/mock/` defines the sample home or simulates device changes. `createServices` chooses the adapter from validated configuration; `RepositoryProvider` still injects the selected house repository. Features use query hooks and domain models, never transport DTOs or raw fetch. Core mode is labeled **Core · Read only**; mock mode remains labeled **Local preview**.
 
-The next API milestone should begin with the actual Core documentation and authentication model. Add an adapter that maps verified Core responses into frontend domain models, then replace the repository injection. No backend endpoint, payload, authentication behavior, or event protocol has been assumed. See the architecture document for handling confirmed device state, concurrency, errors, and multiple houses.
+Copy `.env.example` to ignored `.env` in Web. Default `VITE_DATA_MODE=mock` needs no Core. To connect an independently managed local Core, set `VITE_DATA_MODE=core`, `VITE_API_URL=/core-api`, and `CORE_DEV_PROXY_TARGET=http://127.0.0.1:8000`, then restart Vite. The local proxy handles differing development origins without editing Core, whose current implementation has no CORS middleware. It is not a production routing solution. Remote connections require HTTPS.
 
-## Current scope
+Sign in with an existing Core account; Web provides no registration or recovery. Access and rotating refresh tokens remain only in tab memory, and reload requires sign-in. Core-mode reads cover accessible houses, floors, rooms, devices and permission-scoped scenes. Missing photos/favorites/state values are not filled from mocks. See the [exact procedure and security/contract gaps](docs/CORE_INTEGRATION.md).
+
+## Preserved mock scope
 
 - One sample house, two floors, four rooms and ten devices.
 - Light brightness/power, relay power, curtain position, and read-only climate sensors.
@@ -91,4 +97,4 @@ The next API milestone should begin with the actual Core documentation and authe
 - Loading, empty, recoverable data errors, render errors, and unknown routes.
 - Desktop sidebar, tablet layout, and mobile bottom navigation.
 
-Reloading resets the simulated home. Photos are illustrative and appear in room cards and a compact desktop room identifier, rather than a Home hero. Sensor timestamps are fixed fixture values; device cards show the measurement date/time in the browser locale. The global preview indicator and Settings explain the sample data. Future accounts, onboarding, automations, energy, notifications, and AI are not represented as working integrations. Browser history routing will eventually require a host fallback to `index.html`, but no hosting configuration is added here.
+Reloading resets the simulated home. Mock photographs and sensor timestamps are illustrative fixture values. Core mode does not use them and preserves partial/unknown state in read-only cards. Onboarding, automations, energy, notifications and AI remain outside Web scope. Real Core E2E remains unverified because port 8000 was unavailable in this session; browser integration tests intercept verified-contract fixtures. Browser history routing will eventually require a host fallback to `index.html`, but no hosting configuration is added here.

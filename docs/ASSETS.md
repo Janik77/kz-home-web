@@ -2,6 +2,9 @@
 
 Interior photographs are stored locally in `public/images/`. The running app does not contact an image CDN. In v0.2 they are limited to room cards and a compact desktop room identifier; Home no longer uses a photographic hero. No new visual assets were added. They illustrate the sample home and do not represent a customer’s actual rooms.
 
+v0.3 uses these photos only in mock mode. Core exposes no room-image contract;
+real room cards use a neutral surface and omit photographic identifiers.
+
 | File | Download source |
 | --- | --- |
 | `living-room.jpg` | https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1800&q=80&fm=jpg |
