@@ -32,6 +32,16 @@ The routes are `/`, `/rooms`, `/rooms/:roomId`, `/scenes`, and `/settings`. Unkn
 | Appearance preference | Theme context | Optional localStorage |
 | Navigation | React Router/browser history | Browser history |
 
+## v0.2 refinement
+
+The stack, routes, providers, query keys and `HomeRepository` interface are preserved. No dependencies or transport mechanisms were added. Pure room/scene selectors derive availability, active-device counts, available climate measurements, unique affected devices/rooms and unavailable action counts from the existing domain. Capability grouping is a small presentation configuration in the devices feature; no generic plugin registry was introduced.
+
+Device feedback is attached to the card for the current mutation attempt; scene feedback is attached to the scene being run. Raw adapter error strings are not shown. Device failures retain the last confirmed state and offer an explicit retry. Scene runs use dedicated buttons and show pending, full success, partial success, no-update and failure outcomes. `SceneResult.applied` and `.skipped` count commands, so results say **controls**, while scope summaries deduplicate devices and rooms. A run with every action skipped is never presented as success.
+
+Controls remain locked across the home while mutations serialize. Offline switches use native disabled behavior, with last-known-state text; pending switches/ranges use guarded `aria-disabled` behavior to retain focus. Pointer/key events and click handlers reject input while busy. Range drafts are discarded when confirmed data or operation revision changes, with the same input node retained. Pointer cancellation restores the confirmed value without issuing a command. Feedback describes the last attempt in the mounted view; it is not a persistent operation history.
+
+Home prioritizes status, attention, favorites, rooms and scenes. Room detail groups controls by capability and derives room status from available devices. No sample-house identity, scene outcomes, or device changes are hardcoded in these views. Photography is kept for room recognition. Offline links navigate to the affected room/device and focus that card. Standard navigation still focuses the main landmark.
+
 The mock repository is a factory. It clones its seed and returned snapshots so consumers and tests cannot mutate shared fixtures. It simulates latency, accepts read cancellation, rejects offline or incompatible commands, validates percentages, and reports scene actions skipped because devices are missing/offline. Invalid scene actions do not persist a partially changed snapshot. A scene result counts controls, since one scene can contain multiple commands for a device.
 
 In this adapter, zero brightness turns a light off. Turning it on from zero restores 100% brightness. That is a documented simulation rule; real behavior must be mapped from Core’s device semantics. All online/measurement states are sample data, not a claim about a connected house.

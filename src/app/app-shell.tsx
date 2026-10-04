@@ -1,9 +1,10 @@
-import { ArrowUpRight, House, LayoutGrid, Leaf, Moon, Settings2, Sparkles, Sun } from 'lucide-react';
+import { House, LayoutGrid, Moon, Settings2, Sparkles, Sun } from 'lucide-react';
 import { Link, NavLink, Outlet } from 'react-router';
 import { Wordmark } from '../components/brand/wordmark';
 import { useTheme } from './theme-context';
 import { NavigationEffects } from './navigation-effects';
 import { useHome } from '../features/home/use-home';
+import { getHomeSummary } from '../domain/selectors';
 
 const navigation = [
   { to: '/', label: 'Home', icon: House },
@@ -25,6 +26,7 @@ function Navigation({ mobile = false }: { mobile?: boolean }) {
 export function AppShell() {
   const theme = useTheme();
   const home = useHome();
+  const summary = home.data ? getHomeSummary(home.data) : null;
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">Skip to content</a>
@@ -33,8 +35,8 @@ export function AppShell() {
         <p className="sidebar__label">YOUR SPACE</p>
         <Navigation />
         <div className="sidebar__bottom">
-          <div className="sidebar__message"><Leaf size={24} aria-hidden="true" /><p>A thoughtful home.<br /><span>A simpler everyday.</span></p></div>
-          <div className="preview-note"><span className="status-dot" /><span>Local preview</span><ArrowUpRight size={15} aria-hidden="true" /></div>
+          <div className="sidebar__message"><House size={21} aria-hidden="true" /><p>{home.data?.house.name ?? 'Your home'}<br /><span>{summary ? `${summary.online} of ${summary.total} devices online` : 'Loading home status…'}</span></p></div>
+          <div className="preview-note"><span className="status-dot" /><span>Local preview</span></div>
           <p className="sidebar__footnote">Sample home · simulated controls</p>
         </div>
       </aside>
@@ -50,7 +52,7 @@ export function AppShell() {
           </div>
         </header>
         <main id="main-content" className="main-content" tabIndex={-1}><Outlet /></main>
-        <footer className="app-footer"><span>KZ Home</span><span>Connected to the little things.</span></footer>
+        <footer className="app-footer"><span>KZ Home · 0.2</span><span>Local preview · changes reset on reload</span></footer>
       </div>
       <Navigation mobile />
       <NavigationEffects />
