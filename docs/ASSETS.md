@@ -1,6 +1,6 @@
 # Local visual assets
 
-Interior photographs are stored locally in `public/images/`. The running app does not contact an image CDN. In v0.2 they are limited to room cards and a compact desktop room identifier; Home no longer uses a photographic hero. No new visual assets were added. They illustrate the sample home and do not represent a customer’s actual rooms.
+Interior photographs are stored locally in `public/images/`. The running app does not contact an image CDN. Signature Home reuses them for the sample-home hero and room cards. No new visual assets were added. They illustrate the sample home and do not represent a customer’s actual rooms.
 
 v0.3 uses these photos only in mock mode. Core exposes no room-image contract;
 real room cards use a neutral surface and omit photographic identifiers.

@@ -1,21 +1,23 @@
-import { CircleAlert, Layers, LoaderCircle } from 'lucide-react';
+import { CircleAlert, Layers, LoaderCircle, LockKeyhole } from 'lucide-react';
 import { Button } from './button';
 
 interface StatePanelProps {
-  kind: 'empty' | 'error' | 'loading';
+  kind: 'empty' | 'error' | 'loading' | 'restricted';
   title: string;
   description?: string;
   onRetry?: () => void;
+  retryLabel?: string;
 }
 
-export function StatePanel({ kind, title, description, onRetry }: StatePanelProps) {
-  const Icon = kind === 'error' ? CircleAlert : kind === 'loading' ? LoaderCircle : Layers;
+export function StatePanel({ kind, title, description, onRetry, retryLabel = 'Try again' }: StatePanelProps) {
+  const Icon = kind === 'error' ? CircleAlert : kind === 'restricted' ? LockKeyhole : kind === 'loading' ? LoaderCircle : Layers;
   return (
-    <div className={`state-panel state-panel--${kind}`} role={kind === 'error' ? 'alert' : 'status'}>
+    <div className={`state-panel state-panel--${kind}`} role={kind === 'error' || kind === 'restricted' ? 'alert' : 'status'}>
       <Icon size={28} aria-hidden="true" className={kind === 'loading' ? 'spin' : ''} />
       <h2>{title}</h2>
       {description && <p>{description}</p>}
-      {onRetry && <Button variant="secondary" onClick={onRetry}>Try again</Button>}
+      {kind === 'loading' && <div className="loading-skeleton" aria-hidden="true"><span /><span /><span /></div>}
+      {onRetry && <Button variant="secondary" onClick={onRetry}>{retryLabel}</Button>}
     </div>
   );
 }

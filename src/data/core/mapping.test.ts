@@ -40,4 +40,9 @@ describe('Core DTO boundary', () => {
     expect(() => decodeTokens({ token_type: 'cookie', expires_in: 900 })).toThrow();
     expect(() => decodeUser({ ...coreUser, is_active: false })).toThrow();
   });
+  it('keeps last-known ON state separate from reported connectivity and active counts', () => {
+    const device = mapDevice(decodeDevice({ ...coreDevice, online: false, state: { on: true, brightness: 45 } }));
+    expect(device).toMatchObject({ kind: 'light', connection: 'offline', on: true, brightness: 45 });
+    expect(getRoomSummary([device])).toMatchObject({ online: 0, offline: 1, active: 0 });
+  });
 });

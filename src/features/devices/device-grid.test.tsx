@@ -15,7 +15,7 @@ describe('confirmed device controls', () => {
     renderHome({ ...repository, sendCommand }, (home) => <DeviceGrid devices={home.devices} rooms={home.rooms} />);
     const toggle = await screen.findByRole('switch', { name: 'Ceiling lights in Living room' });
     await userEvent.click(toggle);
-    expect(await screen.findByText('Updating… Waiting for confirmation.')).toBeInTheDocument();
+    expect(await screen.findByText('Updating simulation…')).toBeInTheDocument();
     expect(toggle).toHaveAttribute('aria-checked', 'true');
     expect(toggle).toHaveAttribute('aria-disabled', 'true');
     expect(toggle).toHaveFocus();
@@ -24,7 +24,7 @@ describe('confirmed device controls', () => {
     const updated = await repository.sendCommand({ type: 'set-power', deviceId: 'living-main', on: false });
     await act(async () => resolve(updated));
     await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'false'));
-    expect(await screen.findByText('Update confirmed.')).toBeInTheDocument();
+    expect(await screen.findByText('Simulation updated.')).toBeInTheDocument();
     expect(toggle).toHaveFocus();
   });
 
@@ -34,7 +34,7 @@ describe('confirmed device controls', () => {
     renderHome({ ...repository, sendCommand }, (home) => <DeviceGrid devices={home.devices} rooms={home.rooms} />);
     const toggle = await screen.findByRole('switch', { name: 'Ceiling lights in Living room' });
     await userEvent.click(toggle);
-    expect(await screen.findByRole('alert')).toHaveTextContent('Its last confirmed state is shown');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Its last confirmed sample state is shown');
     expect(screen.queryByText(/Internal adapter/)).not.toBeInTheDocument();
     expect(toggle).toHaveAttribute('aria-checked', 'true');
     expect(sendCommand).toHaveBeenCalledTimes(1);

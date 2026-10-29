@@ -33,19 +33,19 @@ export function DeviceCard({ device, roomName, busy, readOnly, operation, revisi
       {(readOnly || device.kind === 'curtain' || device.kind === 'sensor' || device.kind === 'other') && <span className="device-card__type">{device.kind === 'other' ? device.typeLabel : labels[device.kind]}</span>}
     </div>
     <p className="device-card__room">{roomName}</p><h3>{device.name}</h3>
-    <div className="device-card__connection"><StatusBadge online={!offline} />{(readOnly || device.kind === 'sensor' || device.kind === 'other') && <span>Read only</span>}</div>
+    <div className="device-card__connection"><StatusBadge online={!offline} label={readOnly ? (offline ? 'Reported offline' : 'Reported online') : (offline ? 'Offline' : 'Online')} />{(readOnly || device.kind === 'sensor' || device.kind === 'other') && <span>Read only</span>}</div>
     <p className="device-card__state">{describeDevice(device)}</p>
     {device.kind === 'light' && device.brightness !== null && !readOnly && !offline && <RangeControl label="Brightness" accessibleLabel={`${device.name} brightness in ${roomName}`} value={device.brightness} disabled={busy} revision={revision}
       onCommit={(brightness) => onCommand({ type: 'set-brightness', deviceId: device.id, brightness })} />}
     {device.kind === 'curtain' && !readOnly && !offline && <RangeControl label="Open amount" accessibleLabel={`${device.name} open amount in ${roomName}`} value={device.position} disabled={busy} revision={revision}
       onCommit={(position) => onCommand({ type: 'set-position', deviceId: device.id, position })} />}
     {device.kind === 'relay' && !readOnly && !offline && <p className="device-card__footnote">{device.on ? 'Switch off to stop power to this outlet.' : 'Switch on to supply power to this outlet.'}</p>}
-    {device.kind === 'sensor' && !offline && <p className="device-card__footnote">Measured {new Date(device.measuredAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>}
+    {device.kind === 'sensor' && !offline && <p className="device-card__footnote">Sample reading · {new Date(device.measuredAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>}
     {offline && <p className="device-card__footnote">Last known: {describeDevice({ ...device, connection: 'online' })}.{!readOnly && ' Reconnect this device to use its controls.'}</p>}
     <div className="device-card__feedback">
-      {operation === 'pending' && <Feedback tone="pending" message="Updating… Waiting for confirmation." />}
-      {operation === 'success' && <Feedback tone="success" message="Update confirmed." />}
-      {operation === 'error' && <Feedback tone="error" message="Couldn’t update this device. Its last confirmed state is shown.">
+      {!readOnly && operation === 'pending' && <Feedback tone="pending" message="Updating simulation…" />}
+      {!readOnly && operation === 'success' && <Feedback tone="success" message="Simulation updated." />}
+      {!readOnly && operation === 'error' && <Feedback tone="error" message="Couldn’t update the simulation. Its last confirmed sample state is shown.">
         <Button variant="quiet" aria-disabled={busy || offline} onClick={() => { if (!busy && !offline) onRetry(); }}>Try again</Button>
       </Feedback>}
     </div>

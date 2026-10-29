@@ -30,8 +30,8 @@ export function SceneControls({ home, detailed = false }: { home: HomeSnapshot; 
         {readOnly ? <p className="quiet-note">Read only · scene execution isn’t enabled</p> : <Button variant="secondary" className="scene-card__run" aria-label={`Activate ${item.name}`} aria-disabled={pending}
           onClick={() => { if (!pending) scene.mutate(item.id); }}>{selected && scene.isPending ? 'Running…' : 'Run scene'}</Button>}
         <div className="scene-card__feedback">
-          {selected && scene.isPending && <Feedback tone="pending" message={`Running ${item.name}… Waiting for confirmation.`} />}
-          {result && <Feedback tone={result.tone} message={result.message} />}
+          {selected && scene.isPending && <Feedback tone="pending" message={`Simulating ${item.name}…`} />}
+          {result && <Feedback tone={result.tone} message={result.message + ' Simulation only.'} />}
           {selected && scene.isError && <Feedback tone="error" message={`Couldn’t run ${item.name}. Check your devices and try again.`} />}
         </div>
       </article>;

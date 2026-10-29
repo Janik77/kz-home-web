@@ -46,8 +46,8 @@ test('signs in, reads a home without controls or mock images, switches homes, an
   await login(page);
   await expect(page.getByRole('heading', { name: 'Your homes', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Family home' }).click();
-  await expect(page.getByRole('heading', { name: 'Home', level: 1 })).toBeVisible();
-  await expect(page.getByRole('article', { name: 'Reading light in Living room' })).toContainText('On · 45% brightness');
+  await expect(page.getByRole('heading', { name: 'Добро пожаловать домой', level: 1 })).toBeVisible();
+  await expect(page.getByRole('article', { name: 'Reading light · Living room' })).toContainText('Включён · 45%');
   await expect(page.getByRole('switch')).toHaveCount(0);
   await expect(page.getByRole('slider')).toHaveCount(0);
   await expect(page.locator('img')).toHaveCount(0);
@@ -56,12 +56,12 @@ test('signs in, reads a home without controls or mock images, switches homes, an
   await page.getByRole('button', { name: 'Use dark theme' }).click();
   await accessible(page);
   await page.screenshot({ path: testInfo.outputPath('core-home-dark.png'), fullPage: true });
-  await page.getByRole('link', { name: 'All scenes' }).click();
+  await page.getByRole('link', { name: 'Все сценарии' }).click();
   await page.getByText('View controls (1)').click();
   await expect(page.getByText('Power: On · Brightness: 25%')).toBeVisible();
   await accessible(page);
   const navigation = page.getByRole('navigation', { name: page.viewportSize()!.width < 768 ? 'Mobile navigation' : 'Main navigation' });
-  await navigation.getByRole('link', { name: 'Rooms', exact: true }).click();
+  await navigation.getByRole('link', { name: 'Комнаты', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Rooms', level: 1 })).toBeVisible();
   await accessible(page);
   await page.getByRole('link', { name: /Living room.*devices/ }).click();
@@ -71,11 +71,11 @@ test('signs in, reads a home without controls or mock images, switches homes, an
   await accessible(page);
   await page.getByRole('link', { name: 'Account & homes' }).click();
   await page.getByRole('combobox', { name: 'Home', exact: true }).selectOption('house-b');
-  await expect(page.getByRole('heading', { name: 'Home', level: 1 })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'No devices here yet' })).toBeVisible();
-  await expect(page.getByRole('article', { name: 'Reading light in Living room' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Добро пожаловать домой', level: 1 })).toBeVisible();
+  await expect(page.getByText('Устройств пока нет.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('article', { name: 'Reading light · Living room' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Study', exact: true })).toBeVisible();
-  await page.getByRole('link', { name: 'Account & homes' }).click();
+  await page.getByRole('link', { name: 'Аккаунт и дома' }).click();
   await accessible(page);
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Welcome home' })).toBeVisible();
@@ -97,7 +97,7 @@ test('shows login failure, Core unavailability and no accessible homes without m
   });
   await page.goto('/'); await login(page);
   await expect(page.getByText('The email or password wasn’t accepted. Please try again.')).toBeVisible();
-  await expect(page.getByLabel('Password')).toHaveValue(''); await accessible(page);
+  await expect(page.getByLabel('Password', { exact: true })).toHaveValue(''); await accessible(page);
   await login(page); await expect(page.getByText('Core is temporarily unavailable. Please try again in a moment.')).toBeVisible();
   await login(page); await expect(page.getByRole('heading', { name: 'No accessible homes' })).toBeVisible();
   await accessible(page);
@@ -112,16 +112,48 @@ test('keeps partial device state visible and expires a rejected session', async 
     ], '/scenes': [coreScene],
   });
   await page.goto('/'); await login(page);
-  await expect(page.getByRole('heading', { name: 'Home', level: 1 })).toBeVisible();
-  await expect(page.getByText('No reported state yet', { exact: true })).toBeVisible();
-  await expect(page.getByText(/reported offline by Core/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Добро пожаловать домой', level: 1 })).toBeVisible();
+  await expect(page.getByText('Нет данных о состоянии', { exact: true })).toBeVisible();
+  await expect(page.getByText('Не в сети: 1 устройство', { exact: true })).toBeVisible();
   await accessible(page);
   await page.getByRole('button', { name: 'Use dark theme' }).click(); await accessible(page);
   await page.route('**/core-api/auth/refresh', (route) => route.fulfill({ status: 401 }));
   await page.route('**/core-api/houses/house-a', (route) => route.fulfill({ status: 401 }));
-  await page.getByRole('button', { name: 'Refresh home' }).click();
+  await page.getByRole('button', { name: 'Обновить данные' }).click();
   await expect(page.getByText('Your session has expired. Sign in again to continue.')).toBeVisible();
-  await expect(page.getByRole('article', { name: 'Reading light in Living room' })).toHaveCount(0);
+  await expect(page.getByRole('article', { name: 'Reading light · Living room' })).toHaveCount(0);
   await accessible(page);
   expect(requests.some((request) => request.path.includes('/state') || request.path.endsWith('/run'))).toBe(false);
+});
+
+test('keeps Cyrillic last-known ON data offline and distinguishes restricted access', async ({ page }) => {
+  const roomName = 'Гостиная с панорамными окнами';
+  const deviceName = 'Освещение зоны отдыха';
+  const requests = await interceptCore(page, {
+    '/houses': [{ ...coreHouse, name: 'Дом в Алматы' }],
+    '/houses/house-a': { ...coreHouse, name: 'Дом в Алматы' },
+    '/rooms': [{ ...coreRoom, name: roomName }],
+    '/devices?house_id=house-a': [{ ...coreDevice, name: deviceName, online: false, state: { on: true, brightness: 45 } }],
+  });
+  await page.goto('/');
+  await page.getByLabel('Password', { exact: true }).fill('fixture-only');
+  await page.getByRole('button', { name: 'Show password', exact: true }).click();
+  await expect(page.getByLabel('Password', { exact: true })).toHaveAttribute('type', 'text');
+  await page.getByRole('button', { name: 'Hide password', exact: true }).click();
+  await expect(page.getByLabel('Password', { exact: true })).toHaveAttribute('type', 'password');
+  await login(page);
+  await page.evaluate(() => { document.documentElement.lang = 'ru'; });
+  const card = page.getByRole('article', { name: `${deviceName} · ${roomName}` });
+  await expect(card).toContainText('Core сообщает: не в сети');
+  await expect(card).toContainText('Не в сети · последнее: Включён · 45%');
+  await expect(card).not.toHaveClass(/signature-device--active/);
+  await expect(page.getByRole('switch')).toHaveCount(0);
+  await expect(page.getByRole('slider')).toHaveCount(0);
+  await accessible(page);
+  await page.route('**/core-api/houses/house-a', (route) => route.fulfill({ status: 403, contentType: 'application/json', body: '{"detail":"not displayed"}' }));
+  await page.getByRole('button', { name: 'Обновить данные' }).click();
+  await expect(page.getByRole('heading', { name: 'Доступ ограничен' })).toBeVisible();
+  await expect(card).toHaveCount(0);
+  await accessible(page);
+  expect(requests.filter((r) => r.method !== 'GET').map((r) => r.path)).toEqual(['/auth/login']);
 });

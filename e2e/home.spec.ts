@@ -13,8 +13,8 @@ test.afterEach(({ page }) => { expect(browserErrors.get(page)).toEqual([]); });
 
 test('renders home without overflow or broken images, with accessible light and dark themes', async ({ page }, testInfo) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Home', level: 1 })).toBeVisible();
-  await expect(page.getByRole('switch', { name: 'Ceiling lights in Living room' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Добро пожаловать домой', level: 1 })).toBeVisible();
+  await expect(page.getByRole('switch', { name: 'Потолочный свет · Гостиная' })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   for (const image of await page.locator('img').all()) {
     await image.scrollIntoViewIfNeeded();
@@ -36,12 +36,12 @@ test('renders home without overflow or broken images, with accessible light and 
 
 test('switches devices, commits keyboard sliders, and reports scene skips', async ({ page }) => {
   await page.goto('/');
-  const light = page.getByRole('switch', { name: 'Ceiling lights in Living room' });
+  const light = page.getByRole('switch', { name: 'Потолочный свет · Гостиная' });
   await expect(light).toHaveAttribute('aria-checked', 'true');
   await light.click();
   await expect(light).toHaveAttribute('aria-checked', 'false');
   await expect(light).toBeEnabled();
-  const brightness = page.getByRole('slider', { name: 'Ceiling lights brightness in Living room' });
+  const brightness = page.getByRole('slider', { name: 'Яркость: Потолочный свет · Гостиная' });
   await brightness.focus();
   await brightness.press('Home');
   await expect(brightness).toHaveValue('0');
@@ -49,11 +49,11 @@ test('switches devices, commits keyboard sliders, and reports scene skips', asyn
   await expect(brightness).toBeFocused();
   await brightness.press('ArrowRight');
   await expect(light).toHaveAttribute('aria-checked', 'true');
-  await page.getByRole('button', { name: 'Activate Cozy evening' }).click();
-  await expect(page.getByText('Cozy evening applied · 3 controls updated.')).toBeVisible();
+  await page.getByRole('button', { name: 'Запустить сценарий: Уютный вечер' }).click();
+  await expect(page.getByText('Симуляция «Уютный вечер»: обновлено 3, пропущено 0. Не подтверждение оборудования.')).toBeVisible();
   await expect(brightness).toHaveValue('35');
-  await page.getByRole('button', { name: 'Activate Leaving home' }).click();
-  await expect(page.getByText('Leaving home partially applied · 5 controls updated · 1 control skipped (offline or unavailable).')).toBeVisible();
+  await page.getByRole('button', { name: 'Запустить сценарий: Ушёл из дома' }).click();
+  await expect(page.getByText('Симуляция «Ушёл из дома»: обновлено 5, пропущено 1. Не подтверждение оборудования.')).toBeVisible();
   await expect(light).toHaveAttribute('aria-checked', 'false');
 });
 
@@ -91,18 +91,19 @@ test('navigates rooms and checks offline controls and route accessibility', asyn
   await expect(page.getByRole('heading', { name: 'This page isn’t here' })).toBeVisible();
 });
 
-test('puts controls first, exposes device attention, and renders grouped rooms and inspectable scenes', async ({ page }, testInfo) => {
+test('matches Signature composition, exposes device attention, and renders grouped rooms and inspectable scenes', async ({ page }, testInfo) => {
   await page.goto('/');
-  const light = page.getByRole('switch', { name: 'Ceiling lights in Living room' });
+  const light = page.getByRole('switch', { name: 'Потолочный свет · Гостиная' });
   await expect(light).toBeVisible();
   const bounds = await light.boundingBox();
   expect(bounds?.width).toBeGreaterThanOrEqual(44);
   expect(bounds?.height).toBeGreaterThanOrEqual(44);
-  expect(bounds!.y).toBeLessThan(page.viewportSize()!.height - 70);
-  const slider = page.getByRole('slider', { name: 'Ceiling lights brightness in Living room' });
+  expect(await page.locator('.signature-home > section').evaluateAll((sections) => sections.map((section) => section.className))).toEqual(['signature-quick', 'signature-rooms', 'signature-favorites', 'signature-system']);
+  await light.scrollIntoViewIfNeeded();
+  const slider = page.getByRole('slider', { name: 'Яркость: Потолочный свет · Гостиная' });
   expect((await slider.boundingBox())?.height).toBeGreaterThanOrEqual(44);
-  await page.getByText('View offline device', { exact: true }).click();
-  await page.getByRole('link', { name: 'Desk lamp Home office · View room' }).click();
+  await page.getByText('Не в сети: 1 устройство', { exact: true }).click();
+  await page.getByRole('link', { name: 'Настольная лампа · Кабинет' }).click();
   await expect(page.locator('#device-office-lamp')).toBeFocused();
   await expect(page.getByRole('switch', { name: 'Desk lamp in Home office' })).toBeDisabled();
   for (const route of ['/rooms/living', '/scenes']) {
@@ -128,14 +129,14 @@ test('puts controls first, exposes device attention, and renders grouped rooms a
 test('supports keyboard navigation and reduced motion', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Home', level: 1 })).toBeVisible();
-  await page.getByRole('link', { name: 'Skip to content' }).focus();
-  await expect(page.getByRole('link', { name: 'Skip to content' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Добро пожаловать домой', level: 1 })).toBeVisible();
+  await page.getByRole('link', { name: 'К содержимому' }).focus();
+  await expect(page.getByRole('link', { name: 'К содержимому' })).toBeVisible();
   await page.keyboard.press('Enter');
   await expect(page.locator('#main-content')).toBeFocused();
-  const scene = page.getByRole('button', { name: 'Activate Good night' });
+  const scene = page.getByRole('button', { name: 'Запустить сценарий: Спокойной ночи' });
   await scene.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByText('Good night applied · 4 controls updated.')).toBeVisible();
+  await expect(page.getByText('Симуляция «Спокойной ночи»: обновлено 4, пропущено 0. Не подтверждение оборудования.')).toBeVisible();
   expect(await scene.evaluate((element) => Number.parseFloat(getComputedStyle(element).transitionDuration))).toBeLessThanOrEqual(0.00001);
 });

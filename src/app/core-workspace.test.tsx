@@ -36,7 +36,7 @@ it('renders login pending, then a read-only home in StrictMode with no real cont
   expect(screen.getByRole('button', { name: 'Signing in…' })).toHaveAttribute('aria-disabled', 'true');
   expect(screen.getByLabelText('Password')).toHaveValue('');
   finish(Response.json(coreResponses['/auth/login']));
-  expect(await screen.findByRole('heading', { name: 'Home', level: 1 })).toBeVisible();
+  expect(await screen.findByRole('heading', { name: 'Добро пожаловать домой', level: 1 })).toBeVisible();
   expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   expect(screen.queryByRole('slider')).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Activate Evening' })).not.toBeInTheDocument();
@@ -57,22 +57,22 @@ it('shows no accessible houses with a retry rather than a sample home', async ()
   await signIn();
   expect(await screen.findByRole('heading', { name: 'No accessible homes' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Try again' })).toBeVisible();
-  expect(screen.queryByRole('heading', { name: 'Home', level: 1 })).toBeNull();
+  expect(screen.queryByRole('heading', { name: 'Добро пожаловать домой', level: 1 })).toBeNull();
 });
 
 it('reports permission failures without substituting empty data', async () => {
   setup(vi.fn<typeof fetch>().mockImplementation(async (url) => String(url).includes('/devices?') ? new Response(null, { status: 403 }) : Response.json(coreResponses[String(url).replace('/core-api', '')])));
   await signIn();
-  expect(await screen.findByText('Your account doesn’t have permission to view this information.')).toBeVisible();
+  expect(await screen.findByText('У этой учётной записи нет доступа к данным дома.')).toBeVisible();
 });
 
 it('returns to session-expired login when refresh is rejected and removes house data', async () => {
   const { services, fetcher } = setup(); await signIn();
-  await screen.findByRole('heading', { name: 'Home', level: 1 });
+  await screen.findByRole('heading', { name: 'Добро пожаловать домой', level: 1 });
   fetcher.mockImplementation(async (url) => String(url).endsWith('/auth/refresh') || String(url).endsWith('/houses/house-a')
     ? new Response(null, { status: 401 }) : Response.json(coreResponses[String(url).replace('/core-api', '')]));
-  fireEvent.click(screen.getByRole('button', { name: 'Refresh home' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Обновить данные' }));
   expect(await screen.findByText('Your session has expired. Sign in again to continue.')).toBeVisible();
   await waitFor(() => expect(services.session.getSnapshot().status).toBe('anonymous'));
-  expect(screen.queryByRole('heading', { name: 'Home', level: 1 })).toBeNull();
+  expect(screen.queryByRole('heading', { name: 'Добро пожаловать домой', level: 1 })).toBeNull();
 });
