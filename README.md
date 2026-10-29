@@ -1,6 +1,6 @@
 # KZ Home Web
 
-A consumer interface for KZ Home. The current milestone is **v0.3: real Core integration foundation**, using the verified contract of the separate `kz-home-core` repository. Firmware remains separate.
+A consumer interface for KZ Home. The current milestone is **v0.4: live Core acceptance**, using the running local Core stack and its verified HTTP contract. Firmware remains separate. See the [live acceptance report and repeatable procedure](docs/LIVE_CORE_ACCEPTANCE_V0.4.md).
 
 Home, Rooms, room detail, Scenes and appearance settings retain the v0.2 design. **Mock mode** remains an isolated local preview with simulated controls. **Core mode** provides real JSON login, in-memory bearer sessions, house selection and read-only home data through the existing repository boundary. Real device control and scene execution are deliberately unavailable. No browser MQTT, frontend backend or deployment infrastructure is included.
 
@@ -81,7 +81,7 @@ See [architecture](docs/ARCHITECTURE.md), [verified Core contract](docs/CORE_HTT
 
 Only `src/data/mock/` defines the sample home or simulates device changes. `createServices` chooses the adapter from validated configuration; `RepositoryProvider` still injects the selected house repository. Features use query hooks and domain models, never transport DTOs or raw fetch. Core mode is labeled **Core · Read only**; mock mode remains labeled **Local preview**.
 
-Copy `.env.example` to ignored `.env` in Web. Default `VITE_DATA_MODE=mock` needs no Core. To connect an independently managed local Core, set `VITE_DATA_MODE=core`, `VITE_API_URL=/core-api`, and `CORE_DEV_PROXY_TARGET=http://127.0.0.1:8000`, then restart Vite. The local proxy handles differing development origins without editing Core, whose current implementation has no CORS middleware. It is not a production routing solution. Remote connections require HTTPS.
+Copy `.env.example` to ignored `.env.local` in Web. Default `VITE_DATA_MODE=mock` needs no Core. To connect the independently managed local Docker Core, set `VITE_DATA_MODE=core`, `VITE_API_URL=/core-api`, and `CORE_DEV_PROXY_TARGET=http://127.0.0.1:18000`, then restart Vite. The local proxy handles differing development origins without editing Core, whose current implementation has no CORS middleware. It is not a production routing solution. Remote connections require HTTPS.
 
 Sign in with an existing Core account; Web provides no registration or recovery. Access and rotating refresh tokens remain only in tab memory, and reload requires sign-in. Core-mode reads cover accessible houses, floors, rooms, devices and permission-scoped scenes. Missing photos/favorites/state values are not filled from mocks. See the [exact procedure and security/contract gaps](docs/CORE_INTEGRATION.md).
 
@@ -97,4 +97,4 @@ Sign in with an existing Core account; Web provides no registration or recovery.
 - Loading, empty, recoverable data errors, render errors, and unknown routes.
 - Desktop sidebar, tablet layout, and mobile bottom navigation.
 
-Reloading resets the simulated home. Mock photographs and sensor timestamps are illustrative fixture values. Core mode does not use them and preserves partial/unknown state in read-only cards. Onboarding, automations, energy, notifications and AI remain outside Web scope. Real Core E2E remains unverified because port 8000 was unavailable in this session; browser integration tests intercept verified-contract fixtures. Browser history routing will eventually require a host fallback to `index.html`, but no hosting configuration is added here.
+Reloading resets the simulated home. Mock photographs and sensor timestamps are illustrative fixture values. Core mode does not use them and preserves partial/unknown state in read-only cards. Onboarding, automations, energy, notifications and AI remain outside Web scope. `test:e2e:core` still intercepts contract fixtures; the separate opt-in `test:e2e:live` suite uses actual Core HTTP, disposable accounts and PostgreSQL reads. Browser history routing will eventually require a host fallback to `index.html`, but no hosting configuration is added here.
