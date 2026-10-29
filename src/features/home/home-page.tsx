@@ -11,6 +11,7 @@ import { Button } from '../../components/ui/button';
 import { HomeDataBoundary } from './home-data-boundary';
 import { useHome, useHomeControls } from './use-home';
 import { countRu, displayName, stateRu } from './signature-copy';
+import { CoreControlNotice } from '../devices/core-control-notice';
 
 const sceneIcons = { sofa: Sofa, away: DoorOpen, moon: Moon, sunrise: Sunrise, scene: Layers };
 const sceneOrder = ['sofa', 'away', 'moon', 'sunrise', 'scene'];
@@ -31,6 +32,7 @@ function FavoriteDevice({ device, room, readOnly, busy, operation, revision, sen
     {!readOnly && !offline && device.kind === 'light' && device.brightness !== null && <RangeControl label="Яркость" accessibleLabel={`Яркость: ${name} · ${room}`} value={device.brightness} disabled={busy} revision={revision} onCommit={(brightness) => send({ type: 'set-brightness', deviceId: device.id, brightness })} />}
     {!readOnly && !offline && device.kind === 'curtain' && <div className="signature-curtain"><Button variant="quiet" aria-label={`Закрыть: ${name}`} aria-disabled={busy} onClick={() => { if (!busy) send({ type: 'set-position', deviceId: device.id, position: 0 }); }}>Закрыть</Button><Button variant="quiet" aria-label={`Открыть: ${name}`} aria-disabled={busy} onClick={() => { if (!busy) send({ type: 'set-position', deviceId: device.id, position: 100 }); }}>Открыть</Button></div>}
     <p className="signature-device__source">{readOnly ? `${offline ? 'Core сообщает: не в сети' : 'Данные Core'} · только просмотр` : 'Симуляция · не физическое устройство'}</p>
+    {readOnly && <CoreControlNotice device={device} locale="ru" />}
     {!readOnly && operation === 'pending' && <Feedback tone="pending" message="Обновляем симуляцию…" />}
     {!readOnly && operation === 'success' && <Feedback tone="success" message="Симуляция обновлена." />}
     {!readOnly && operation === 'error' && <Feedback tone="error" message="Не удалось обновить симуляцию. Показано последнее состояние."><Button variant="quiet" aria-disabled={busy || offline} onClick={() => { if (!busy && !offline) retry(); }}>Повторить</Button></Feedback>}

@@ -28,6 +28,41 @@ async function accessible(page: Page) {
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
 }
 
+test('fails closed for online and offline relays and refreshes observed state without claiming command success', async ({ page }) => {
+  const relay = { ...coreDevice, type: 'relay', capabilities: ['on_off'], state: { on: false }, name: 'Core relay' };
+  const requests = await interceptCore(page, {
+    '/devices?house_id=house-a': [relay, { ...relay, id: 'offline-relay', name: 'Offline relay', online: false, state: { on: true } }, { ...relay, id: 'partial-relay', name: 'Partial relay', state: {} }],
+  });
+  await page.goto('/'); await login(page);
+  const card = page.getByRole('article', { name: 'Core relay · Living room' });
+  await expect(card).toContainText('Выключено');
+  await card.getByText('Почему управление недоступно').click();
+  await expect(card).toContainText('Результат команды пока нельзя надёжно проверить');
+  await expect(card).toContainText('не подтверждает выполнение вашей команды');
+  const offline = page.getByRole('article', { name: 'Offline relay · Living room' });
+  await expect(offline).toContainText('Не в сети · последнее: Включено');
+  await expect(offline).not.toHaveClass(/signature-device--active/);
+  await offline.getByText('Почему управление недоступно').click();
+  await expect(offline).toContainText('Core сообщает, что устройство не в сети.');
+  const partial = page.getByRole('article', { name: 'Partial relay · Living room' });
+  await partial.getByText('Почему управление недоступно').click();
+  await expect(partial).toContainText('Для этих данных нет поддержанного управления Web.');
+  await expect(page.getByRole('switch')).toHaveCount(0);
+  await expect(page.getByRole('slider')).toHaveCount(0);
+  await accessible(page);
+  await page.getByRole('button', { name: 'Use dark theme' }).click();
+  await accessible(page);
+  // Another actor's reported state is a read update, never proof of a Web command.
+  const readsBeforeRefresh = requests.filter((request) => request.path === '/devices?house_id=house-a').length;
+  relay.state.on = true;
+  await page.getByRole('button', { name: 'Обновить данные' }).click();
+  await expect(card).toContainText('Включено');
+  await expect(card).toContainText('только просмотр');
+  await expect(page.getByRole('status')).toHaveCount(0);
+  expect(requests.filter((request) => request.method !== 'GET').map((request) => request.path)).toEqual(['/auth/login']);
+  expect(requests.filter((request) => request.path === '/devices?house_id=house-a')).toHaveLength(readsBeforeRefresh + 1);
+});
+
 test('signs in, reads a home without controls or mock images, switches homes, and clears the session', async ({ page }, testInfo) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));

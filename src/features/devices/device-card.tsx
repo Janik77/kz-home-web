@@ -6,6 +6,7 @@ import { RangeControl } from '../../components/ui/range-control';
 import { StatusBadge } from '../../components/ui/status-badge';
 import { Feedback } from '../../components/ui/feedback';
 import { Button } from '../../components/ui/button';
+import { CoreControlNotice } from './core-control-notice';
 
 const icons = { light: Lightbulb, relay: Plug, curtain: Blinds, sensor: Thermometer, other: Radio };
 const labels = { light: 'Light', relay: 'Power', curtain: 'Curtain', sensor: 'Sensor', other: 'Device' };
@@ -35,6 +36,7 @@ export function DeviceCard({ device, roomName, busy, readOnly, operation, revisi
     <p className="device-card__room">{roomName}</p><h3>{device.name}</h3>
     <div className="device-card__connection"><StatusBadge online={!offline} label={readOnly ? (offline ? 'Reported offline' : 'Reported online') : (offline ? 'Offline' : 'Online')} />{(readOnly || device.kind === 'sensor' || device.kind === 'other') && <span>Read only</span>}</div>
     <p className="device-card__state">{describeDevice(device)}</p>
+    {readOnly && <CoreControlNotice device={device} />}
     {device.kind === 'light' && device.brightness !== null && !readOnly && !offline && <RangeControl label="Brightness" accessibleLabel={`${device.name} brightness in ${roomName}`} value={device.brightness} disabled={busy} revision={revision}
       onCommit={(brightness) => onCommand({ type: 'set-brightness', deviceId: device.id, brightness })} />}
     {device.kind === 'curtain' && !readOnly && !offline && <RangeControl label="Open amount" accessibleLabel={`${device.name} open amount in ${roomName}`} value={device.position} disabled={busy} revision={revision}

@@ -1,5 +1,9 @@
 # Verified Core HTTP contract — Web v0.3
 
+Web v0.6 rechecked the current Core source and local OpenAPI. The missing HTTP
+command receipt/outcome contract still blocks real controls; see the exact
+[v0.6 discovery and read-only boundary](REAL_DEVICE_CONTROL_V0.6.md).
+
 v0.4 recheck: live `/openapi.json`, `/health`, `/ready`, authentication, scoped
 reads and matching source at Core `de500d1ff328f36071b0197181c897c112750a1f`
 confirm the consumed contract below. Local Docker publishes Core at
