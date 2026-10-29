@@ -1,5 +1,11 @@
 # Verified Core HTTP contract — Web v0.3
 
+v0.4 recheck: live `/openapi.json`, `/health`, `/ready`, authentication, scoped
+reads and matching source at Core `de500d1ff328f36071b0197181c897c112750a1f`
+confirm the consumed contract below. Local Docker publishes Core at
+`http://127.0.0.1:18000`; use Web's same-origin Vite proxy. See
+[live acceptance evidence](LIVE_CORE_ACCEPTANCE_V0.4.md).
+
 Discovery reference: `C:/projects/kz-home-core`, clean `main` at
 `d1124e461715bec01c24c987e97a46cfbc02427a`. Core is read-only. This document
 was written before implementing the Web adapter. It describes implementation,

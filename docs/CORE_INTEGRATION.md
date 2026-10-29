@@ -1,11 +1,14 @@
-# Core integration foundation — v0.3
+# Core integration — v0.4
 
 The [verified HTTP contract](CORE_HTTP_CONTRACT.md) records actual Core sources,
-schemas and tests at `d1124e4`. No Core file is changed by this milestone.
+schemas and tests at `d1124e4`, rechecked against live OpenAPI and Core source
+`de500d1` for v0.4. No Core file is changed by this milestone. The separate
+[live acceptance procedure/report](LIVE_CORE_ACCEPTANCE_V0.4.md) describes
+disposable operator fixtures and actual browser HTTP verification.
 
 ## Configuration
 
-Copy `.env.example` to `.env` **in kz-home-web**. Both are frontend development
+Copy `.env.example` to `.env.local` **in kz-home-web**. Both are frontend development
 configuration; the example is tracked-ready and `.env` / `.env.*` / `*.local` are
 already ignored (except the example). Every VITE variable is public build input.
 
@@ -13,7 +16,7 @@ already ignored (except the example). Every VITE variable is public build input.
 | --- | --- |
 | `VITE_DATA_MODE` | `mock` or `core`; absent means mock |
 | `VITE_API_URL` | Required in Core mode; e.g. `/core-api` or approved HTTPS Core base URL |
-| `CORE_DEV_PROXY_TARGET` | Vite development server only; e.g. `http://127.0.0.1:8000` |
+| `CORE_DEV_PROXY_TARGET` | Vite development server only; local Docker Core is `http://127.0.0.1:18000` |
 
 Invalid Core configuration shows a configuration error; it never silently
 substitutes sample data. URLs reject embedded credentials, query/fragment tokens,
@@ -25,11 +28,11 @@ file. Vite does not expose CORE_DEV_PROXY_TARGET to the client.
 ## Exact local procedure
 
 1. Have an independently managed, migrated local Core instance available at
-   `http://127.0.0.1:8000`, with an existing active user and house membership.
+   `http://127.0.0.1:18000`, with an existing active user and house membership.
    Core's operator owns its setup. Web does not migrate, seed, start, or change
    Core. Never use production accounts/data for disposable acceptance testing.
 2. In `C:/projects/kz-home-web`, run `npm.cmd ci` if dependencies are absent.
-3. Copy `.env.example` to `.env`; set `VITE_DATA_MODE=core`, keep
+3. Copy `.env.example` to `.env.local`; set `VITE_DATA_MODE=core`, keep
    `VITE_API_URL=/core-api` and the loopback CORE_DEV_PROXY_TARGET.
 4. Run `npm.cmd run dev -- --port 5173 --strictPort`. Open
    `http://127.0.0.1:5173` (the default bind is loopback). Restart Vite after
@@ -119,7 +122,6 @@ explicit Core environment, and separate artifacts under test-results/core.
 Never point these disposable fixture tests at a real account or claim they
 constitute live Core acceptance.
 
-See [the milestone report](CORE_FOUNDATION_V0.3.md) for actual commands/results
-and the exact changed-file inventory. A minimal unauthenticated health request
-to 127.0.0.1:8000 failed in this session; no local Core instance or credentials
-were available. Real login/read/refresh/logout E2E therefore remains unverified.
+The [historical v0.3 report](CORE_FOUNDATION_V0.3.md) records fixture-only results
+when Core was unavailable. The [v0.4 live report](LIVE_CORE_ACCEPTANCE_V0.4.md)
+separately records actual local Core login/read/refresh/logout acceptance.
