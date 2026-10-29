@@ -1,14 +1,15 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { CoreWorkspace } from './core-workspace';
 import { ThemeProvider } from './theme-provider';
 import { createServices } from '../data/create-services';
-import { coreResponses } from '../test/core-fixtures';
+import { coreDevice, coreFloor, coreHouse, coreResponses, coreRoom } from '../test/core-fixtures';
 import { StrictMode } from 'react';
 
 const clients: QueryClient[] = [];
 beforeEach(() => {
+  window.history.replaceState(null, '', '/');
   vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
   vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
 });
@@ -75,4 +76,42 @@ it('returns to session-expired login when refresh is rejected and removes house 
   expect(await screen.findByText('Your session has expired. Sign in again to continue.')).toBeVisible();
   await waitFor(() => expect(services.session.getSnapshot().status).toBe('anonymous'));
   expect(screen.queryByRole('heading', { name: 'Добро пожаловать домой', level: 1 })).toBeNull();
+});
+
+it('aborts a previous house read and ignores its late state after switching homes', async () => {
+  let delayOldHouse = false;
+  let finishOld!: (response: Response) => void;
+  let oldSignal: AbortSignal | null | undefined;
+  const responses: Record<string, unknown> = {
+    ...coreResponses,
+    '/houses': [coreHouse, { ...coreHouse, id: 'house-b', name: 'Second home' }],
+    '/houses/house-b': { ...coreHouse, id: 'house-b', name: 'Second home' },
+    '/floors': [coreFloor, { ...coreFloor, id: 'floor-b', house_id: 'house-b' }],
+    '/rooms': [coreRoom, { ...coreRoom, id: 'room-b', floor_id: 'floor-b', name: 'Second room' }],
+    '/devices?house_id=house-b': [{ ...coreDevice, id: 'relay-b', room_id: 'room-b', name: 'Second relay', type: 'relay', capabilities: ['on_off'], state: { on: false } }],
+  };
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url, options) => {
+    const path = String(url).replace('/core-api', '');
+    if (path === '/devices?house_id=house-a' && delayOldHouse) {
+      oldSignal = options?.signal;
+      // Deliberately ignore abort to prove even a misbehaving late response cannot leak.
+      return new Promise((resolve) => { finishOld = resolve; });
+    }
+    return Response.json(responses[path]);
+  });
+  setup(fetcher); await signIn();
+  fireEvent.click(await screen.findByRole('button', { name: 'Family home' }));
+  await screen.findByRole('article', { name: 'Reading light · Living room' });
+  delayOldHouse = true;
+  fireEvent.click(screen.getByRole('button', { name: 'Обновить данные' }));
+  await waitFor(() => expect(finishOld).toBeTypeOf('function'));
+  fireEvent.click(screen.getByRole('link', { name: 'Аккаунт и дома' }));
+  fireEvent.change(await screen.findByRole('combobox', { name: 'Home' }), { target: { value: 'house-b' } });
+  expect(await screen.findByRole('article', { name: 'Second relay · Second room' })).toHaveTextContent('Выключено');
+  expect(oldSignal?.aborted).toBe(true);
+  await act(async () => { finishOld(Response.json([{ ...coreDevice, name: 'Late old state', state: { on: true, brightness: 100 } }])); });
+  expect(screen.queryByText('Late old state')).toBeNull();
+  expect(screen.getByRole('article', { name: 'Second relay · Second room' })).toHaveTextContent('Выключено');
+  expect(screen.queryByRole('switch')).toBeNull();
+  expect(fetcher.mock.calls.filter(([, options]) => options?.method !== 'GET').map(([url]) => url)).toEqual(['/core-api/auth/login']);
 });

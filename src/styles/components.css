@@ -210,6 +210,9 @@
 .loading-skeleton span { height: 8px; background: var(--color-surface-soft); border-radius: var(--radius-pill); }
 .loading-skeleton span:last-child { width: 65%; justify-self: center; }
 .state-panel--restricted > svg { color: var(--color-warning); }
+.core-control-notice { margin-top: 10px; font-size: var(--text-xs); color: var(--color-muted); }
+.core-control-notice summary { display: list-item; min-height: 44px; padding-block: 12px; cursor: pointer; overflow-wrap: anywhere; }
+.core-control-notice p { margin-block: 8px; line-height: 1.7; }
 
 @media (max-width: 999px) {
   .session-page--login { grid-template-columns: 1fr; padding: 32px 20px; }

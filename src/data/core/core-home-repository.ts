@@ -10,6 +10,10 @@ export function readHouses(session: CoreSession, signal?: AbortSignal): Promise<
 }
 
 export function createCoreHomeRepository(session: CoreSession, houseId: string): HomeRepository {
+  // v0.6 discovery: HTTP returns DeviceRead, discarding MQTT command/correlation
+  // IDs. Neither a successful request nor state equality can confirm this intent.
+  // Fail closed until Core exposes an authorized, correlatable outcome contract.
+  // Never reuse the mock snapshot-returning mutation path for real commands.
   return {
     readOnly: true,
     async getHome(signal) {
