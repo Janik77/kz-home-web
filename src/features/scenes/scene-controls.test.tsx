@@ -15,12 +15,12 @@ describe('trustworthy scene execution', () => {
     renderHome({ ...repository, activateScene }, (home) => <SceneControls home={home} />);
     const button = await screen.findByRole('button', { name: 'Activate Cozy evening' });
     await userEvent.click(button);
-    expect(await screen.findByText('Running Cozy evening… Waiting for confirmation.')).toBeInTheDocument();
+    expect(await screen.findByText('Simulating Cozy evening…')).toBeInTheDocument();
     expect(screen.queryByText(/Cozy evening applied/)).not.toBeInTheDocument();
     await userEvent.click(button);
     expect(activateScene).toHaveBeenCalledTimes(1);
     await act(async () => resolve(await repository.activateScene('evening')));
-    expect(await screen.findByText('Cozy evening applied · 3 controls updated.')).toBeInTheDocument();
+    expect(await screen.findByText('Cozy evening applied · 3 controls updated. Simulation only.')).toBeInTheDocument();
     expect(button).toHaveFocus();
   });
 
@@ -42,7 +42,7 @@ describe('trustworthy scene execution', () => {
     seed.devices = seed.devices.map((device) => ({ ...device, connection: 'offline' }));
     renderHome(createMockHomeRepository(seed, 0), (home) => <SceneControls home={home} />);
     await userEvent.click(await screen.findByRole('button', { name: 'Activate Leaving home' }));
-    expect(await screen.findByText('Leaving home didn’t update any devices. 6 controls skipped (offline or unavailable).')).toBeInTheDocument();
+    expect(await screen.findByText('Leaving home didn’t update any devices. 6 controls skipped (offline or unavailable). Simulation only.')).toBeInTheDocument();
     expect(screen.queryByText(/applied ·/)).not.toBeInTheDocument();
   });
 
@@ -56,7 +56,7 @@ describe('trustworthy scene execution', () => {
     expect(screen.queryByText(/Internal adapter/)).not.toBeInTheDocument();
     expect(activateScene).toHaveBeenCalledTimes(1);
     await userEvent.click(button);
-    await waitFor(() => expect(screen.getByText('Good night applied · 4 controls updated.')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Good night applied · 4 controls updated. Simulation only.')).toBeInTheDocument());
     expect(activateScene).toHaveBeenCalledTimes(2);
   });
 });

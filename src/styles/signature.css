@@ -1,0 +1,174 @@
+/* Signature Home is deliberately scoped: other screens retain the v0.5 layout. */
+.signature-shell {
+  --sidebar-width: 208px;
+  --color-bg: #f5f2ec;
+  --color-sidebar: #ebe8e1;
+  --color-surface: #fffdf9;
+  --color-surface-soft: #eae7e0;
+  --color-border: #dedbd3;
+  --color-text: #2c2d29;
+  --color-muted: #646760;
+  --signature-photo-wash: #f5f2ec;
+  background: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100svh;
+}
+[data-theme='dark'] .signature-shell {
+  --color-bg: #101214;
+  --color-sidebar: #141618;
+  --color-surface: #1c1f21;
+  --color-surface-soft: #26292b;
+  --color-border: #303336;
+  --color-text: #f2f1ed;
+  --color-muted: #a8aaac;
+  --color-accent: #b7c5ae;
+  --color-accent-soft: #2b342d;
+  --signature-photo-wash: #101214;
+}
+.signature-shell .sidebar { padding: 32px 16px 24px; }
+.signature-shell .sidebar__label { margin-top: 48px; font-size: 9px; letter-spacing: .1em; }
+.signature-shell .sidebar__nav { gap: 6px; }
+.signature-shell .nav-item { font-size: 13px; min-height: 46px; border-radius: 9px; }
+.signature-shell .nav-item--active { background: var(--color-surface-soft); box-shadow: none; color: var(--color-text); }
+.signature-shell .sidebar__message { display: none; }
+.signature-shell .topbar { position: absolute; z-index: 2; right: 24px; top: 12px; min-height: 44px; padding: 0; border: 0; }
+.signature-shell .topbar__location, .signature-shell .preview-badge { display: none; }
+.signature-shell .main-content { max-width: 1340px; padding: 0 36px 16px; }
+.signature-shell .app-footer { padding: 18px 36px 24px; font-size: 10px; }
+.signature-home { display: flex; flex-direction: column; gap: 28px; }
+.signature-home > section { min-width: 0; }
+.signature-hero { position: relative; isolation: isolate; min-height: 260px; padding-top: 42px; }
+.interior-photo { position: relative; overflow: hidden; background: var(--color-surface-soft); }
+.interior-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.interior-photo--empty { display: grid; place-items: center; color: var(--color-muted); }
+.signature-hero__photo { position: absolute; z-index: -1; inset: 0 -36px -10px 20%; pointer-events: none; }
+.signature-hero__photo img { filter: saturate(.65) sepia(.18); object-position: center 55%; }
+.signature-hero__photo::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, var(--signature-photo-wash) 0%, transparent 95%), linear-gradient(0deg, var(--signature-photo-wash) 2%, transparent 100%); }
+[data-theme='light'] .signature-hero__photo img { opacity: .6; }
+[data-theme='dark'] .signature-hero__photo img { opacity: .58; }
+.signature-hero__content { position: relative; padding-bottom: 8px; }
+.signature-date { font-size: 11px; color: var(--color-muted); text-transform: capitalize; margin-bottom: 14px; }
+.signature-mode-label { display: none; text-transform: none; }
+.signature-hero h1 { font-size: clamp(26px, 2.4vw, 35px); letter-spacing: -.045em; font-weight: 600; line-height: 1.25; max-width: 670px; text-wrap: balance; }
+.signature-hero__subtitle { font-size: 12px; margin-top: 12px; color: var(--color-muted); }
+.signature-status { display: flex; gap: 12px; margin-top: 25px; }
+.signature-status > div { display: flex; gap: 12px; align-items: center; min-width: 150px; padding: 13px 16px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
+.signature-status svg { flex-shrink: 0; color: var(--color-accent); stroke-width: 1.5; }
+.signature-status strong, .signature-status small { display: block; }
+.signature-status strong { font-size: 13px; font-weight: 550; }
+.signature-status small { font-size: 9px; margin-top: 5px; color: var(--color-muted); }
+.signature-core-tools { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.signature-core-tools .button, .signature-core-tools a { font-size: 12px; }
+.signature-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 15px; }
+.signature-heading h2 { font-size: 17px; font-weight: 600; letter-spacing: -.025em; }
+.signature-heading > a { display: inline-flex; align-items: center; gap: 7px; color: var(--color-muted); min-height: 44px; margin-block: -10px; }
+.signature-heading > a, .signature-heading > span { font-size: 11px; }
+.signature-heading > span { color: var(--color-muted); }
+.signature-scene-grid, .signature-room-grid, .signature-device-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.signature-scene { min-width: 0; }
+.signature-scene > button, .signature-scene > a { display: flex; gap: 12px; align-items: center; text-align: start; width: 100%; padding: 15px; min-height: 80px; border: 1px solid var(--color-border); border-radius: 12px; color: var(--color-text); background: var(--color-surface); cursor: pointer; transition: border-color var(--duration-fast), transform var(--duration-fast); }
+.signature-scene > button:hover, .signature-scene > a:hover { border-color: var(--color-accent); transform: translateY(-2px); }
+.signature-scene > button[aria-disabled='true'] { cursor: wait; opacity: .65; }
+.signature-scene__icon { display: grid; place-items: center; width: 40px; height: 40px; flex-shrink: 0; color: #a67a47; background: #eee4d6; border-radius: 10px; }
+.signature-scene__icon--away { color: #4e7862; background: #e0e9de; }
+.signature-scene__icon--moon { color: #70678e; background: #e8e4ef; }
+.signature-scene__icon--sunrise { color: #aa7440; background: #f0e2d1; }
+[data-theme='dark'] .signature-scene__icon { color: #d7b78a; background: #393228; }
+[data-theme='dark'] .signature-scene__icon--away { color: #a1b7a5; background: #2a352d; }
+[data-theme='dark'] .signature-scene__icon--moon { color: #b3a3cf; background: #332e40; }
+[data-theme='dark'] .signature-scene__icon--sunrise { color: #d2b28b; background: #3b3228; }
+.signature-scene strong { display: block; font-size: 12px; line-height: 1.4; font-weight: 550; overflow-wrap: anywhere; }
+.signature-scene small { display: block; font-size: 9px; color: var(--color-muted); margin-top: 6px; }
+.signature-quick > .feedback { margin-top: 12px; }
+.signature-room { position: relative; min-height: 190px; border-radius: 12px; overflow: hidden; color: #fff; background: #262a28; isolation: isolate; }
+.signature-room > .interior-photo { position: absolute; inset: 0; z-index: -1; }
+.signature-room img { filter: saturate(.7) sepia(.12); transition: transform 400ms var(--ease-out); }
+.signature-room:hover img { transform: scale(1.035); }
+.signature-room::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, rgb(0 0 0 / 85%), rgb(0 0 0 / 0%) 85%); }
+.signature-room__caption { position: absolute; inset: auto 18px 17px; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.signature-room__caption > svg { box-sizing: content-box; padding: 6px; background: rgb(255 255 255 / 12%); border-radius: 50%; flex-shrink: 0; }
+.signature-room h3 { font-size: 15px; font-weight: 550; letter-spacing: -.02em; }
+.signature-room p { margin-top: 7px; font-size: 10px; color: #e0ded9; }
+.signature-device { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 17px; min-width: 0; outline-offset: 4px; }
+.signature-device__top { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+.signature-device__top > svg { flex-shrink: 0; color: var(--color-muted); }
+.signature-device--active .signature-device__top > svg { color: var(--color-accent); }
+.signature-device__top > div { flex: 1; min-width: 0; }
+.signature-device h3 { font-size: 11px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
+.signature-device__top p { font-size: 9px; color: var(--color-muted); margin-top: 4px; }
+.signature-device__top .switch { flex-shrink: 0; }
+.signature-device__state { font-size: 11px; margin-top: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.signature-device__source { color: var(--color-muted); font-size: 9px; line-height: 1.6; margin-top: 10px; }
+.signature-device .range-control { margin-top: 14px; }
+.signature-device .range-control__label { font-size: 10px; }
+.signature-device .feedback { margin-top: 10px; padding: 8px; font-size: 11px; }
+.signature-curtain { display: flex; justify-content: space-between; margin-top: 8px; border-top: 1px solid var(--color-border); }
+.signature-curtain .button { font-size: 10px; padding-inline: 8px; }
+.signature-system { color: var(--color-muted); font-size: 10px; display: flex; justify-content: space-between; align-items: start; gap: 20px; padding-top: 4px; }
+.signature-system > div { display: flex; gap: 8px; align-items: center; }
+.signature-system svg { flex-shrink: 0; }
+.signature-system summary { padding-block: 14px; margin-top: -14px; min-height: 44px; cursor: pointer; }
+.signature-system li { margin-block: 8px; }
+.signature-system li a { display: inline-flex; align-items: center; min-height: 44px; text-decoration: underline; }
+.signature-empty { padding: 24px; border: 1px dashed var(--color-border); border-radius: 12px; font-size: 13px; color: var(--color-muted); }
+@media (max-width: 1199px) and (min-width: 768px) {
+  .signature-shell { --sidebar-width: 88px; }
+  .signature-shell .sidebar { padding-inline: 12px; }
+  .signature-shell .sidebar .nav-item { font-size: 9px; }
+  .signature-scene-grid, .signature-device-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .signature-room { min-height: 170px; }
+  .signature-status { gap: 8px; }
+}
+@media (max-width: 767px) {
+  .signature-shell .topbar { position: relative; inset: auto; padding: 14px 20px; min-height: 70px; }
+  .signature-shell .main-content { padding: 0 20px 16px; }
+  .signature-shell .app-footer { padding: 12px 20px calc(110px + env(safe-area-inset-bottom)); }
+  .signature-shell .mobile-nav { background: var(--color-sidebar); padding-top: 6px; }
+  .signature-shell .mobile-nav .nav-item { font-size: 10px; }
+  .signature-shell .mobile-nav .nav-item--active { background: transparent; color: var(--color-accent); }
+  .signature-home { gap: 18px; }
+  .signature-hero { min-height: 204px; padding-top: 8px; }
+  .signature-hero__photo { inset: -70px -20px -10px 0; }
+  .signature-hero__photo img { object-position: 65% center; }
+  .signature-date { font-size: 9px; margin-bottom: 10px; }
+  .signature-date { display: flex; justify-content: space-between; gap: 10px; }
+  .signature-mode-label { display: inline; }
+  .signature-hero h1 { font-size: 29px; max-width: 310px; line-height: 1.2; }
+  .signature-hero__subtitle { font-size: 10px; margin-top: 11px; max-width: 290px; line-height: 1.8; }
+  .signature-status { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 18px; }
+  .signature-status > div { min-width: 0; padding: 11px 10px; gap: 8px; }
+  .signature-status > .signature-status__mode { display: none; }
+  .signature-status strong { font-size: 12px; }
+  .signature-status small { font-size: 8px; line-height: 1.4; }
+  .signature-heading { margin-bottom: 13px; }
+  .signature-heading h2 { font-size: 16px; }
+  .signature-heading > a, .signature-heading > span { font-size: 9px; }
+  .signature-scene-grid { gap: 9px; }
+  .signature-scene > button, .signature-scene > a { flex-direction: column; gap: 6px; border: 0; border-radius: 10px; padding: 2px; min-height: 84px; text-align: center; background: transparent; }
+  .signature-scene__icon { width: 48px; height: 46px; }
+  .signature-scene strong { font-size: 10px; }
+  .signature-scene small { display: none; }
+  .signature-room-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .signature-room { min-height: 136px; }
+  .signature-room__caption { inset: auto 13px 13px; }
+  .signature-room h3 { font-size: 14px; }
+  .signature-room p { font-size: 9px; margin-top: 6px; }
+  .signature-device-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .signature-device { padding: 13px; }
+  .signature-device__top { flex-wrap: wrap; gap: 6px; }
+  .signature-device__top > svg { width: 19px; }
+  .signature-device__top > div { flex-basis: calc(100% - 30px); }
+  .signature-device__top .switch { margin-left: auto; }
+  .signature-system { flex-direction: column; gap: 14px; font-size: 10px; line-height: 1.7; }
+}
+@media (max-width: 359px) {
+  .signature-shell .main-content { padding-inline: 16px; }
+  .signature-hero h1 { font-size: 26px; }
+  .signature-heading { flex-wrap: wrap; }
+  .signature-device-grid { grid-template-columns: 1fr; }
+  .signature-room { min-height: 128px; }
+  .signature-scene strong { font-size: 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .signature-home *, .signature-home *::before, .signature-home *::after { transition-duration: 0s !important; animation: none !important; scroll-behavior: auto !important; }
+}

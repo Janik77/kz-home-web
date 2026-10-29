@@ -1,6 +1,6 @@
 # KZ Home Web
 
-A consumer interface for KZ Home. The current milestone is **v0.4: live Core acceptance**, using the running local Core stack and its verified HTTP contract. Firmware remains separate. See the [live acceptance report and repeatable procedure](docs/LIVE_CORE_ACCEPTANCE_V0.4.md).
+A consumer interface for KZ Home. The current milestone is **v0.5: premium UI/UX redesign** with warm ivory/graphite themes, an architectural visual language and explicit device-state semantics. Core/mock repositories, session handling and read-only real controls are preserved. See the [v0.5 report](docs/PREMIUM_REDESIGN_V0.5.md) and the historical [v0.4 live acceptance procedure](docs/LIVE_CORE_ACCEPTANCE_V0.4.md). Firmware remains separate.
 
 Home, Rooms, room detail, Scenes and appearance settings retain the v0.2 design. **Mock mode** remains an isolated local preview with simulated controls. **Core mode** provides real JSON login, in-memory bearer sessions, house selection and read-only home data through the existing repository boundary. Real device control and scene execution are deliberately unavailable. No browser MQTT, frontend backend or deployment infrastructure is included.
 

@@ -6,6 +6,7 @@ import './styles/tokens.css';
 import './styles/global.css';
 import './styles/components.css';
 import './styles/layout.css';
+import './styles/signature.css';
 import { App } from './app/app';
 import { RepositoryProvider } from './app/services';
 import { ThemeProvider } from './app/theme-provider';

@@ -1,4 +1,4 @@
-import { ArrowUpRight, Thermometer } from 'lucide-react';
+import { ArrowUpRight, Thermometer, DoorOpen } from 'lucide-react';
 import { Link } from 'react-router';
 import type { Device, Room } from '../../domain/home';
 import { getRoomSummary } from '../../domain/selectors';
@@ -9,6 +9,7 @@ export function RoomCard({ room, devices, floorName, headingLevel = 3 }: { room:
   const Heading = headingLevel === 2 ? 'h2' : 'h3';
   return <Link to={`/rooms/${room.id}`} className="room-card">
     <div className={`room-card__image ${room.image ? '' : 'room-card__image--empty'}`}>{room.image && <img src={room.image} alt="" style={{ objectPosition: room.imagePosition }} loading="lazy" width="800" height="520" />}
+      {!room.image && <DoorOpen className="room-card__placeholder" size={28} aria-hidden="true" />}
       <span className="room-card__floor">{floorName}</span><span className="room-card__arrow"><ArrowUpRight size={17} aria-hidden="true" /></span>
     </div>
     <div className="room-card__body"><Heading>{room.name}</Heading><div className="room-card__meta"><span>{summary.total} devices · {summary.active} active</span>

@@ -75,16 +75,16 @@ test('LIVE browser → Vite proxy → Core → PostgreSQL acceptance', async ({ 
     expect(houses.map((house: { id: string }) => house.id).sort()).toEqual([ids.home, ids.empty].sort());
     await expect(page.getByRole('heading', { name: 'Your homes', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Live acceptance home', exact: true }).click();
-    await expect(page.getByRole('article', { name: 'Live reading light in Live room' })).toContainText('37% brightness');
-    await expect(page.getByRole('article', { name: 'Live partial relay in Live room' })).toContainText('No reported state yet');
+    await expect(page.getByRole('article', { name: 'Live reading light · Live room' })).toContainText('Включён · 37%');
+    await expect(page.getByRole('article', { name: 'Live partial relay · Live room' })).toContainText('Нет данных о состоянии');
     await expect(page.getByRole('switch')).toHaveCount(0);
     await expect(page.getByRole('slider')).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Activate/ })).toHaveCount(0);
     await expect(page.locator('img')).toHaveCount(0);
-    await navigation(page).getByRole('link', { name: 'Rooms', exact: true }).click();
+    await navigation(page).getByRole('link', { name: 'Комнаты', exact: true }).click();
     await page.getByRole('link', { name: /Live room.*devices/ }).click();
     await expect(page.getByRole('heading', { name: 'Live room', level: 1 })).toBeVisible();
-    await navigation(page).getByRole('link', { name: 'Scenes', exact: true }).click();
+    await navigation(page).getByRole('link', { name: 'Сценарии', exact: true }).click();
     await page.getByText('View controls (1)').click();
     await expect(page.getByText('Power: On · Brightness: 25%')).toBeVisible();
 
@@ -105,11 +105,11 @@ test('LIVE browser → Vite proxy → Core → PostgreSQL acceptance', async ({ 
 
     await page.getByRole('link', { name: 'Account & homes' }).click();
     await page.getByRole('combobox', { name: 'Home', exact: true }).selectOption(ids.empty);
-    await expect(page.getByRole('heading', { name: 'No devices here yet' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Make space for your home' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'No scenes yet' })).toBeVisible();
-    await expect(page.getByRole('article', { name: 'Live reading light in Live room' })).toHaveCount(0);
-    await page.getByRole('link', { name: 'Account & homes' }).click();
+    await expect(page.getByText('Устройств пока нет.', { exact: true })).toBeVisible();
+    await expect(page.getByText('Комнат пока нет.', { exact: true })).toBeVisible();
+    await expect(page.getByText('Сценариев пока нет. Они появятся здесь после добавления в дом.')).toBeVisible();
+    await expect(page.getByRole('article', { name: 'Live reading light · Live room' })).toHaveCount(0);
+    await page.getByRole('link', { name: 'Аккаунт и дома' }).click();
     await signOut();
     await api('/auth/refresh', 'POST', { refresh_token: rotated.refresh_token }, undefined, 401);
     // Core logout revokes refresh, not previously issued access JWTs.

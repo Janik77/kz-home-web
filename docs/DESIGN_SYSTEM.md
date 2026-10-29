@@ -1,6 +1,21 @@
-# Design system foundation
+# Design system — Web v0.5
 
-KZ Home v0.2 retains the house mark, `KZ Home.` wordmark, Manrope and sage accents. Compact headings, consistent surfaces and purposeful spacing make it a control interface. Home prioritizes status, offline-device attention and favorites. Room cards use photography for recognition; a small desktop room identifier replaces the previous room banner. The Home hero and marketing scene introduction were removed.
+## Signature Home supersedes the Home composition below
+
+The approved Signature reference is implemented for Home and its shell only:
+graphite `#101214` / warm ivory `#f5f2ec`, a photographic sample-home hero,
+quick scenes → room photos → devices → system status. Scoped semantic overrides
+live in `src/styles/signature.css`; the other pages retain their v0.5 styles.
+Mobile keeps four quick scenes, two columns of rooms even at 320px, and bottom
+navigation. Russian Home/navigation copy is frontend presentation, without a
+backend localization contract. Photo fades are for text legibility. See
+[Signature implementation and validation](SIGNATURE_HOME.md) for current behavior,
+deliberate reference deviations, changed files and screenshots. The remainder of
+this document describes the retained v0.5 foundations and other screens.
+
+Quiet architectural surfaces, warm ivory (`#f6f4ef`) and deep graphite (`#191c1b`), restrained sage, locally served Manrope with Cyrillic coverage. Large, medium-weight page titles sit above concise body copy; cards use subtle borders and minimal shadows. No gradients, blur, neon or gold. The existing house mark and photography are retained; photography belongs only to the sample home, never invented Core rooms.
+
+Home puts actual/sampled status, offline attention and everyday devices before rooms/scenes. Rooms use a clear floor filter and photo/neutral cards; detail pages group supported controls. Scenes have uniform calm surfaces and inspectable actions. Settings use explicit theme miniatures and separate account information. Login gets a two-column architectural composition on desktop, a focused form on mobile, a reusable theme toggle and accessible password visibility control. See [v0.5 report](PREMIUM_REDESIGN_V0.5.md).
 
 ## Tokens
 
@@ -32,9 +47,9 @@ Room cards are links, devices are articles, and scene cards are articles with de
 ## Responsive behavior
 
 - Desktop: persistent sidebar, compact status band, four-column Home grids and two-column room control groups/detailed scenes.
-- Tablet: a narrower sidebar and two-column grids.
-- Mobile below 768px: compact header, two-column grids, and bottom navigation with safe-area padding.
-- Compact 320px: devices, scenes and appearance choices become single-column; summary labels and actions adapt.
+- Tablet: an 88px navigation rail with readable labels and two-column grids.
+- Mobile below 768px: compact header and bottom navigation with safe-area padding.
+- Below 540px: devices, scenes and theme choices use one column; 320px rooms also use one column. A persistent simulation/Core notice stays visible even when the small topbar badge is hidden.
 
 The page footer reserves space for fixed mobile navigation. Grids use `minmax(0, 1fr)` and tolerate wrapping. Mobile room detail omits its identification photo so controls stay prominent. At high zoom the same breakpoints provide mobile layout. The test matrix explicitly includes 1440, 1024, 834, 390 and 320px. Switches and range inputs reserve 44px of height; Run scene buttons, details summaries and navigation links also have practical touch targets.
 
@@ -52,6 +67,6 @@ status/alert feedback; sign-in mounts focus its heading and update the title.
 
 The shell includes a skip link, labeled navigation and a main landmark. Route navigation focuses main content. Controls have visible focus outlines and generous targets; switches reserve a 44px target despite their smaller visual track. Feedback uses polite live regions; errors use alerts. Offline controls are disabled with a written reason, and offline last-known state is never counted as active.
 
-Hover effects are small. `prefers-reduced-motion` disables significant transitions and animated loading motion. Theme follows OS changes in system mode, initializes before paint, and tolerates blocked browser storage.
+Hover effects are small: border/shadow changes and slight room-photo zoom. Color/background changes during theme switching are immediate to avoid transient contrast failures. `prefers-reduced-motion` disables significant transitions and animated loading motion. Theme follows OS changes in system mode, initializes before paint, and tolerates blocked browser storage. Logical spacing and wrapping plus ru/kk heading adjustments accommodate future localization; translated UI strings/locale selection are not implemented.
 
 Browser tests run axe’s WCAG A/AA checks in light/dark dashboard themes and on rooms, room detail, scenes and settings. Complete screen-reader/device testing and a full accessibility audit remain follow-up work; automated checks cover only part of accessibility.
