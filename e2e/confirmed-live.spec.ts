@@ -112,3 +112,69 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
   expect(evidence.database.commands.map((r: { command_id: string }) => r.command_id).sort()).toEqual(receipts.map(r => r.command_id).sort());
   console.log('PASS offline 409, foreign 404, anonymous 401, independent SQL results and exact MQTT IDs');
 });
+
+test('LIVE delayed Core responses across houses, logout and inactive session', async ({ page }) => {
+  async function control(action: string, body: unknown = {}) {
+    const response = await fetch(`${process.env.RELAY_CONTROL_URL}/${action}`, { method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.RELAY_CONTROL_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    expect(response.status).toBe(200); return response.json();
+  }
+  async function login() {
+    await page.goto('/');
+    await page.getByLabel('Email', { exact: true }).fill('owner@example.test');
+    await page.getByLabel('Password', { exact: true }).fill(process.env.RELAY_OWNER_PASSWORD!);
+    await page.getByLabel('Password', { exact: true }).press('Enter');
+    await page.getByRole('button', { name: 'Fixture', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Включить', exact: true })).toBeEnabled();
+  }
+  async function selectHouse(id: string) {
+    await page.getByRole('link', { name: 'Аккаунт и дома' }).click();
+    await page.getByRole('combobox', { name: 'Home', exact: true }).selectOption(id);
+  }
+  const card = page.getByRole('article', { name: 'Physical relay · Room' });
+  const posts: string[] = [];
+  page.on('request', request => { if (request.method() === 'POST' && request.url().endsWith('/commands')) posts.push(request.url()); });
+  await control('second-house'); await control('mode', { mode: 'apply' }); await login();
+  for (const stage of ['permissions', 'post', 'poll', 'refresh']) {
+    await control('mode', { mode: stage === 'poll' ? 'hold' : 'apply' });
+    const path = stage === 'permissions' ? '/v1/houses/fixture_house/me/permissions'
+      : stage === 'post' ? '/v1/devices/fixture_relay/commands'
+      : stage === 'poll' ? '/v1/houses/fixture_house/commands/' : '/devices?house_id=fixture_house';
+    const before = posts.length;
+    await control('delay-http', { path, method: stage === 'post' ? 'POST' : 'GET', skip: stage === 'refresh' ? 1 : 0 });
+    await card.getByRole('button', { name: 'Выключить', exact: true }).click();
+    await expect.poll(async () => (await control('delay-state')).seen).toBe(true);
+    await selectHouse('race_house');
+    await expect(page.getByText('Устройств пока нет.', { exact: true })).toBeVisible();
+    await control('release-http'); await control('release');
+    await expect(card).toHaveCount(0); await expect(page.getByText(/Выполнено|команда отменена/i)).toHaveCount(0);
+    expect(posts.length - before).toBe(stage === 'permissions' ? 0 : 1);
+    await selectHouse('fixture_house');
+    await expect(card.getByRole('button', { name: 'Включить', exact: true })).toBeEnabled();
+  }
+  console.log('PASS LIVE real delayed permission, POST, poll and state responses isolated across houses');
+  await control('mode', { mode: 'apply' });
+  await control('delay-http', { path: '/v1/devices/fixture_relay/commands', method: 'POST' });
+  await card.getByRole('button', { name: 'Выключить', exact: true }).click();
+  await expect.poll(async () => (await control('delay-state')).seen).toBe(true);
+  await page.getByRole('link', { name: 'Аккаунт и дома' }).click();
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
+  await control('release-http');
+  await expect(card).toHaveCount(0);
+  await login();
+  await control('delay-http', { path: '/v1/houses/fixture_house/me/permissions' });
+  const before = posts.length;
+  await card.getByRole('button', { name: 'Включить', exact: true }).click();
+  await expect.poll(async () => (await control('delay-state')).seen).toBe(true);
+  await control('deactivate-owner');
+  await page.getByRole('button', { name: 'Обновить данные' }).click();
+  await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
+  await control('release-http'); await control('activate-owner');
+  expect(posts).toHaveLength(before);
+  await expect(page.getByText(/Выполнено|команда отменена/i)).toHaveCount(0);
+  const evidence = await control('evidence');
+  expect(evidence.database.counts).toEqual(['applied|14', 'failed|1', 'timed_out|1']);
+  expect(evidence.database.invalid_applied).toBe('0');
+  console.log('PASS LIVE logout after POST reached Core, inactive-session invalidation during permissions, SQL applied14/failed1/timed_out1');
+});
