@@ -1,4 +1,4 @@
-export type CoreErrorKind = 'unauthorized' | 'forbidden' | 'not-found' | 'validation' | 'conflict' | 'server' | 'network' | 'protocol' | 'read-only';
+export type CoreErrorKind = 'unauthorized' | 'forbidden' | 'not-found' | 'validation' | 'conflict' | 'server' | 'network' | 'protocol' | 'read-only' | 'rate-limit';
 
 export class CoreError extends Error {
   constructor(public readonly kind: CoreErrorKind, public readonly status?: number) {
@@ -10,6 +10,7 @@ export class CoreError extends Error {
 export function coreErrorMessage(error: unknown): string {
   if (!(error instanceof CoreError)) return 'Please try again in a moment.';
   switch (error.kind) {
+    case 'rate-limit': return 'Too many requests. Please wait before trying again.';
     case 'network': return 'We couldn’t reach Core. Check your connection and that Core is available.';
     case 'server': return 'Core is temporarily unavailable. Please try again in a moment.';
     case 'forbidden': return 'Your account doesn’t have permission to view this information.';

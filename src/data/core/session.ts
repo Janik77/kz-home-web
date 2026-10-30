@@ -96,6 +96,25 @@ export class CoreSession {
     }
   }
 
+  /** Mutations are sent once. A 401 expires the session; never replay a POST. */
+  async command<T>(path: string, body: unknown, key: string, decode: (value: unknown) => T, signal: AbortSignal): Promise<T> {
+    const revision = this.revision;
+    if (this.snapshot.status !== 'authenticated' || !this.tokens) throw new CoreError('unauthorized');
+    if (this.now() >= this.expiresAt - 5_000) await this.refresh();
+    signal.throwIfAborted();
+    if (revision !== this.revision || !this.tokens || this.snapshot.status !== 'authenticated') throw new CoreError('unauthorized');
+    try {
+      const result = await this.http.request(path, decode, { method: 'POST', body, idempotencyKey: key,
+        expectedStatus: 202, token: this.tokens.access_token, signal });
+      signal.throwIfAborted();
+      if (revision !== this.revision) throw new CoreError('unauthorized');
+      return result;
+    } catch (error) {
+      if (error instanceof CoreError && error.kind === 'unauthorized' && revision === this.revision) this.forget('Your session has expired. Sign in again to continue.');
+      throw error;
+    }
+  }
+
   async logout(): Promise<void> {
     if (this.snapshot.status !== 'authenticated') return;
     this.publish({ status: 'signing-out', user: null, message: null });

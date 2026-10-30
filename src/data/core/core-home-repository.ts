@@ -4,18 +4,17 @@ import { decodeDevice, decodeFloor, decodeHouse, decodeRoom, decodeScene, list }
 import { CoreError } from './errors';
 import { mapHome } from './mapping';
 import type { CoreSession } from './session';
+import { createRelayControl } from './relay-control';
 
 export function readHouses(session: CoreSession, signal?: AbortSignal): Promise<AccessibleHouse[]> {
   return session.read('/houses', (value) => list(value, decodeHouse), signal);
 }
 
 export function createCoreHomeRepository(session: CoreSession, houseId: string): HomeRepository {
-  // v0.6 discovery: HTTP returns DeviceRead, discarding MQTT command/correlation
-  // IDs. Neither a successful request nor state equality can confirm this intent.
-  // Fail closed until Core exposes an authorized, correlatable outcome contract.
-  // Never reuse the mock snapshot-returning mutation path for real commands.
+  // Legacy/mock snapshot mutations remain disabled. v0.15 uses separate receipts.
   return {
     readOnly: true,
+    relayControl: createRelayControl(session, houseId),
     async getHome(signal) {
       const [house, floors, rooms, devices, scenes] = await Promise.all([
         session.read(`/houses/${encodeURIComponent(houseId)}`, decodeHouse, signal),

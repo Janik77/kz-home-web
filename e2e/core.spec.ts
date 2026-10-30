@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { coreResponses, coreHouse, coreDevice, coreRoom, coreFloor, coreScene, tokenPair } from '../src/test/core-fixtures';
+import { coreResponses, coreHouse, coreDevice, coreRoom, coreFloor, coreScene, coreUser, tokenPair } from '../src/test/core-fixtures';
 import { themeStorageKey } from '../src/app/theme-context';
 
 async function interceptCore(page: Page, overrides: Record<string, unknown> = {}) {
@@ -11,6 +11,7 @@ async function interceptCore(page: Page, overrides: Record<string, unknown> = {}
     const url = new URL(request.url());
     const path = url.pathname.replace('/core-api', '') + url.search;
     requests.push({ path, method: request.method() });
+    if (path.endsWith('/members')) return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
     if (path === '/auth/logout') return route.fulfill({ status: 204 });
     const responses = { ...coreResponses, ...overrides };
     if (!(path in responses)) throw new Error(`Unexpected frontend HTTP path: ${path}`);
@@ -28,6 +29,36 @@ async function accessible(page: Page) {
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
 }
 
+test('owner submits relay intent once, waits for confirmation and refreshes reported state', async ({ page }) => {
+  const relay = { ...coreDevice, type: 'relay', capabilities: ['on_off'], state: { on: false }, name: 'Confirmed relay' };
+  await interceptCore(page, { '/devices?house_id=house-a': [relay] });
+  await page.route('**/core-api/houses/house-a/members', route => route.fulfill({ json: [{ user_id: coreUser.id, house_id: 'house-a', role: 'owner' }] }));
+  let applied = false; const keys: string[] = [];
+  const receipt = { command_id: 'cmd', correlation_id: 'corr', house_id: 'house-a', device_id: relay.id, requested_on: true,
+    status: 'dispatched', expires_at: new Date(Date.now() + 30_000).toISOString(), failure_code: null };
+  await page.route('**/core-api/v1/**', async route => {
+    if (route.request().method() === 'POST') {
+      expect(route.request().postDataJSON()).toEqual({ on: true });
+      expect(route.request().headers()['authorization']).toBe(`Bearer ${tokenPair.access_token}`);
+      keys.push(route.request().headers()['idempotency-key']!);
+      return route.fulfill({ status: 202, json: receipt });
+    }
+    return route.fulfill({ json: { ...receipt, status: applied ? 'applied' : 'dispatched' } });
+  });
+  await page.goto('/'); await login(page);
+  const card = page.getByRole('article', { name: 'Confirmed relay · Living room' });
+  await card.getByRole('button', { name: 'Включить', exact: true }).click();
+  await expect(card.getByRole('status')).toHaveText('Ожидаем подтверждение');
+  await expect(card.locator('.signature-device__state')).toHaveText('Выключено');
+  await expect(card.getByRole('button', { name: 'Выключить', exact: true })).toBeDisabled();
+  expect(keys).toHaveLength(1); expect(keys[0]).toMatch(/^[a-f0-9-]{36}$/);
+  relay.state.on = true; applied = true;
+  await expect(card.getByRole('status')).toHaveText('Выполнено · данные Core обновлены');
+  await expect(card.locator('.signature-device__state')).toHaveText('Включено');
+  await accessible(page); await page.getByRole('button', { name: 'Use dark theme' }).click(); await accessible(page);
+  expect(keys).toHaveLength(1);
+});
+
 test('fails closed for online and offline relays and refreshes observed state without claiming command success', async ({ page }) => {
   const relay = { ...coreDevice, type: 'relay', capabilities: ['on_off'], state: { on: false }, name: 'Core relay' };
   const requests = await interceptCore(page, {
@@ -37,7 +68,7 @@ test('fails closed for online and offline relays and refreshes observed state wi
   const card = page.getByRole('article', { name: 'Core relay · Living room' });
   await expect(card).toContainText('Выключено');
   await card.getByText('Почему управление недоступно').click();
-  await expect(card).toContainText('Результат команды пока нельзя надёжно проверить');
+  await expect(card).toContainText('Подтверждение команды требует результата applied');
   await expect(card).toContainText('не подтверждает выполнение вашей команды');
   const offline = page.getByRole('article', { name: 'Offline relay · Living room' });
   await expect(offline).toContainText('Не в сети · последнее: Включено');
@@ -57,7 +88,7 @@ test('fails closed for online and offline relays and refreshes observed state wi
   relay.state.on = true;
   await page.getByRole('button', { name: 'Обновить данные' }).click();
   await expect(card).toContainText('Включено');
-  await expect(card).toContainText('только просмотр');
+  await expect(card).toContainText('последнее известное состояние');
   await expect(page.getByRole('status')).toHaveCount(0);
   expect(requests.filter((request) => request.method !== 'GET').map((request) => request.path)).toEqual(['/auth/login']);
   expect(requests.filter((request) => request.path === '/devices?house_id=house-a')).toHaveLength(readsBeforeRefresh + 1);

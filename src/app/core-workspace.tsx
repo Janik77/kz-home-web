@@ -31,7 +31,7 @@ function HouseWorkspace({ services, user }: { services: Services; user: SessionU
   const logout = () => { void services.session.logout(); };
   if (query.data && houseId && !query.isError) return <SelectedHome key={houseId} services={services} user={user} houses={query.data} houseId={houseId} selectHouse={setSelected} logout={logout} />;
   return <main className="session-page"><div className="session-card">
-    <p className="eyebrow">Core · Read only</p><h1 ref={heading} tabIndex={-1}>Your homes</h1>
+    <p className="eyebrow">Core · Reported state</p><h1 ref={heading} tabIndex={-1}>Your homes</h1>
     {query.isPending ? <StatePanel kind="loading" title="Finding your homes" description="Checking the homes available to your account." />
       : query.isError ? <StatePanel kind="error" title="We couldn’t load your homes" description={coreErrorMessage(query.error)} onRetry={() => void query.refetch()} />
       : query.data.length === 0 ? <StatePanel kind="empty" title="No accessible homes" description="Ask your home’s owner to add your account. Web can’t create homes or memberships yet." onRetry={() => void query.refetch()} />
