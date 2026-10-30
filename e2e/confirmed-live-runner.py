@@ -13,6 +13,7 @@ import ssl
 import subprocess
 import sys
 import tempfile
+import httpx
 
 WEB = Path(__file__).resolve().parents[1]
 CORE = Path(os.environ.get("LIVE_CORE_SOURCE", "C:/projects/kz-home-core")).resolve()
@@ -55,6 +56,8 @@ async def acceptance(values):
     assert "/v1/houses/{house_id}/me/permissions" in schema["paths"]
     received, published, held = [], [], []
     mode = "apply"
+    delay = {"path": None, "method": "GET", "skip": 0, "seen": False, "gate": asyncio.Event()}
+    forwarded = []
     control_key = secrets.token_urlsafe(32)
 
     def sql(query):
@@ -141,12 +144,23 @@ async def acceptance(values):
                     await api.request("PATCH", f"/houses/fixture_house/members/{ids['resident']}", {"role": data["role"]})
                 elif action == "/revoke":
                     # API helper expects JSON; DELETE is 204, so use real httpx directly.
-                    import httpx
                     async with httpx.AsyncClient(base_url=api.base) as http:
                         response = await http.delete(f"/houses/fixture_house/members/{ids['resident']}", headers={"Authorization": "Bearer " + api.token})
                         assert response.status_code == 204
+                elif action == "/delay-http":
+                    assert data["path"].startswith("/")
+                    delay.update(path=data["path"], method=data.get("method", "GET"), skip=data.get("skip", 0), seen=False, gate=asyncio.Event())
+                elif action == "/delay-state":
+                    result = {"seen": delay["seen"]}
+                elif action == "/release-http":
+                    delay["path"] = None
+                    delay["gate"].set()
+                elif action == "/second-house":
+                    await api.request("POST", "/houses", {"id": "race_house", "name": "Race second house"})
+                elif action in ("/deactivate-owner", "/activate-owner"):
+                    await asyncio.to_thread(sql, "UPDATE users SET is_active=" + ("false" if action == "/deactivate-owner" else "true") + " WHERE email='owner@example.test'")
                 elif action == "/evidence":
-                    result = {"received": received, "published": published, "database": await asyncio.to_thread(database)}
+                    result = {"received": received, "published": published, "forwarded": forwarded, "database": await asyncio.to_thread(database)}
                 else:
                     raise ValueError("Unknown fixture action")
                 payload = json.dumps(result).encode()
@@ -159,21 +173,57 @@ async def acceptance(values):
                 writer.close()
                 await writer.wait_closed()
 
+        upstream = httpx.AsyncClient(base_url=api.base, timeout=20)
+
+        async def proxy(reader, writer):
+            try:
+                header = (await reader.readuntil(b"\r\n\r\n")).decode("latin-1").split("\r\n")
+                method, path, _ = header[0].split()
+                headers = dict(line.split(":", 1) for line in header[1:] if ":" in line)
+                headers = {k.lower(): v.strip() for k, v in headers.items() if k.lower() not in ("host", "connection", "transfer-encoding")}
+                length = int(headers.get("content-length", "0"))
+                assert 0 <= length <= 65536
+                body = await reader.readexactly(length)
+                hold = delay["path"] is not None and path.startswith(delay["path"]) and method == delay["method"]
+                if hold and delay["skip"]:
+                    delay["skip"] -= 1
+                    hold = False
+                gate = delay["gate"]
+                response = await upstream.request(method, path, headers=headers, content=body)
+                forwarded.append({"method": method, "path": path, "status": response.status_code})
+                if hold:
+                    delay["seen"] = True
+                    await gate.wait()
+                content = response.content
+                wire = f"HTTP/1.1 {response.status_code} Result\r\nContent-Type: {response.headers.get('content-type', 'application/json')}\r\nContent-Length: {len(content)}\r\nConnection: close\r\n\r\n".encode()
+                writer.write(wire + content)
+                await writer.drain()
+            except (ConnectionError, asyncio.IncompleteReadError):
+                pass  # Browser may abandon observation after Core already handled a request.
+            finally:
+                writer.close()
+                await writer.wait_closed()
+
         receiver = asyncio.create_task(receive())
         server = await asyncio.start_server(control, "127.0.0.1", 0)
+        proxy_server = await asyncio.start_server(proxy, "127.0.0.1", 0)
         try:
-            env = {**os.environ, "CONFIRMED_LIVE": "1", "CORE_DEV_PROXY_TARGET": api.base,
+            env = {**os.environ, "CONFIRMED_LIVE": "1", "CORE_DEV_PROXY_TARGET": f"http://127.0.0.1:{proxy_server.sockets[0].getsockname()[1]}",
                    "RELAY_CONTROL_URL": f"http://127.0.0.1:{server.sockets[0].getsockname()[1]}",
                    "RELAY_CONTROL_KEY": control_key, "RELAY_OWNER_PASSWORD": seed["password"]}
             result = await asyncio.to_thread(subprocess.run,
                 ["npx.cmd", "playwright", "test", "--config", "playwright.confirmed-live.config.ts"],
-                cwd=WEB, env=env, timeout=210)
+                cwd=WEB, env=env, timeout=300)
             evidence = {"received": received, "published": published, "database": await asyncio.to_thread(database),
-                        "browser_exit": result.returncode}
+                        "forwarded": forwarded, "browser_exit": result.returncode}
             (WEB / "test-results" / "confirmed-live-evidence.json").write_text(json.dumps(evidence, indent=2), encoding="utf-8")
             assert result.returncode == 0, "Live browser acceptance failed; see credential-free test output"
             assert not receiver.done(), "Software relay receiver stopped unexpectedly"
         finally:
+            delay["gate"].set()
+            proxy_server.close()
+            await proxy_server.wait_closed()
+            await upstream.aclose()
             server.close()
             await server.wait_closed()
             receiver.cancel()

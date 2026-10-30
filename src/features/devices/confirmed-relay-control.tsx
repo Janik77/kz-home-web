@@ -7,6 +7,8 @@ import type { Receipt } from '../../data/core/relay-control';
 import { homeKey } from '../home/use-home';
 import { Button } from '../../components/ui/button';
 
+const refreshKey = ['home', 'command-refresh'] as const;
+
 function message(r: Receipt) {
   if (r.status === 'applied') return 'Выполнено';
   if (r.status === 'timed_out' || r.failure_code === 'publish_unconfirmed') return 'Нет подтверждения — состояние неизвестно';
@@ -48,7 +50,9 @@ export function ConfirmedRelayControl({ device }: { device: Device }) {
       if (receipt.status === 'applied') {
         try {
           await client.cancelQueries({ queryKey: homeKey });
-          const home = await repository.getHome(controller.signal);
+          await client.cancelQueries({ queryKey: refreshKey });
+          const home = await client.fetchQuery({ queryKey: refreshKey, staleTime: 0,
+            queryFn: ({ signal }) => repository.getHome(AbortSignal.any([signal, controller.signal])) });
           if (!controller.signal.aborted) { client.setQueryData(homeKey, home); setStatus('Выполнено · данные Core обновлены'); }
         } catch { if (!controller.signal.aborted) setStatus('Выполнено · состояние не обновлено, показаны последние известные данные'); }
       }
@@ -66,7 +70,7 @@ export function ConfirmedRelayControl({ device }: { device: Device }) {
     <p className="device-card__footnote">Core · Подтверждаемое управление реле</p>
     <Button variant="quiet" disabled={!allowed || busy} onClick={() => void run(true)}>Включить</Button>
     <Button variant="quiet" disabled={!allowed || busy} onClick={() => void run(false)}>Выключить</Button>
-    {!allowed && <p className="device-card__footnote">Управление недоступно: нужны поддерживаемое реле в сети и подтверждённые права на управление и чтение результата.</p>}
+    {!allowed && <p className="device-card__footnote">{device.connection === 'offline' ? 'Устройство не в сети' : eligibility.isFetching ? 'Проверяем права на управление' : 'Управление недоступно: нужны поддерживаемое реле в сети и подтверждённые права на управление и чтение результата.'}</p>}
     {status && <p role="status">{status}</p>}
     {status.startsWith('Нет подтверждения') && <p className="device-card__footnote">Команда могла выполниться. Повторное нажатие создаст новую команду; автоматической отправки нет.</p>}
   </div>;

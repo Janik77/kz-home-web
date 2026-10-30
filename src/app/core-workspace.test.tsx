@@ -115,3 +115,79 @@ it('aborts a previous house read and ignores its late state after switching home
   expect(screen.queryByRole('switch')).toBeNull();
   expect(fetcher.mock.calls.filter(([, options]) => options?.method !== 'GET').map(([url]) => url)).toEqual(['/core-api/auth/login']);
 });
+
+const stages = ['permissions', 'post', 'poll', 'refresh'] as const;
+for (const stage of stages) {
+  it(`isolates House B from a delayed House A ${stage} response`, async () => {
+    const h = await delayedControl(stage);
+    fireEvent.click(screen.getByRole('link', { name: 'Аккаунт и дома' }));
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Home' }), { target: { value: 'house-b' } });
+    await screen.findByRole('article', { name: 'Second relay · Second room' });
+    expect(h.signal()?.aborted).toBe(true);
+    await act(async () => h.release());
+    expect(screen.queryByText('Race relay')).toBeNull();
+    expect(screen.queryByText(/Выполнено/)).toBeNull();
+    expect(screen.getByRole('article', { name: 'Second relay · Second room' })).toHaveTextContent('Выключено');
+    expect(h.posts()).toBe(stage === 'permissions' ? 0 : 1);
+  });
+}
+for (const stage of ['permissions', 'post', 'poll'] as const) {
+  for (const end of ['logout', 'expiry'] as const) {
+    it(`rejects delayed ${stage} after session ${end}`, async () => {
+      const h = await delayedControl(stage);
+      if (end === 'logout') await act(async () => h.services.session.logout());
+      else await act(async () => { await h.services.session.read('/expire', v => v).catch(() => undefined); });
+      await screen.findByLabelText('Email');
+      expect(h.signal()?.aborted).toBe(true);
+      const calls = h.fetcher.mock.calls.length;
+      await act(async () => h.release());
+      expect(h.fetcher).toHaveBeenCalledTimes(calls);
+      expect(screen.queryByText(/Выполнено|Race relay/)).toBeNull();
+      expect(h.posts()).toBe(stage === 'permissions' ? 0 : 1);
+    });
+  }
+}
+
+async function delayedControl(stage: typeof stages[number]) {
+  let armed = false;
+  let sent = false;
+  let release!: () => void;
+  let signal: AbortSignal | null | undefined;
+  const receipt = { command_id: 'race', correlation_id: 'correlation', house_id: 'house-a', device_id: coreDevice.id,
+    requested_on: true, status: stage === 'refresh' ? 'applied' : 'dispatched', expires_at: new Date(Date.now() + 30_000).toISOString(), failure_code: null };
+  const relay = { ...coreDevice, name: 'Race relay', type: 'relay', capabilities: ['on_off'], state: { on: false } };
+  const responses: Record<string, unknown> = { ...coreResponses,
+    '/houses': [coreHouse, { ...coreHouse, id: 'house-b', name: 'Second home' }],
+    '/houses/house-b': { ...coreHouse, id: 'house-b', name: 'Second home' },
+    '/floors': [coreFloor, { ...coreFloor, id: 'floor-b', house_id: 'house-b' }],
+    '/rooms': [coreRoom, { ...coreRoom, id: 'room-b', floor_id: 'floor-b', name: 'Second room' }],
+    '/devices?house_id=house-a': [relay],
+    '/devices?house_id=house-b': [{ ...relay, id: 'second', name: 'Second relay', room_id: 'room-b' }],
+  };
+  const fetcher = vi.fn<typeof fetch>(async (url, options) => {
+    const path = String(url).replace('/core-api', '');
+    if (path === '/auth/logout') return new Response(null, { status: 204 });
+    if (path === '/expire' || path === '/auth/refresh') return new Response(null, { status: 401 });
+    const permissions = path.endsWith('/me/permissions');
+    const post = options?.method === 'POST' && path.endsWith('/commands');
+    if (post) sent = true;
+    const poll = path.endsWith('/commands/race');
+    let value = responses[path];
+    if (permissions) value = { house_id: path.split('/')[3], permissions: ['device.control', 'device.read'] };
+    if (post || poll) value = receipt;
+    const hold = armed && ((stage === 'permissions' && permissions && path.includes('house-a')) || (stage === 'post' && post) || (stage === 'poll' && poll) || (stage === 'refresh' && sent && path === '/devices?house_id=house-a'));
+    if (hold) {
+      signal = options?.signal;
+      return new Promise(resolve => { release = () => resolve(Response.json(value, { status: post ? 202 : 200 })); });
+    }
+    return Response.json(value, { status: post ? 202 : 200 });
+  });
+  const { services } = setup(fetcher); await signIn();
+  fireEvent.click(await screen.findByRole('button', { name: 'Family home' }));
+  const on = await screen.findByRole('button', { name: 'Включить' });
+  await waitFor(() => expect(on).toBeEnabled());
+  armed = true; fireEvent.click(on);
+  await waitFor(() => expect(release).toBeTypeOf('function'), { timeout: 3000 });
+  return { services, fetcher, release: () => release(), signal: () => signal,
+    posts: () => fetcher.mock.calls.filter(([url, o]) => o?.method === 'POST' && String(url).endsWith('/commands')).length };
+}

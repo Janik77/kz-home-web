@@ -29,6 +29,58 @@ async function accessible(page: Page) {
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
 }
 
+for (const stage of ['permissions', 'post', 'poll', 'refresh']) {
+  for (const ending of stage === 'refresh' ? ['house'] : ['house', 'logout', 'expiry']) {
+    test(`race ${stage} response after ${ending}`, async ({ page }, info) => {
+      test.skip(info.project.name !== 'desktop', 'Race synchronization is viewport-independent; existing UI suite covers all widths.');
+      const relay = { ...coreDevice, name: 'Race relay', type: 'relay', capabilities: ['on_off'], state: { on: false } };
+      await interceptCore(page, {
+        '/houses': [coreHouse, { ...coreHouse, id: 'house-b', name: 'Second home' }],
+        '/houses/house-b': { ...coreHouse, id: 'house-b', name: 'Second home' },
+        '/floors': [coreFloor, { ...coreFloor, id: 'floor-b', house_id: 'house-b' }],
+        '/rooms': [coreRoom, { ...coreRoom, id: 'room-b', floor_id: 'floor-b', name: 'Second room' }],
+        '/devices?house_id=house-a': [relay], '/devices?house_id=house-b': [],
+      });
+      let armed = false, sent = 0, expired = false;
+      let release!: () => void, entered!: () => void;
+      const gate = new Promise<void>(r => { release = r; });
+      const pending = new Promise<void>(r => { entered = r; });
+      const receipt = { command_id: 'race', correlation_id: 'correlation', house_id: 'house-a', device_id: relay.id,
+        requested_on: true, status: stage === 'refresh' ? 'applied' : 'dispatched', failure_code: null, expires_at: new Date(Date.now() + 30_000).toISOString() };
+      await page.route('**/core-api/**', async route => {
+        const url = new URL(route.request().url()); const path = url.pathname.replace('/core-api', '') + url.search;
+        if (path === '/auth/refresh' || (expired && path === '/houses/house-a')) return route.fulfill({ status: 401 });
+        const permission = path.endsWith('/me/permissions');
+        const post = route.request().method() === 'POST' && path.endsWith('/commands');
+        const poll = path.endsWith('/commands/race');
+        const refresh = path === '/devices?house_id=house-a' && sent > 0 && stage === 'refresh';
+        if (post) sent++;
+        const hold = armed && ((stage === 'permissions' && permission && path.includes('house-a')) || (stage === 'post' && post) || (stage === 'poll' && poll) || refresh);
+        if (hold) { entered(); await gate; }
+        if (permission) return route.fulfill({ json: { house_id: path.split('/')[3], permissions: ['device.read', 'device.control'] } }).catch(() => undefined);
+        if (post || poll) return route.fulfill({ status: post ? 202 : 200, json: receipt }).catch(() => undefined);
+        if (refresh) return route.fulfill({ json: [{ ...relay, state: { on: true } }] }).catch(() => undefined);
+        return route.fallback();
+      });
+      await page.goto('/'); await login(page); await page.getByRole('button', { name: 'Family home', exact: true }).click();
+      const on = page.getByRole('button', { name: 'Включить', exact: true }); await expect(on).toBeEnabled();
+      armed = true; await on.click(); await pending;
+      if (ending === 'expiry') { expired = true; await page.getByRole('button', { name: 'Обновить данные' }).click(); }
+      else {
+        await page.getByRole('link', { name: 'Аккаунт и дома' }).click();
+        if (ending === 'house') await page.getByRole('combobox', { name: 'Home', exact: true }).selectOption('house-b');
+        else await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+      }
+      if (ending === 'house') await expect(page.getByText('Устройств пока нет.', { exact: true })).toBeVisible();
+      else await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
+      release();
+      await expect(page.getByText('Race relay', { exact: true })).toHaveCount(0);
+      await expect(page.getByText(/Выполнено|команда отменена/i)).toHaveCount(0);
+      expect(sent).toBe(stage === 'permissions' ? 0 : 1);
+    });
+  }
+}
+
 test('owner submits relay intent once, waits for confirmation and refreshes reported state', async ({ page }) => {
   const relay = { ...coreDevice, type: 'relay', capabilities: ['on_off'], state: { on: false }, name: 'Confirmed relay' };
   await interceptCore(page, { '/devices?house_id=house-a': [relay] });
