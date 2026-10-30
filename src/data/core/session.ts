@@ -15,6 +15,7 @@ export class CoreSession {
   private tokens: TokenPair | null = null;
   private expiresAt = 0;
   private revision = 0;
+  private lifetime = new AbortController();
   private refreshInFlight: Promise<void> | null = null;
   private snapshot: SessionSnapshot = { status: 'anonymous', user: null, message: null };
   private listeners = new Set<() => void>();
@@ -23,6 +24,7 @@ export class CoreSession {
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   private publish(snapshot: SessionSnapshot) { this.snapshot = snapshot; for (const listener of this.listeners) listener(); }
   private forget(message: string | null) {
+    this.lifetime.abort(new CoreError('unauthorized'));
     this.revision++; this.tokens = null; this.expiresAt = 0;
     this.publish({ status: 'anonymous', user: null, message });
   }
@@ -31,6 +33,7 @@ export class CoreSession {
   async login(email: string, password: string): Promise<void> {
     if (this.snapshot.status !== 'anonymous') return;
     const revision = ++this.revision;
+    this.lifetime = new AbortController();
     this.publish({ status: 'authenticating', user: null, message: null });
     let pair: TokenPair | null = null;
     try {
@@ -65,6 +68,7 @@ export class CoreSession {
   }
 
   async read<T>(path: string, decode: (value: unknown) => T, signal?: AbortSignal): Promise<T> {
+    signal = AbortSignal.any([this.lifetime.signal, ...(signal ? [signal] : [])]);
     if (this.snapshot.status !== 'authenticated' || !this.tokens) throw new CoreError('unauthorized');
     const revision = this.revision;
     signal?.throwIfAborted();
@@ -75,9 +79,11 @@ export class CoreSession {
     const perform = (access: string) => this.http.request(path, decode, { token: access, signal });
     try {
       const result = await perform(token);
+      signal?.throwIfAborted();
       if (revision !== this.revision) throw new CoreError('unauthorized');
       return result;
     } catch (error) {
+      signal?.throwIfAborted();
       if (!(error instanceof CoreError) || error.kind !== 'unauthorized' || revision !== this.revision) throw error;
       // Concurrent 401s for an old token share rotation; a later one uses the new pair.
       if (this.tokens?.access_token === token) await this.refresh();
@@ -85,6 +91,7 @@ export class CoreSession {
       if (!this.tokens || revision !== this.revision) throw new CoreError('unauthorized');
       try {
         const result = await perform(this.tokens.access_token);
+        signal?.throwIfAborted();
         if (revision !== this.revision) throw new CoreError('unauthorized');
         return result;
       } catch (retryError) {
@@ -98,6 +105,7 @@ export class CoreSession {
 
   /** Mutations are sent once. A 401 expires the session; never replay a POST. */
   async command<T>(path: string, body: unknown, key: string, decode: (value: unknown) => T, signal: AbortSignal): Promise<T> {
+    signal = AbortSignal.any([signal, this.lifetime.signal]);
     const revision = this.revision;
     if (this.snapshot.status !== 'authenticated' || !this.tokens) throw new CoreError('unauthorized');
     if (this.now() >= this.expiresAt - 5_000) await this.refresh();
@@ -117,6 +125,7 @@ export class CoreSession {
 
   async logout(): Promise<void> {
     if (this.snapshot.status !== 'authenticated') return;
+    this.lifetime.abort(new CoreError('unauthorized'));
     this.publish({ status: 'signing-out', user: null, message: null });
     // A rotation already in flight must settle before revoking its current token.
     try { await this.refreshInFlight; } catch { /* Session was already cleared. */ }

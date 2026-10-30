@@ -35,7 +35,7 @@ export function ConfirmedRelayControl({ device }: { device: Device }) {
   const [status, setStatus] = useState('');
   useEffect(() => () => { running.current?.abort(); }, [device.id, control]);
   if (!control) return null;
-  const allowed = device.connection === 'online' && eligibility.data?.includes(device.id) === true && !eligibility.isError;
+  const allowed = device.connection === 'online' && eligibility.data?.includes(device.id) === true && !eligibility.isError && !eligibility.isFetching;
   const run = async (on: boolean) => {
     if (running.current || !allowed) return;
     const controller = new AbortController(); running.current = controller;
@@ -66,7 +66,7 @@ export function ConfirmedRelayControl({ device }: { device: Device }) {
     <p className="device-card__footnote">Core · Подтверждаемое управление реле</p>
     <Button variant="quiet" disabled={!allowed || busy} onClick={() => void run(true)}>Включить</Button>
     <Button variant="quiet" disabled={!allowed || busy} onClick={() => void run(false)}>Выключить</Button>
-    {!allowed && <p className="device-card__footnote">Управление недоступно: нужны поддерживаемое реле в сети и подтверждённые права владельца дома.</p>}
+    {!allowed && <p className="device-card__footnote">Управление недоступно: нужны поддерживаемое реле в сети и подтверждённые права на управление и чтение результата.</p>}
     {status && <p role="status">{status}</p>}
     {status.startsWith('Нет подтверждения') && <p className="device-card__footnote">Команда могла выполниться. Повторное нажатие создаст новую команду; автоматической отправки нет.</p>}
   </div>;

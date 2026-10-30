@@ -1,6 +1,7 @@
 import { boolean, decodeDevice, list, object, string } from './dtos';
 import { CoreError } from './errors';
 import type { CoreSession } from './session';
+import { readHousePermissions } from './permissions';
 
 export type CommandStatus = 'queued' | 'dispatched' | 'applied' | 'failed' | 'timed_out';
 export interface Receipt {
@@ -36,13 +37,8 @@ export function createRelayControl(session: CoreSession, houseId: string): Relay
   const eligible = async (signal: AbortSignal) => {
     const user = session.getSnapshot().user;
     if (!user) throw new CoreError('unauthorized');
-    // Verified Core v0.15: only owner can enumerate membership; owner includes device.control.
-    // Do not infer control from device.read, superuser metadata or a member.read denial.
-    const owner = await session.read(`${path}/members`, value => list(value, item => {
-      const m = object(item);
-      return string(m.house_id) === houseId && string(m.user_id) === user.id && string(m.role) === 'owner';
-    }).some(Boolean), signal);
-    if (!owner) return [];
+    const { permissions } = await readHousePermissions(session, houseId, signal);
+    if (!permissions.includes('device.control') || !permissions.includes('device.read')) return [];
     const devices = await session.read(`/devices?house_id=${encodeURIComponent(houseId)}`, value => list(value, decodeDevice), signal);
     signal.throwIfAborted();
     return devices.filter(d => d.type === 'relay' && d.online && d.capabilities.includes('on_off') && typeof d.state.on === 'boolean').map(d => d.id);
