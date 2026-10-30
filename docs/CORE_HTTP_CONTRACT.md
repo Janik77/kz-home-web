@@ -1,5 +1,9 @@
 # Verified Core HTTP contract — Web v0.3
 
+Current v0.16 command integration supersedes the historical read-only command
+blocker below. See [confirmed relay control and authorization limits](CONFIRMED_DEVICE_CONTROL_V0.16.md).
+The existing read contracts remain in use.
+
 Web v0.6 rechecked the current Core source and local OpenAPI. The missing HTTP
 command receipt/outcome contract still blocks real controls; see the exact
 [v0.6 discovery and read-only boundary](REAL_DEVICE_CONTROL_V0.6.md).

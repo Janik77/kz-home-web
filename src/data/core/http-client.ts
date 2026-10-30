@@ -5,6 +5,8 @@ export interface RequestOptions {
   body?: unknown;
   token?: string;
   signal?: AbortSignal | undefined;
+  idempotencyKey?: string;
+  expectedStatus?: number;
 }
 
 export class HttpClient {
@@ -15,6 +17,7 @@ export class HttpClient {
     const headers = new Headers({ Accept: 'application/json' });
     if (options.body !== undefined) headers.set('Content-Type', 'application/json');
     if (options.token) headers.set('Authorization', `Bearer ${options.token}`);
+    if (options.idempotencyKey) headers.set('Idempotency-Key', options.idempotencyKey);
     const deadline = AbortSignal.timeout(15_000);
     const signal = options.signal ? AbortSignal.any([options.signal, deadline]) : deadline;
     try {
@@ -28,9 +31,10 @@ export class HttpClient {
       if (!response.ok) {
         const kind = response.status === 401 ? 'unauthorized' : response.status === 403 ? 'forbidden'
           : response.status === 404 ? 'not-found' : response.status === 409 ? 'conflict'
-          : response.status === 422 ? 'validation' : response.status >= 500 ? 'server' : 'protocol';
+          : response.status === 422 ? 'validation' : response.status === 429 ? 'rate-limit' : response.status >= 500 ? 'server' : 'protocol';
         throw new CoreError(kind, response.status);
       }
+      if (options.expectedStatus !== undefined && response.status !== options.expectedStatus) throw new CoreError('protocol');
       if (response.status === 204) return decode(null);
       if (!response.headers.get('content-type')?.includes('application/json')) throw new CoreError('protocol');
       let value: unknown;

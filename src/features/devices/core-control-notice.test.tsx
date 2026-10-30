@@ -9,8 +9,8 @@ const relay: Device = { id: 'relay', roomId: 'room', name: 'Relay', kind: 'relay
 it('explains unavailable confirmation without inferring denial from a successful read', async () => {
   render(<CoreControlNotice device={relay} locale="ru" />);
   await userEvent.click(screen.getByText('Почему управление недоступно'));
-  expect(screen.getByText('Управление Core остаётся в режиме просмотра.')).toBeVisible();
-  expect(screen.getByText(/Результат команды пока нельзя надёжно проверить/)).toBeVisible();
+  expect(screen.getByText('Управление доступно только при подтверждённых правах и поддержке реле.')).toBeVisible();
+  expect(screen.getByText(/Подтверждение команды требует результата applied/)).toBeVisible();
   expect(screen.getByText(/Права на управление из этих данных не определяются/)).toBeVisible();
   expect(screen.queryByRole('switch')).toBeNull();
   expect(screen.queryByRole('button')).toBeNull();
