@@ -52,6 +52,7 @@ async def acceptance(values):
     schema = await api.request("GET", "/openapi.json")
     assert "/v1/devices/{device_id}/commands" in schema["paths"]
     assert "/v1/houses/{house_id}/commands/{command_id}" in schema["paths"]
+    assert "/v1/houses/{house_id}/me/permissions" in schema["paths"]
     received, published, held = [], [], []
     mode = "apply"
     control_key = secrets.token_urlsafe(32)
@@ -135,6 +136,15 @@ async def acceptance(values):
                         await asyncio.sleep(0.1)
                     else:
                         raise RuntimeError("Status not observed by Core")
+                elif action == "/role":
+                    assert data["role"] in ("resident", "installer", "technician")
+                    await api.request("PATCH", f"/houses/fixture_house/members/{ids['resident']}", {"role": data["role"]})
+                elif action == "/revoke":
+                    # API helper expects JSON; DELETE is 204, so use real httpx directly.
+                    import httpx
+                    async with httpx.AsyncClient(base_url=api.base) as http:
+                        response = await http.delete(f"/houses/fixture_house/members/{ids['resident']}", headers={"Authorization": "Bearer " + api.token})
+                        assert response.status_code == 204
                 elif action == "/evidence":
                     result = {"received": received, "published": published, "database": await asyncio.to_thread(database)}
                 else:

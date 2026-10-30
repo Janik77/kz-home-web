@@ -82,9 +82,20 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
   await control('online'); await control('mode', { mode: 'apply' });
   await page.getByRole('button', { name: 'Обновить данные' }).click();
   await expect(off).toBeEnabled(); await intent(false); await expect(status).toHaveText('Выполнено · данные Core обновлены');
-  await logout(); await login('resident');
-  await expect(on).toBeDisabled(); await expect(off).toBeDisabled();
-  // Resident is a real Core controller but Web cannot establish its permission.
+  await logout();
+  for (const role of ['resident', 'installer', 'technician']) {
+    await control('role', { role }); await login('resident');
+    await expect(on).toBeEnabled();
+    await intent(true); await expect(status).toHaveText('Выполнено · данные Core обновлены'); await expect(state).toHaveText('Включено');
+    await intent(false); await expect(status).toHaveText('Выполнено · данные Core обновлены'); await expect(state).toHaveText('Выключено');
+    if (role !== 'technician') await logout();
+  }
+  const beforeRevocation = posts.length;
+  await control('revoke');
+  await on.click();
+  await expect(status).toHaveText('Устройство или команда недоступны');
+  expect(posts).toHaveLength(beforeRevocation);
+  console.log('PASS all four roles confirmed ON/OFF; revoked membership rechecked before POST');
   await logout(); const foreign = await login('foreign');
   await expect(page.getByRole('heading', { name: 'No accessible homes' })).toBeVisible();
   expect(await browserCommand(foreign)).toBe(404); expect(await browserCommand()).toBe(401);
@@ -95,9 +106,9 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
   expect(evidence.received.map((r: { command_id: string }) => r.command_id)).toEqual(receipts.map(r => r.command_id));
   expect(evidence.received.map((r: { correlation_id: string }) => r.correlation_id)).toEqual(receipts.map(r => r.correlation_id));
   expect(new Set(posts).size).toBe(posts.length);
-  expect(evidence.database.counts).toEqual(['applied|4', 'failed|1', 'timed_out|1']);
+  expect(evidence.database.counts).toEqual(['applied|10', 'failed|1', 'timed_out|1']);
   expect(evidence.database.invalid_applied).toBe('0');
   expect(evidence.database.migration).toBe('0006_command_lifecycle');
   expect(evidence.database.commands.map((r: { command_id: string }) => r.command_id).sort()).toEqual(receipts.map(r => r.command_id).sort());
-  console.log('PASS offline 409, resident UI blocked, foreign 404, anonymous 401, independent SQL results and exact MQTT IDs');
+  console.log('PASS offline 409, foreign 404, anonymous 401, independent SQL results and exact MQTT IDs');
 });

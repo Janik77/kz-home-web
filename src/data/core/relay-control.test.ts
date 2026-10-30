@@ -16,7 +16,7 @@ async function harness() {
     if (path.endsWith('/auth/login')) return Response.json(tokenPair);
     if (path.endsWith('/auth/me')) return Response.json(coreUser);
     if (path.endsWith('/auth/logout')) return new Response(null, { status: 204 });
-    if (path.endsWith('/members')) return Response.json(member ? [{ user_id: coreUser.id, house_id: 'house-a', role: 'owner' }] : []);
+    if (path.endsWith('/me/permissions')) return Response.json({house_id:'house-a', permissions: member ? ['device.control','device.read'] : ['device.read']});
     if (path.includes('/devices?')) return Response.json([device]);
     return Response.json(result, { status: options?.method === 'POST' ? response : 200 });
   });

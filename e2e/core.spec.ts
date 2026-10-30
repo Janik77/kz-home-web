@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { coreResponses, coreHouse, coreDevice, coreRoom, coreFloor, coreScene, coreUser, tokenPair } from '../src/test/core-fixtures';
+import { coreResponses, coreHouse, coreDevice, coreRoom, coreFloor, coreScene, tokenPair } from '../src/test/core-fixtures';
 import { themeStorageKey } from '../src/app/theme-context';
 
 async function interceptCore(page: Page, overrides: Record<string, unknown> = {}) {
@@ -11,7 +11,7 @@ async function interceptCore(page: Page, overrides: Record<string, unknown> = {}
     const url = new URL(request.url());
     const path = url.pathname.replace('/core-api', '') + url.search;
     requests.push({ path, method: request.method() });
-    if (path.endsWith('/members')) return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    if (path.endsWith('/me/permissions')) return route.fulfill({ json: {house_id: path.split('/')[3], permissions: []} });
     if (path === '/auth/logout') return route.fulfill({ status: 204 });
     const responses = { ...coreResponses, ...overrides };
     if (!(path in responses)) throw new Error(`Unexpected frontend HTTP path: ${path}`);
@@ -32,11 +32,12 @@ async function accessible(page: Page) {
 test('owner submits relay intent once, waits for confirmation and refreshes reported state', async ({ page }) => {
   const relay = { ...coreDevice, type: 'relay', capabilities: ['on_off'], state: { on: false }, name: 'Confirmed relay' };
   await interceptCore(page, { '/devices?house_id=house-a': [relay] });
-  await page.route('**/core-api/houses/house-a/members', route => route.fulfill({ json: [{ user_id: coreUser.id, house_id: 'house-a', role: 'owner' }] }));
+  await page.route('**/core-api/v1/houses/house-a/me/permissions', route => route.fulfill({ json: {house_id:'house-a', permissions:['device.read','device.control']} }));
   let applied = false; const keys: string[] = [];
   const receipt = { command_id: 'cmd', correlation_id: 'corr', house_id: 'house-a', device_id: relay.id, requested_on: true,
     status: 'dispatched', expires_at: new Date(Date.now() + 30_000).toISOString(), failure_code: null };
   await page.route('**/core-api/v1/**', async route => {
+    if (route.request().url().endsWith('/me/permissions')) return route.fallback();
     if (route.request().method() === 'POST') {
       expect(route.request().postDataJSON()).toEqual({ on: true });
       expect(route.request().headers()['authorization']).toBe(`Bearer ${tokenPair.access_token}`);
