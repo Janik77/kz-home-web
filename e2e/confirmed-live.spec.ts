@@ -185,3 +185,24 @@ test('LIVE delayed Core responses across houses, logout and inactive session', a
   expect(evidence.database.invalid_applied).toBe('0');
   console.log('PASS LIVE logout after POST reached Core, inactive-session invalidation during permissions, SQL applied14/failed1/timed_out1');
 });
+
+
+test('LIVE mobile software relay ON/OFF with persisted MQTT receipts', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.getByLabel('Электронная почта', { exact: true }).fill('owner@example.test');
+  await page.getByLabel('Пароль', { exact: true }).fill(process.env.RELAY_OWNER_PASSWORD!);
+  await page.getByLabel('Пароль', { exact: true }).press('Enter');
+  await page.getByRole('button', { name: 'Fixture', exact: true }).click();
+  const card = page.getByRole('article', { name: 'Software relay · Room' });
+  for (const value of [true, false]) {
+    const response = page.waitForResponse(r => r.url().endsWith('/v1/devices/fixture_relay/commands') && r.request().method() === 'POST');
+    await card.getByRole('button', { name: value ? 'Включить' : 'Выключить', exact: true }).click();
+    expect((await response).status()).toBe(202);
+    await expect(card.getByRole('status')).toHaveText('Выполнено · данные Core обновлены');
+    await expect(card.locator('.signature-device__state')).toHaveText(value ? 'Включено' : 'Выключено');
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: 'test-results/live-software-mobile.png', fullPage: true });
+  console.log('PASS LIVE mobile 390px ON/OFF through Core and MQTT');
+});

@@ -309,7 +309,10 @@ async def stack(core):
 
         def sql(query):
             with engine.begin() as connection:
-                rows = connection.execute(text(query)).all()
+                result = connection.execute(text(query))
+                if not result.returns_rows:
+                    return ""
+                rows = result.all()
                 return "\n".join("|".join(
                     json.dumps(value) if isinstance(value, (dict, list)) else str(value)
                     for value in row) for row in rows)

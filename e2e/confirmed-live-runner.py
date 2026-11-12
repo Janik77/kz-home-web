@@ -160,7 +160,8 @@ async def acceptance(values):
                 payload = json.dumps(result).encode()
                 writer.write(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\nContent-Length: " + str(len(payload)).encode() + b"\r\n\r\n" + payload)
                 await writer.drain()
-            except Exception:
+            except Exception as error:
+                print(f"Owned fixture control failed: {type(error).__name__}", flush=True)
                 writer.write(b"HTTP/1.1 500 Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
                 await writer.drain()
             finally:
@@ -214,6 +215,11 @@ async def acceptance(values):
                         "core_suback_sha": os.environ.get("CORE_SUBACK_SHA"),
                         "physical_devices": sql("SELECT count(*) FROM physical_devices")}
             (WEB / "test-results" / "confirmed-live-evidence.json").write_text(json.dumps(evidence, indent=2), encoding="utf-8")
+            assert evidence["physical_devices"] == "0"
+            commands = evidence["database"]["commands"]
+            assert sorted((row["command_id"], row["correlation_id"]) for row in received) == sorted(
+                (row["command_id"], row["correlation_id"]) for row in commands)
+            assert evidence["database"]["invalid_applied"] == "0"
             assert result.returncode == 0, "Live browser acceptance failed; see credential-free test output"
             assert not receiver.done(), "Software relay receiver stopped unexpectedly"
         finally:
