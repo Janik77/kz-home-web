@@ -32,7 +32,7 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
     await expect(page.getByLabel('Электронная почта', { exact: true })).toBeVisible();
   }
   const owner = await login('owner');
-  const card = page.getByRole('article', { name: 'Physical relay · Room' });
+  const card = page.getByRole('article', { name: 'Software relay · Room' });
   const state = card.locator('.signature-device__state');
   const status = card.getByRole('status');
   const on = card.getByRole('button', { name: 'Включить', exact: true });
@@ -59,6 +59,7 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
   await control('mode', { mode: 'apply' });
   await intent(false); await expect(status).toHaveText('Выполнено · данные Core обновлены'); await expect(state).toHaveText('Выключено');
   await intent(false); await expect(status).toHaveText('Выполнено · данные Core обновлены'); await expect(state).toHaveText('Выключено');
+  await page.screenshot({ path: 'test-results/live-software-desktop.png', fullPage: true });
   console.log('PASS ON, OFF, unchanged OFF, pending, no optimistic update, duplicate clicks');
 
   await control('mode', { mode: 'fail' });
@@ -108,8 +109,14 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
   expect(new Set(posts).size).toBe(posts.length);
   expect(evidence.database.counts).toEqual(['applied|10', 'failed|1', 'timed_out|1']);
   expect(evidence.database.invalid_applied).toBe('0');
-  expect(evidence.database.migration).toBe('0006_command_lifecycle');
+  expect(evidence.database.migration).toBe(process.env.CORE_MIGRATION);
   expect(evidence.database.commands.map((r: { command_id: string }) => r.command_id).sort()).toEqual(receipts.map(r => r.command_id).sort());
+  for (const command of evidence.database.commands.filter((row: { status: string }) => row.status === 'applied')) {
+    expect(evidence.published.some((item: { topic: string; payload: { command_id: string; correlation_id: string; status: string }; qos: number; retain: boolean }) =>
+      item.topic.endsWith('/ack') && item.payload.command_id === command.command_id && item.payload.correlation_id === command.correlation_id && item.payload.status === 'applied' && item.qos === 1 && !item.retain)).toBe(true);
+    expect(evidence.published.some((item: { topic: string; payload: { correlation_id: string; state: { on: boolean } } }) =>
+      item.topic.endsWith('/state') && item.payload.correlation_id === command.correlation_id && item.payload.state.on === command.requested_on)).toBe(true);
+  }
   console.log('PASS offline 409, foreign 404, anonymous 401, independent SQL results and exact MQTT IDs');
 });
 
@@ -131,7 +138,7 @@ test('LIVE delayed Core responses across houses, logout and inactive session', a
     await page.getByRole('link', { name: 'Аккаунт и дома' }).click();
     await page.getByRole('combobox', { name: 'Дом', exact: true }).selectOption(id);
   }
-  const card = page.getByRole('article', { name: 'Physical relay · Room' });
+  const card = page.getByRole('article', { name: 'Software relay · Room' });
   const posts: string[] = [];
   page.on('request', request => { if (request.method() === 'POST' && request.url().endsWith('/commands')) posts.push(request.url()); });
   await control('second-house'); await control('mode', { mode: 'apply' }); await login();

@@ -1,0 +1,75 @@
+name: Live Web Core MQTT software relay
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: live-software-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  live-software:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CORE_BASE_SHA: 159eb98f2349b1aa2b8afd313c3a3f1fbf9b6bd2
+      CORE_SUBACK_SHA: bbb9d7af8647ecc727b9c8201a936f66fa99a91e
+      PYTHONDONTWRITEBYTECODE: '1'
+      LIVE_CORE_SOURCE: ${{ github.workspace }}/core
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: web
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Janik77/kz-home-core
+          ref: ${{ env.CORE_BASE_SHA }}
+          path: core
+          persist-credentials: false
+      - name: Apply exact reviewed Core SUBACK delta to disposable checkout
+        working-directory: core
+        run: |
+          test "$(git rev-parse HEAD)" = "$CORE_BASE_SHA"
+          git fetch origin "$CORE_SUBACK_SHA"
+          test "$(git rev-parse FETCH_HEAD)" = "$CORE_SUBACK_SHA"
+          git fetch origin 2359807c2781ce956ed43bc603772b66dd27955b
+          test "$(git rev-parse "$CORE_SUBACK_SHA^1")" = 2359807c2781ce956ed43bc603772b66dd27955b
+          git diff "$CORE_SUBACK_SHA^1" "$CORE_SUBACK_SHA" --binary | git apply --index
+          git diff --cached --stat
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install existing pinned dependencies and browser
+        working-directory: web
+        run: |
+          python -m venv "$RUNNER_TEMP/live-venv"
+          "$RUNNER_TEMP/live-venv/bin/python" -m pip install -r ../core/requirements-dev.txt
+          "$RUNNER_TEMP/live-venv/bin/python" -m pip check
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Prepare disposable service images before inventory baseline
+        run: |
+          docker pull postgres:17-bookworm
+          docker pull eclipse-mosquitto:2
+          docker pull alpine/openssl:latest
+      - name: Real browser to Core to MQTT TLS software relay and PostgreSQL receipts
+        working-directory: web
+        run: '"$RUNNER_TEMP/live-venv/bin/python" -B e2e/confirmed-live-runner.py'
+      - name: Core combined regression suite
+        working-directory: core
+        run: '"$RUNNER_TEMP/live-venv/bin/python" -m pytest -q'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: live-software-evidence
+          path: |
+            web/test-results/confirmed-live-evidence.json
+            web/test-results/confirmed-live-preservation.json
+            web/test-results/live-software-*.png
+          if-no-files-found: error

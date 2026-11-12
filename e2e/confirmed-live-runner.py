@@ -12,11 +12,10 @@ import secrets
 import ssl
 import subprocess
 import sys
-import tempfile
 import httpx
 
 WEB = Path(__file__).resolve().parents[1]
-CORE = Path(os.environ.get("LIVE_CORE_SOURCE", "C:/projects/kz-home-core")).resolve()
+CORE = Path(os.environ["LIVE_CORE_SOURCE"]).resolve()
 sys.dont_write_bytecode = True
 sys.path[:0] = [str(CORE), str(CORE / "tests")]
 
@@ -24,8 +23,7 @@ import aiomqtt
 from app.transports.mqtt_models import AckEnvelope, CommandEnvelope
 from app.transports.mqtt_topics import TopicKind
 from simulator.mqtt_relay import Relay, utc_now
-from test_physical_acceptance import provision
-from test_physical_acceptance_live import command, ready, stack
+from confirmed_live_stack import provision, stack
 
 
 def inventory():
@@ -47,8 +45,7 @@ def inventory():
 
 
 async def acceptance(values):
-    dc, config, _, seed, ids, api = values
-    await ready(api)
+    config, seed, ids, api, sql, migration = values
     await provision(api, ids, seed)
     schema = await api.request("GET", "/openapi.json")
     assert "/v1/devices/{device_id}/commands" in schema["paths"]
@@ -60,18 +57,15 @@ async def acceptance(values):
     forwarded = []
     control_key = secrets.token_urlsafe(32)
 
-    def sql(query):
-        return command([*dc, "exec", "-T", "postgres", "psql", "-U", "postgres", "-d", "kzhome", "-At", "-c", query])
-
-    assert sql("SELECT version_num FROM alembic_version") == "0006_command_lifecycle"
-    print("Isolated Core ready: command API present, PostgreSQL migration 0006_command_lifecycle", flush=True)
+    assert sql("SELECT version_num FROM alembic_version") == migration
+    print(f"Isolated Core ready: PostgreSQL migration {migration}; software-only identity", flush=True)
     async with aiomqtt.Client(hostname=config.host, port=config.port, username=config.username,
                               password=config.password, identifier=config.client_id,
                               tls_context=ssl.create_default_context(cafile=config.ca_file)) as mqtt:
         async def publish(topic, payload, **kwargs):
             data = json.loads(payload)
             if str(topic).endswith(("/ack", "/state")):
-                published.append({"topic": str(topic), "payload": data, "retain": kwargs.get("retain")})
+                published.append({"topic": str(topic), "payload": data, "retain": kwargs.get("retain"), "qos": kwargs.get("qos")})
             await mqtt.publish(topic, payload, **kwargs)
         relay = Relay(config.house_id, config.device_id, publish)
         await mqtt.subscribe(relay.topic(TopicKind.SET), qos=1)
@@ -210,12 +204,15 @@ async def acceptance(values):
         try:
             env = {**os.environ, "CONFIRMED_LIVE": "1", "CORE_DEV_PROXY_TARGET": f"http://127.0.0.1:{proxy_server.sockets[0].getsockname()[1]}",
                    "RELAY_CONTROL_URL": f"http://127.0.0.1:{server.sockets[0].getsockname()[1]}",
-                   "RELAY_CONTROL_KEY": control_key, "RELAY_OWNER_PASSWORD": seed["password"]}
+                   "RELAY_CONTROL_KEY": control_key, "RELAY_OWNER_PASSWORD": seed["password"], "CORE_MIGRATION": migration}
             result = await asyncio.to_thread(subprocess.run,
-                ["npx.cmd", "playwright", "test", "--config", "playwright.confirmed-live.config.ts"],
+                ["npx.cmd" if os.name == "nt" else "npx", "playwright", "test", "--config", "playwright.confirmed-live.config.ts"],
                 cwd=WEB, env=env, timeout=300)
             evidence = {"received": received, "published": published, "database": await asyncio.to_thread(database),
-                        "forwarded": forwarded, "browser_exit": result.returncode}
+                        "forwarded": forwarded, "browser_exit": result.returncode,
+                        "core_base_sha": os.environ.get("CORE_BASE_SHA"),
+                        "core_suback_sha": os.environ.get("CORE_SUBACK_SHA"),
+                        "physical_devices": sql("SELECT count(*) FROM physical_devices")}
             (WEB / "test-results" / "confirmed-live-evidence.json").write_text(json.dumps(evidence, indent=2), encoding="utf-8")
             assert result.returncode == 0, "Live browser acceptance failed; see credential-free test output"
             assert not receiver.done(), "Software relay receiver stopped unexpectedly"
@@ -238,15 +235,12 @@ def main():
     (WEB / "test-results").mkdir(exist_ok=True)
     print(f"Baseline: {len(before['containers'])} containers, {len(before['volumes'])} volumes; isolated fixture only", flush=True)
     try:
-        with tempfile.TemporaryDirectory(prefix="kzhome-web-v016-") as temporary:
-            fixture = stack.__wrapped__(Path(temporary))
-            try:
-                values = next(fixture)
-                if os.name == "nt":
-                    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-                asyncio.run(acceptance(values))
-            finally:
-                fixture.close()
+        async def run():
+            async with stack(CORE) as values:
+                await acceptance(values)
+        if os.name == "nt":
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        asyncio.run(run())
     finally:
         after = inventory()
         result = {"before": before, "after": after, "preserved": before == after}
