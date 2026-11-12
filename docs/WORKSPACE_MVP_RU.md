@@ -96,3 +96,37 @@ suites на 1440, 1024, 834, 390, 320px. Отдельная job снимает b
 (`Operation not permitted`); облачный браузер не достигает localhost этой среды.
 До получения успешного CI визуальные проверки и снимки считаются **не выполненными**.
 Не путать запуск Vite/успешную сборку с проверкой браузером.
+
+
+## Проверка замечаний PR #10 (2026-11-12)
+
+GitHub Actions закреплены на полных commit SHA официальных latest releases:
+checkout v7.0.1, setup-node v7.1.0, upload-artifact v7.0.2. Во всех checkout
+отключён `persist-credentials`. Permissions workflow остаются `contents: read`.
+
+В актуальном main `809266f5c0e44f2a2b591c494c62b692429fbce0` package.json
+содержит 0.5.0, но история/documentation содержит milestone v0.19. Remote tags
+отсутствуют; GitHub latest-release возвращает 404. Поэтому UI показывает
+«KZ Home Web» без неподтверждённого номера релиза. Версия пакета не изменена.
+
+### Live Web → Core → MQTT software relay: не выполнено
+
+Проверены существующие `e2e/confirmed-live-runner.py`,
+`e2e/confirmed-live.spec.ts`, `playwright.confirmed-live.config.ts` и Core
+`159eb98f2349b1aa2b8afd313c3a3f1fbf9b6bd2`. Runner использует реальный Core
+и MQTT, но локальный preflight обнаружил отсутствие Docker/Podman, а создание
+Unix-сокета возвращает Operation not permitted (также блокирует Chromium).
+Запуск существующего runner здесь невозможен.
+
+Кроме окружения, перенос требует отдельной проверки совместимости: runner
+вызывает Windows `npx.cmd`, требует миграцию `0006_command_lifecycle`, тогда как
+Core head — `0008_provisioning_sessions`; browser config требует Chrome, а
+fixture регистрирует физическую модель через onboarding и не является отдельным
+software-only admission fixture. Нельзя просто убрать эти проверки или открыть
+physical gate ради зелёного результата. Никакой production stack/оборудование
+не запускались, данные установки не изменялись.
+
+Для следующего live прогона нужен одноразовый Docker runner с Chromium,
+совместимый с актуальным Core software-relay fixture и проверкой command_id,
+correlation_id, MQTT ACK/state и сохранённого receipt. Текущий CI проверяет
+контракт через HTTP fixtures; это **не** свидетельство live MQTT E2E.

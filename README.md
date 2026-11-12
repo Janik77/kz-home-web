@@ -6,7 +6,7 @@
 Точный объём, запуск и ограничения: [MVP workspace](docs/WORKSPACE_MVP_RU.md).
 
 
-A consumer interface for KZ Home. The current milestone is **v0.5: premium UI/UX redesign** with warm ivory/graphite themes, an architectural visual language and explicit device-state semantics. Core/mock repositories, session handling and read-only real controls are preserved. See the [v0.5 report](docs/PREMIUM_REDESIGN_V0.5.md) and the historical [v0.4 live acceptance procedure](docs/LIVE_CORE_ACCEPTANCE_V0.4.md). Firmware remains separate.
+A consumer interface for KZ Home with warm ivory/graphite themes and explicit device-state semantics. Historical milestones: [premium redesign](docs/PREMIUM_REDESIGN_V0.5.md), [live acceptance](docs/LIVE_CORE_ACCEPTANCE_V0.4.md), and [control/session race safety](docs/CONTROL_SESSION_RACE_V0.19.md). These milestone labels are not a published application release version. Firmware remains separate.
 
 Home, Rooms, room detail, Scenes and appearance settings retain the v0.2 design. **Mock mode** remains an isolated local preview with simulated controls. **Core mode** provides real JSON login, in-memory bearer sessions, house selection and read-only home data through the existing repository boundary. Supported relay commands use the existing permission-checked receipt flow. Scene execution remains unavailable in Core mode. No browser MQTT, frontend backend or deployment infrastructure is included.
 

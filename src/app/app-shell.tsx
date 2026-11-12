@@ -74,7 +74,7 @@ export function AppShell() {
             : <div className="mode-notice"><FlaskConical size={14} aria-hidden="true" /><span>Демо · Симуляция <span className="mode-notice__detail">· Пример дома</span></span></div>)}
           <Outlet />
         </main>
-        <footer className="app-footer"><span>KZ Home · 0.5</span><span>{core ? 'Данные Core · актуальность неизвестна' : 'Симуляция · сброс при перезагрузке'}</span></footer>
+        <footer className="app-footer"><span>KZ Home Web</span><span>{core ? 'Данные Core · актуальность неизвестна' : 'Симуляция · сброс при перезагрузке'}</span></footer>
       </div>
       <Navigation mobile />
       <NavigationEffects />
