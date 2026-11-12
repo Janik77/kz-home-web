@@ -11,9 +11,9 @@ describe('home summaries', () => {
   });
 
   it('never treats a last-known offline state as active', () => {
-    const offline = { id: 'test', roomId: 'test', name: 'Light', connection: 'offline', kind: 'light', favorite: false, on: true, brightness: 50 } as const;
+    const offline = { id: 'test', roomId: 'test', name: 'Светлая', connection: 'offline', kind: 'light', favorite: false, on: true, brightness: 50 } as const;
     expect(isActive(offline)).toBe(false);
-    expect(describeDevice(offline)).toBe('Offline · last known state');
+    expect(describeDevice(offline)).toBe('Не в сети · последнее состояние');
   });
 
   it('keeps room availability and climate truthful with offline sensors', () => {

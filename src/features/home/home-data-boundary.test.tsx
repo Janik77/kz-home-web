@@ -10,9 +10,9 @@ import { CoreError } from '../../data/core/errors';
 
 describe('home data boundary', () => {
   it.each([
-    ['forbidden', 'Access is limited'],
-    ['network', 'Core is unavailable'],
-    ['server', 'Core is unavailable'],
+    ['forbidden', 'Доступ ограничен'],
+    ['network', 'Core недоступен'],
+    ['server', 'Core недоступен'],
   ] as const)('distinguishes %s from individual device connectivity', async (kind, heading) => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const repository = { ...createMockHomeRepository(initialHome, 0), getHome: vi.fn().mockRejectedValue(new CoreError(kind)) };
@@ -30,9 +30,9 @@ describe('home data boundary', () => {
     render(<QueryClientProvider client={client}><RepositoryProvider value={{ ...repository, getHome }}>
       <HomeDataBoundary>{(home) => <h1>{home.house.name}</h1>}</HomeDataBoundary>
     </RepositoryProvider></QueryClientProvider>);
-    expect(screen.getByRole('status')).toHaveTextContent('Getting your home ready');
-    expect(await screen.findByRole('alert')).toHaveTextContent('We couldn’t load your home');
-    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(screen.getByRole('status')).toHaveTextContent('Готовим ваш дом');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Не удалось загрузить дом');
+    await userEvent.click(screen.getByRole('button', { name: 'Повторить' }));
     expect(await screen.findByRole('heading', { name: 'Family home' })).toBeInTheDocument();
     expect(getHome).toHaveBeenCalledTimes(2);
     client.clear();

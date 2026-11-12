@@ -19,17 +19,17 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
   }
   async function login(role: string) {
     await page.goto('/');
-    await page.getByLabel('Email', { exact: true }).fill(`${role}@example.test`);
-    await page.getByLabel('Password', { exact: true }).fill(process.env.RELAY_OWNER_PASSWORD!);
+    await page.getByLabel('Электронная почта', { exact: true }).fill(`${role}@example.test`);
+    await page.getByLabel('Пароль', { exact: true }).fill(process.env.RELAY_OWNER_PASSWORD!);
     const response = page.waitForResponse(r => r.url().endsWith('/auth/login'));
-    await page.getByLabel('Password', { exact: true }).press('Enter');
+    await page.getByLabel('Пароль', { exact: true }).press('Enter');
     const result = await response; expect(result.status()).toBe(200);
     return (await result.json()).access_token as string;
   }
   async function logout() {
     await page.getByRole('link', { name: 'Аккаунт и дома' }).click();
-    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
-    await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Выйти', exact: true }).click();
+    await expect(page.getByLabel('Электронная почта', { exact: true })).toBeVisible();
   }
   const owner = await login('owner');
   const card = page.getByRole('article', { name: 'Physical relay · Room' });
@@ -97,7 +97,7 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
   expect(posts).toHaveLength(beforeRevocation);
   console.log('PASS all four roles confirmed ON/OFF; revoked membership rechecked before POST');
   await logout(); const foreign = await login('foreign');
-  await expect(page.getByRole('heading', { name: 'No accessible homes' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Нет доступных домов' })).toBeVisible();
   expect(await browserCommand(foreign)).toBe(404); expect(await browserCommand()).toBe(401);
   const denied = await page.evaluate(async ({ foreign, id }) => (await fetch(`/core-api/v1/houses/fixture_house/commands/${id}`, { headers: { Authorization: `Bearer ${foreign}` } })).status,
     { foreign, id: receipts[0]!.command_id });
@@ -121,15 +121,15 @@ test('LIVE delayed Core responses across houses, logout and inactive session', a
   }
   async function login() {
     await page.goto('/');
-    await page.getByLabel('Email', { exact: true }).fill('owner@example.test');
-    await page.getByLabel('Password', { exact: true }).fill(process.env.RELAY_OWNER_PASSWORD!);
-    await page.getByLabel('Password', { exact: true }).press('Enter');
+    await page.getByLabel('Электронная почта', { exact: true }).fill('owner@example.test');
+    await page.getByLabel('Пароль', { exact: true }).fill(process.env.RELAY_OWNER_PASSWORD!);
+    await page.getByLabel('Пароль', { exact: true }).press('Enter');
     await page.getByRole('button', { name: 'Fixture', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Включить', exact: true })).toBeEnabled();
   }
   async function selectHouse(id: string) {
     await page.getByRole('link', { name: 'Аккаунт и дома' }).click();
-    await page.getByRole('combobox', { name: 'Home', exact: true }).selectOption(id);
+    await page.getByRole('combobox', { name: 'Дом', exact: true }).selectOption(id);
   }
   const card = page.getByRole('article', { name: 'Physical relay · Room' });
   const posts: string[] = [];
@@ -158,8 +158,8 @@ test('LIVE delayed Core responses across houses, logout and inactive session', a
   await card.getByRole('button', { name: 'Выключить', exact: true }).click();
   await expect.poll(async () => (await control('delay-state')).seen).toBe(true);
   await page.getByRole('link', { name: 'Аккаунт и дома' }).click();
-  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
-  await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Выйти', exact: true }).click();
+  await expect(page.getByLabel('Электронная почта', { exact: true })).toBeVisible();
   await control('release-http');
   await expect(card).toHaveCount(0);
   await login();
@@ -169,7 +169,7 @@ test('LIVE delayed Core responses across houses, logout and inactive session', a
   await expect.poll(async () => (await control('delay-state')).seen).toBe(true);
   await control('deactivate-owner');
   await page.getByRole('button', { name: 'Обновить данные' }).click();
-  await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Электронная почта', { exact: true })).toBeVisible();
   await control('release-http'); await control('activate-owner');
   expect(posts).toHaveLength(before);
   await expect(page.getByText(/Выполнено|команда отменена/i)).toHaveCount(0);

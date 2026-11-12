@@ -21,13 +21,13 @@ export function getHomeSummary(home: HomeSnapshot) {
 }
 
 export function describeDevice(device: Device): string {
-  if (device.connection === 'offline') return 'Offline · last known state';
+  if (device.connection === 'offline') return 'Не в сети · последнее состояние';
   switch (device.kind) {
-    case 'light': return device.on ? device.brightness === null ? 'On · brightness unavailable' : `On · ${device.brightness}% brightness` : 'Off';
-    case 'relay': return device.on ? 'Power on' : 'Power off';
-    case 'curtain': return device.position === 0 ? 'Closed' : device.position === 100 ? 'Open' : `${device.position}% open`;
-    case 'sensor': return `${device.temperature.toFixed(1)}°C · ${device.humidity}% humidity`;
-    case 'other': return device.readings.length ? device.readings.map((reading) => `${reading.label}: ${reading.value}`).join(' · ') : 'No reported state yet';
+    case 'light': return device.on ? device.brightness === null ? 'Включено · яркость неизвестна' : `Включено · яркость ${device.brightness}%` : 'Выключено';
+    case 'relay': return device.on ? 'Питание включено' : 'Питание выключено';
+    case 'curtain': return device.position === 0 ? 'Закрыто' : device.position === 100 ? 'Открыто' : `Открыто на ${device.position}%`;
+    case 'sensor': return `${device.temperature.toFixed(1)}°C · влажность ${device.humidity}%`;
+    case 'other': return device.readings.length ? device.readings.map((reading) => `${reading.label}: ${reading.value}`).join(' · ') : 'Состояние ещё не получено';
   }
 }
 
@@ -61,8 +61,8 @@ function temperatures(devices: Device[]): number[] {
 
 export function describeCommand(command: DeviceCommand): string {
   switch (command.type) {
-    case 'set-power': return command.on ? 'On' : 'Off';
-    case 'set-brightness': return `${command.brightness}% brightness`;
-    case 'set-position': return `${command.position}% open`;
+    case 'set-power': return command.on ? 'Включено' : 'Выключено';
+    case 'set-brightness': return `Яркость ${command.brightness}%`;
+    case 'set-position': return `Открыто на ${command.position}%`;
   }
 }

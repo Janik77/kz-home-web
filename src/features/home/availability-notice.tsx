@@ -7,11 +7,11 @@ export function AvailabilityNotice({ devices, rooms, readOnly = false }: { devic
   if (!offline.length) return null;
   const allOffline = offline.length === devices.length;
   return <Feedback tone={allOffline ? 'offline' : 'warning'}
-    message={readOnly ? `${offline.length} ${offline.length === 1 ? 'device is' : 'devices are'} reported offline by Core. Last-known states are shown.` : allOffline ? 'All devices are offline. Controls are unavailable until they reconnect.' : `${offline.length} ${offline.length === 1 ? 'device is' : 'devices are'} offline. Your other devices are available.`}>
-    <details className="availability-details"><summary>View {offline.length === 1 ? 'offline device' : `offline devices (${offline.length})`}</summary>
+    message={readOnly ? `По данным Core, не в сети: ${offline.length}. Показаны последние известные состояния.` : allOffline ? 'Все устройства не в сети. Управление недоступно до восстановления связи.' : `Не в сети: ${offline.length}. Остальные устройства доступны.`}>
+    <details className="availability-details"><summary>Устройства не в сети ({offline.length})</summary>
       <ul>{offline.map((device) => {
         const room = rooms.find((item) => item.id === device.roomId);
-        return <li key={device.id}>{room ? <Link to={`/rooms/${room.id}#device-${device.id}`}>{device.name}<span>{room.name} · View room</span></Link> : <span>{device.name} · Unassigned room</span>}</li>;
+        return <li key={device.id}>{room ? <Link to={`/rooms/${room.id}#device-${device.id}`}>{device.name}<span>{room.name} · Открыть комнату</span></Link> : <span>{device.name} · Комната не указана</span>}</li>;
       })}</ul>
     </details>
   </Feedback>;

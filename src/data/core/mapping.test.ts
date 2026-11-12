@@ -13,7 +13,7 @@ describe('Core DTO boundary', () => {
     expect(home.rooms).toHaveLength(1); expect(home.scenes).toHaveLength(1);
     expect(home.house.location).toBe(''); expect(home.rooms[0]?.image).toBe(''); expect(home.devices[0]?.favorite).toBe(false);
     expect(home.scenes[0]?.description).toBe('');
-    expect(home.scenes[0]?.readActions?.[0]?.description).toBe('Power: On · Brightness: 25%');
+    expect(home.scenes[0]?.readActions?.[0]?.description).toBe('Питание: Включено · Яркость: 25%');
     expect(getSceneSummary(home.scenes[0]!, home)).toMatchObject({ deviceCount: 1, unavailableControls: 0 });
     expect(getHomeSummary(home).lightsOn).toBe(1);
   });
