@@ -1,3 +1,4 @@
+import { RenameDefinition } from '../definitions/definition-forms';
 import { useQuery } from '@tanstack/react-query';
 import { useRepository } from '../../app/services';
 import { PageHeading } from '../../components/ui/page-heading';
@@ -20,7 +21,8 @@ export function AutomationsPage() {
     <Resource<AutomationRule> name="automations" read={activity && (signal => activity.automations(signal))}>{rules => <div className="automation-grid">{rules.map(rule => <article className="settings-panel automation-card" key={rule.id}>
       <div className="resource-heading"><h2>{rule.name}</h2><span className="resource-badge">{rule.enabled ? 'Включена в Core' : 'Выключена в Core'}</span></div>
       <dl><dt>Когда</dt><dd>{rule.trigger}</dd><dt>При условиях</dt><dd>{rule.conditions.length ? <ul>{rule.conditions.map((c, i) => <li key={i}>{c}</li>)}</ul> : 'Без дополнительных условий'}</dd><dt>Выполнить</dt><dd><ol>{rule.actions.map((a, i) => <li key={i}>{a}</li>)}</ol></dd></dl>
-      <p className="quiet-note">Статус правила не подтверждает выполнение устройств. Редактирование и запуск в Web пока недоступны.</p>
+      <p className="quiet-note">Статус правила не подтверждает выполнение устройств. Можно изменить название; условия, действия и включение сохраняются без изменений. Запуск из Web недоступен.</p>
+      <RenameDefinition kind="automations" id={rule.id} name={rule.name} />
     </article>)}</div>}</Resource>
   </div>;
 }

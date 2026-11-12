@@ -307,3 +307,38 @@ test('reads scoped automations and events; denied journal leaves rooms accessibl
   await expect(page.getByRole('heading', { name: 'Living room' })).toBeVisible();
   expect(requests.filter(r => r.method !== 'GET').map(r => r.path)).toEqual(['/auth/login']);
 });
+
+test('definition editor preserves draft on errors and stores names without execution', async ({ page }, info) => {
+  let stored = { ...coreScene }, fail = true; const writes: unknown[] = [];
+  await interceptCore(page);
+  await page.route('**/core-api/**', async route => {
+    const path = new URL(route.request().url()).pathname.replace('/core-api', '');
+    if (path.endsWith('/me/permissions')) return route.fulfill({ json: { house_id: 'house-a', permissions: ['scene.read', 'scene.manage'] } });
+    if (path === '/scenes' && route.request().method() === 'GET') return route.fulfill({ json: [stored] });
+    if (path === '/scenes/scene-a') {
+      if (route.request().method() === 'PATCH') {
+        const body = route.request().postDataJSON(); writes.push(body);
+        if (fail) return route.fulfill({ status: 503 });
+        stored = { ...stored, ...body };
+      }
+      return route.fulfill({ json: stored });
+    }
+    return route.fallback();
+  });
+  await page.goto('/scenes'); await login(page);
+  const card = page.getByRole('article', { name: 'Evening', exact: true });
+  await card.getByRole('button', { name: 'Изменить название' }).click();
+  await card.getByLabel('Новое название').fill('Семейный вечер');
+  await card.getByRole('button', { name: 'Сохранить название' }).click();
+  await expect(card.getByRole('alert')).toContainText('Сохранение не подтверждено');
+  await expect(card.getByLabel('Новое название')).toHaveValue('Семейный вечер');
+  fail = false; await card.getByRole('button', { name: 'Сохранить название' }).click();
+  await expect(page.getByRole('article', { name: 'Семейный вечер', exact: true })).toBeVisible();
+  expect(writes).toEqual([{ name: 'Семейный вечер' }, { name: 'Семейный вечер' }]);
+  expect(stored.actions).toEqual(coreScene.actions);
+  await page.getByRole('button', { name: 'Создать сценарий' }).click();
+  await page.getByLabel('Название сценария', { exact: true }).fill('Новый вечер');
+  await page.getByLabel('Устройство 1', { exact: true }).selectOption('lamp-a');
+  await accessible(page);
+  await page.screenshot({ path: `test-results/definition-editor-${info.project.name}.png`, fullPage: true });
+});
