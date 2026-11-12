@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRepository } from '../../app/services';
 import { Button } from '../../components/ui/button';
@@ -73,6 +73,7 @@ export function RenameDefinition({ kind, id, name }: { kind: DefinitionKind; id:
 
 export function CreateScene({ home }: { home: HomeSnapshot }) {
   const editor = useEditor('scene');
+  const formId = useId();
   const [open, setOpen] = useState(false), [name, setName] = useState('');
   const [id, setId] = useState(() => crypto.randomUUID());
   const [actions, setActions] = useState([{ deviceId: '', on: false }]);
@@ -86,8 +87,8 @@ export function CreateScene({ home }: { home: HomeSnapshot }) {
       <p>Сохраняется только описание действий. Устройства не переключаются.</p>
       {!devices.length && <p role="status">Нет доступных устройств с питанием ON/OFF. Создание пока недоступно.</p>}
       {actions.map((action, index) => <fieldset className="definition-action" key={index}><legend>Действие {index + 1}</legend>
-        <label>Устройство {index + 1}<select required value={action.deviceId} onChange={e => setActions(rows => rows.map((a, i) => i === index ? { ...a, deviceId: e.target.value } : a))}><option value="">Выберите устройство</option>{devices.map(d => <option key={d.id} value={d.id}>{d.name} · {home.rooms.find(r => r.id === d.roomId)?.name ?? d.roomId}</option>)}</select></label>
-        <label>Питание {index + 1}<select value={String(action.on)} onChange={e => setActions(rows => rows.map((a, i) => i === index ? { ...a, on: e.target.value === 'true' } : a))}><option value="false">Выключить</option><option value="true">Включить</option></select></label>
+        <label htmlFor={`${formId}-device-${index}`}>Устройство {index + 1}</label><select id={`${formId}-device-${index}`} required value={action.deviceId} onChange={e => setActions(rows => rows.map((a, i) => i === index ? { ...a, deviceId: e.target.value } : a))}><option value="">Выберите устройство</option>{devices.map(d => <option key={d.id} value={d.id}>{d.name} · {home.rooms.find(r => r.id === d.roomId)?.name ?? d.roomId}</option>)}</select>
+        <label htmlFor={`${formId}-power-${index}`}>Питание {index + 1}</label><select id={`${formId}-power-${index}`} value={String(action.on)} onChange={e => setActions(rows => rows.map((a, i) => i === index ? { ...a, on: e.target.value === 'true' } : a))}><option value="false">Выключить</option><option value="true">Включить</option></select>
         <Button variant="quiet" disabled={actions.length === 1} aria-label={`Удалить действие ${index + 1}`} onClick={() => setActions(rows => rows.filter((_, i) => i !== index))}>Убрать действие</Button>
       </fieldset>)}
       <div className="definition-buttons"><Button variant="secondary" disabled={actions.length >= 100} onClick={() => setActions(rows => [...rows, { deviceId: '', on: false }])}>Добавить действие</Button>
