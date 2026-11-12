@@ -1,7 +1,7 @@
 """Disposable software-only stack adapted from Firmware #11 Services fixture.
 
 No physical identities, command gate overrides, production inputs or installed data.
-Only randomly named containers on an internal network, published on loopback.
+Only randomly named containers on an owned bridge network, published on loopback.
 """
 import asyncio
 from contextlib import asynccontextmanager
@@ -41,7 +41,7 @@ class Services:
 
     def start(self):
         self.network = docker(
-            "network", "create", "--internal", "--label", "kz.control.lab=" + self.name, self.name
+            "network", "create", "--label", "kz.control.lab=" + self.name, self.name
         )
         root = self.directory.as_posix()
         # Offline certificate generation: SAN deliberately DNS localhost only.
@@ -188,7 +188,6 @@ log_type all
             "SERVICES: PostgreSQL 17 + Mosquitto TLS, random loopback ports, fresh tmpfs data",
             flush=True,
         )
-        # Import supplied Core ACL text to verify the server permissions used above.
         return self
 
     def close(self):
@@ -319,15 +318,17 @@ async def stack(core):
         yield config, seed, ids, api, sql, migration
         assert sql("SELECT count(*) FROM physical_devices") == "0"
     finally:
-        if server:
-            server.should_exit = True
-        if serve_task:
-            await asyncio.wait_for(serve_task, 15)
-        if sock:
-            sock.close()
-        if engine:
-            engine.dispose()
-        services.close()
+        try:
+            if server:
+                server.should_exit = True
+            if serve_task:
+                await asyncio.wait_for(serve_task, 15)
+        finally:
+            if sock:
+                sock.close()
+            if engine:
+                engine.dispose()
+            services.close()
 
 
 async def provision(api, ids, seed):
