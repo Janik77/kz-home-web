@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { House, LayoutGrid, Settings2, Layers3, FlaskConical, Plug, Workflow, ListChecks } from 'lucide-react';
+import { House, LayoutGrid, Settings2, Layers3, FlaskConical, Plug, Workflow, ListChecks, Ellipsis } from 'lucide-react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { Wordmark } from '../components/brand/wordmark';
 import { ThemeToggle } from '../components/ui/theme-toggle';
@@ -23,16 +23,21 @@ function Navigation({ mobile = false }: { mobile?: boolean }) {
   const ref = useRef<HTMLElement>(null);
   const { pathname } = useLocation();
   useEffect(() => {
-    if (!mobile) return;
-    const active = ref.current?.querySelector<HTMLElement>('[aria-current="page"]');
-    if (active && ref.current) ref.current.scrollLeft = active.offsetLeft - (ref.current.clientWidth - active.offsetWidth) / 2;
-  }, [mobile, pathname]);
+    const menu = ref.current?.querySelector('details');
+    if (menu) menu.open = false;
+  }, [pathname]);
+  const link = ({ to, label, icon: Icon }: typeof navigation[number]) => (
+    <NavLink key={to} to={to} onClick={() => { const menu = ref.current?.querySelector('details'); if (menu) menu.open = false; }} end={to === '/'} className={({ isActive }) => `nav-item ${isActive ? 'nav-item--active' : ''}`}>
+      <Icon size={21} aria-hidden="true" /><span>{label}</span>
+    </NavLink>
+  );
+  const extra = navigation.filter(item => ['/devices', '/automations', '/events'].includes(item.to));
   return <nav ref={ref} lang="ru" aria-label={mobile ? 'Мобильная навигация' : 'Основная навигация'} className={mobile ? 'mobile-nav' : 'sidebar__nav'}>
-    {navigation.map(({ to, label, icon: Icon }) => (
-      <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => `nav-item ${isActive ? 'nav-item--active' : ''}`}>
-        <Icon size={21} aria-hidden="true" /><span>{label}</span>
-      </NavLink>
-    ))}
+    {mobile ? <>
+      {navigation.filter(item => ['/', '/rooms', '/scenes'].includes(item.to)).map(link)}
+      <details className="mobile-more"><summary className={`nav-item ${extra.some(item => item.to === pathname) ? 'nav-item--active' : ''}`}><Ellipsis size={21} aria-hidden="true" /><span>Ещё</span></summary><div className="mobile-more__links">{extra.map(link)}</div></details>
+      {navigation.filter(item => item.to === '/settings').map(link)}
+    </> : navigation.map(link)}
   </nav>;
 }
 

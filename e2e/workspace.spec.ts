@@ -4,6 +4,13 @@ import { expect, test } from '@playwright/test';
 test('device search, offline filtering and honest integration placeholders', async ({ page }) => {
   await page.goto('/devices');
   await expect(page.getByRole('heading', { name: 'Устройства', exact: true })).toBeVisible();
+  const more = page.locator('.mobile-more summary');
+  if (await more.isVisible()) {
+    await more.focus(); await more.press('Enter');
+    await expect(page.locator('.mobile-more').getByRole('link', { name: 'Журнал' })).toBeVisible();
+    await page.locator('.mobile-more').getByRole('link', { name: 'Устройства' }).click();
+    await expect(page.locator('.mobile-more')).not.toHaveAttribute('open');
+  }
   await page.getByRole('combobox', { name: 'Подключение' }).selectOption('offline');
   await expect(page.getByRole('article')).toHaveCount(1);
   await expect(page.getByRole('switch')).toBeDisabled();

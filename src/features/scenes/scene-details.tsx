@@ -11,7 +11,7 @@ export function SceneDetails({ scene, home }: { scene: Scene; home: HomeSnapshot
       const room = home.rooms.find((item) => item.id === device?.roomId);
       const unavailable = !device || device.connection === 'offline';
       return <li key={`${action.deviceId}-${index}`}><span>{device?.name ?? 'Устройство недоступно'}
-        <small>{room?.name ?? 'Комната не указана'}</small>{unavailable && <small className="scene-unavailable">Unavailable{!readOnly && ' · будет пропущено'}</small>}</span>
+        <small>{room?.name ?? 'Комната не указана'}</small>{unavailable && <small className="scene-unavailable">Недоступно{!readOnly && ' · будет пропущено'}</small>}</span>
         <span>{action.description}</span></li>;
     })}</ul>
   </details>;

@@ -130,7 +130,7 @@
   .theme-option .theme-preview { width: 48px; }
 }
 
-/* Extend the existing shell without crowding narrow phone navigation. */
+/* Reuse the existing surfaces and spacing for workspace resources. */
 .resource-toolbar, .resource-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
 .resource-toolbar { color: var(--color-muted); font-size: var(--text-sm); }
 .resource-badge { border: 1px solid var(--color-border); border-radius: var(--radius-pill); padding: 6px 12px; font-size: var(--text-xs); }
@@ -148,9 +148,12 @@
 .device-filters label { display: grid; gap: 8px; color: var(--color-muted); font-size: var(--text-sm); }
 .device-filters input, .device-filters select { min-width: 0; min-height: 48px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); padding: 12px; font: inherit; }
 @media (max-width: 767px) {
-  .mobile-nav { display: flex; overflow-x: auto; padding-inline: 8px; }
-  .mobile-nav .nav-item { flex: 0 0 76px; }
-  .mobile-nav .nav-item[aria-current='page'] { outline-offset: -3px; }
+  .mobile-nav { grid-template-columns: repeat(5, minmax(0, 1fr)); padding-inline: 6px; }
+  .mobile-nav .nav-item { font-size: .625rem; padding-inline: 2px; }
+  .mobile-more summary { list-style: none; cursor: pointer; }
+  .mobile-more summary::-webkit-details-marker { display: none; }
+  .mobile-more__links { position: absolute; bottom: calc(100% + 8px); right: 12px; width: min(280px, calc(100vw - 24px)); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 8px; box-shadow: var(--shadow-md); }
+  .mobile-more__links .nav-item { flex-direction: row; justify-content: flex-start; gap: 12px; padding: 12px 16px; font-size: var(--text-sm); }
   .automation-grid, .device-filters { grid-template-columns: 1fr; }
   .event-list li { grid-template-columns: 1fr; gap: 8px; padding: 20px; }
 }

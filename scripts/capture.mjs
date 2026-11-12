@@ -21,6 +21,7 @@ try {
       for (const route of ['', 'rooms', 'settings']) {
         await page.goto(`http://127.0.0.1:5186/${route}`);
         await page.locator('h1').waitFor();
+        await page.locator('.topbar__location strong').filter({ hasText: 'Family home' }).waitFor({ state: 'attached' });
         await page.locator('.room-card, .theme-options, .signature-hero').first().waitFor();
         await page.evaluate(() => document.fonts.ready);
         await page.evaluate(async () => { await Promise.all([...document.images].map(img => img.decode().catch(() => {}))); });

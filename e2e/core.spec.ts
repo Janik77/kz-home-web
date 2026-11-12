@@ -277,7 +277,7 @@ test('keeps Cyrillic last-known ON data offline and distinguishes restricted acc
   expect(requests.filter((r) => r.method !== 'GET').map((r) => r.path)).toEqual(['/auth/login']);
 });
 
-test('reads scoped automations and events; denied journal leaves rooms accessible', async ({ page }) => {
+test('reads scoped automations and events; denied journal leaves rooms accessible', async ({ page }, testInfo) => {
   const requests = await interceptCore(page, {
     '/automations': [{ id: 'rule', house_id: 'house-a', name: 'Свет при движении', enabled: false,
       trigger: { type: 'device_state', device_id: 'motion', field: 'motion', operator: 'eq', value: true }, conditions: [], actions: [{ type: 'delay', seconds: 5 }] },
@@ -290,10 +290,16 @@ test('reads scoped automations and events; denied journal leaves rooms accessibl
   await expect(page.getByText('Выключена в Core')).toBeVisible();
   await expect(page.getByText('Другой дом')).toHaveCount(0);
   await accessible(page);
+  await page.screenshot({ path: testInfo.outputPath('automations-contract-light.png'), fullPage: true });
+  const mobileMore = page.locator('.mobile-more summary');
+  if (await mobileMore.isVisible()) await mobileMore.click();
   await page.getByRole('navigation', { name: /навигация/ }).filter({ visible: true }).getByRole('link', { name: 'Журнал' }).click();
   await expect(page.getByText('command_failed')).toBeVisible();
   await expect(page.getByText('not-for-ui')).toHaveCount(0);
   await accessible(page);
+  await page.getByRole('button', { name: 'Включить тёмную тему' }).click();
+  await accessible(page);
+  await page.screenshot({ path: testInfo.outputPath('events-contract-dark.png'), fullPage: true });
   await page.route('**/core-api/events?*', route => route.fulfill({ status: 403 }));
   await page.getByRole('button', { name: 'Обновить', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('нет прав');
