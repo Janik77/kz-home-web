@@ -8,17 +8,17 @@ export class CoreError extends Error {
 }
 
 export function coreErrorMessage(error: unknown): string {
-  if (!(error instanceof CoreError)) return 'Please try again in a moment.';
+  if (!(error instanceof CoreError)) return 'Попробуйте ещё раз немного позже.';
   switch (error.kind) {
-    case 'rate-limit': return 'Too many requests. Please wait before trying again.';
-    case 'network': return 'We couldn’t reach Core. Check your connection and that Core is available.';
-    case 'server': return 'Core is temporarily unavailable. Please try again in a moment.';
-    case 'forbidden': return 'Your account doesn’t have permission to view this information.';
-    case 'not-found': return 'This home is no longer available to your account. Choose another home or sign in again.';
-    case 'unauthorized': return 'Your session has expired. Sign in again to continue.';
-    case 'protocol': return 'Core returned information this version of KZ Home can’t read. Please check version compatibility.';
-    case 'validation': return 'Check the information you entered and try again.';
-    case 'conflict': return 'This request couldn’t be completed. Refresh and try again.';
-    case 'read-only': return 'Core is connected in read-only mode. Real controls aren’t enabled yet.';
+    case 'rate-limit': return 'Слишком много запросов. Подождите перед повтором.';
+    case 'network': return 'Нет соединения с Core. Проверьте сеть и доступность сервера.';
+    case 'server': return 'Core временно недоступен. Повторите позже.';
+    case 'forbidden': return 'У вашей учётной записи нет прав на просмотр этих данных.';
+    case 'not-found': return 'Дом больше недоступен. Выберите другой дом или войдите снова.';
+    case 'unauthorized': return 'Сеанс истёк. Войдите снова.';
+    case 'protocol': return 'Формат ответа Core несовместим с этой версией Web. Проверьте версии.';
+    case 'validation': return 'Проверьте введённые данные и повторите.';
+    case 'conflict': return 'Запрос не выполнен. Обновите данные и повторите.';
+    case 'read-only': return 'Эта операция недоступна в Web. Данные доступны для просмотра.';
   }
 }

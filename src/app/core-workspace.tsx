@@ -17,7 +17,7 @@ export function CoreWorkspace({ services }: { services: Services }) {
   const snapshot = useSyncExternalStore(services.session.subscribe, services.session.getSnapshot);
   const client = useQueryClient();
   useEffect(() => { if (snapshot.status !== 'authenticated') { void client.cancelQueries(); client.clear(); } }, [snapshot.status, client]);
-  if (snapshot.status === 'signing-out') return <main className="session-page"><StatePanel kind="loading" title="Signing out" description="Clearing this device’s session." /></main>;
+  if (snapshot.status === 'signing-out') return <main className="session-page"><StatePanel kind="loading" title="Завершаем сеанс" description="Удаляем данные сеанса из памяти." /></main>;
   if (!snapshot.user) return <LoginPage session={services.session} snapshot={snapshot} />;
   return <HouseWorkspace key={snapshot.user.id} services={services} user={snapshot.user} />;
 }
@@ -27,16 +27,16 @@ function HouseWorkspace({ services, user }: { services: Services; user: SessionU
   const heading = useRef<HTMLHeadingElement>(null);
   const query = useQuery({ queryKey: ['core-houses', user.id], queryFn: ({ signal }) => readHouses(services.session, signal), retry: false });
   const houseId = query.data?.some((house) => house.id === selected) ? selected : query.data?.length === 1 ? query.data[0]!.id : null;
-  useEffect(() => { if (!houseId) { document.title = 'KZ Home · Your homes'; heading.current?.focus(); } }, [houseId]);
+  useEffect(() => { if (!houseId) { document.title = 'KZ Home · Ваши дома'; heading.current?.focus(); } }, [houseId]);
   const logout = () => { void services.session.logout(); };
   if (query.data && houseId && !query.isError) return <SelectedHome key={houseId} services={services} user={user} houses={query.data} houseId={houseId} selectHouse={setSelected} logout={logout} />;
   return <main className="session-page"><div className="session-card">
-    <p className="eyebrow">Core · Reported state</p><h1 ref={heading} tabIndex={-1}>Your homes</h1>
-    {query.isPending ? <StatePanel kind="loading" title="Finding your homes" description="Checking the homes available to your account." />
-      : query.isError ? <StatePanel kind="error" title="We couldn’t load your homes" description={coreErrorMessage(query.error)} onRetry={() => void query.refetch()} />
-      : query.data.length === 0 ? <StatePanel kind="empty" title="No accessible homes" description="Ask your home’s owner to add your account. Web can’t create homes or memberships yet." onRetry={() => void query.refetch()} />
-      : <><p>Choose a home to view its rooms and devices.</p><div className="house-options">{query.data.map((house) => <Button variant="secondary" key={house.id} onClick={() => setSelected(house.id)}>{house.name}</Button>)}</div></>}
-    <Button variant="quiet" onClick={logout}>Sign out</Button>
+    <p className="eyebrow">Core · Данные устройств</p><h1 ref={heading} tabIndex={-1}>Ваши дома</h1>
+    {query.isPending ? <StatePanel kind="loading" title="Ищем ваши дома" description="Проверяем доступные вашей учётной записи дома." />
+      : query.isError ? <StatePanel kind="error" title="Не удалось загрузить дома" description={coreErrorMessage(query.error)} onRetry={() => void query.refetch()} />
+      : query.data.length === 0 ? <StatePanel kind="empty" title="Нет доступных домов" description="Попросите владельца дома предоставить доступ. Создание домов и управление участниками пока недоступны в Web." onRetry={() => void query.refetch()} />
+      : <><p>Выберите дом, чтобы посмотреть его комнаты и устройства.</p><div className="house-options">{query.data.map((house) => <Button variant="secondary" key={house.id} onClick={() => setSelected(house.id)}>{house.name}</Button>)}</div></>}
+    <Button variant="quiet" onClick={logout}>Выйти</Button>
   </div></main>;
 }
 

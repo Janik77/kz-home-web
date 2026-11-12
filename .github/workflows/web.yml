@@ -1,0 +1,57 @@
+name: Web checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck && npm run lint && npm test && npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - run: npm run test:e2e:core
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-test-results
+          path: test-results/
+  visual-comparison:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Preserve capture script
+        run: cp scripts/capture.mjs "$RUNNER_TEMP/kz-capture.mjs"
+      - name: Capture baseline main
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch origin "$BASE_SHA"
+          git checkout --detach "$BASE_SHA"
+          npm ci
+          npx playwright install --with-deps chromium
+          CAPTURE_DIR="$RUNNER_TEMP/kz-visual/before" node "$RUNNER_TEMP/kz-capture.mjs"
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Capture changed UI
+        run: CAPTURE_DIR="$RUNNER_TEMP/kz-visual/after" node scripts/capture.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: before-after-screenshots
+          path: ${{ runner.temp }}/kz-visual/

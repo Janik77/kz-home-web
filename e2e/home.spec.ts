@@ -26,7 +26,7 @@ test('renders home without overflow or broken images, with accessible light and 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath('home-light.png'), fullPage: true });
-  await page.getByRole('button', { name: 'Use dark theme' }).click();
+  await page.getByRole('button', { name: 'Включить тёмную тему' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath('home-dark.png'), fullPage: true });
@@ -59,36 +59,36 @@ test('switches devices, commits keyboard sliders, and reports scene skips', asyn
 
 test('navigates rooms and checks offline controls and route accessibility', async ({ page }) => {
   await page.goto('/rooms');
-  await expect(page.getByRole('heading', { name: 'Rooms', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Комнаты', level: 1 })).toBeVisible();
   await page.getByRole('button', { name: 'First floor', exact: true }).click();
-  await expect(page.getByRole('link', { name: /Living room.*devices/ })).toHaveCount(0);
-  await page.getByRole('link', { name: /Home office.*devices/ }).click();
+  await expect(page.getByRole('link', { name: /Living room.*Устройств/ })).toHaveCount(0);
+  await page.getByRole('link', { name: /Home office.*Устройств/ }).click();
   await expect(page.getByRole('heading', { name: 'Home office', exact: true })).toBeVisible();
-  await expect(page.getByRole('switch', { name: 'Desk lamp in Home office' })).toBeDisabled();
-  await expect(page.getByText('Offline · last known state')).toBeVisible();
+  await expect(page.getByRole('switch', { name: 'Desk lamp · Home office' })).toBeDisabled();
+  await expect(page.getByText('Не в сети · последнее состояние')).toBeVisible();
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
   for (const route of ['/rooms', '/rooms/living', '/scenes', '/settings']) {
     await page.goto(route);
     await expect(page.locator('h1')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     for (const theme of ['light', 'dark'] as const) {
-      if ((await page.locator('html').getAttribute('data-theme')) !== theme) await page.getByRole('button', { name: `Use ${theme} theme` }).click();
+      if ((await page.locator('html').getAttribute('data-theme')) !== theme) await page.getByRole('button', { name: theme === 'dark' ? 'Включить тёмную тему' : 'Включить светлую тему' }).click();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
     }
   }
-  await page.getByRole('radio', { name: /Dark/ }).check();
+  await page.getByRole('radio', { name: /Тёмная/ }).check();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await page.getByRole('radio', { name: /System/ }).check();
-  await expect(page.getByRole('radio', { name: /System/ })).toBeChecked();
+  await page.getByRole('radio', { name: /Системная/ }).check();
+  await expect(page.getByRole('radio', { name: /Системная/ })).toBeChecked();
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.emulateMedia({ colorScheme: 'light' });
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await page.goto('/rooms/unknown');
-  await expect(page.getByRole('heading', { name: 'Room not found' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Комната не найдена' })).toBeVisible();
   await page.goto('/unknown');
-  await expect(page.getByRole('heading', { name: 'This page isn’t here' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Страница не найдена' })).toBeVisible();
 });
 
 test('matches Signature composition, exposes device attention, and renders grouped rooms and inspectable scenes', async ({ page }, testInfo) => {
@@ -105,21 +105,21 @@ test('matches Signature composition, exposes device attention, and renders group
   await page.getByText('Не в сети: 1 устройство', { exact: true }).click();
   await page.getByRole('link', { name: 'Настольная лампа · Кабинет' }).click();
   await expect(page.locator('#device-office-lamp')).toBeFocused();
-  await expect(page.getByRole('switch', { name: 'Desk lamp in Home office' })).toBeDisabled();
+  await expect(page.getByRole('switch', { name: 'Desk lamp · Home office' })).toBeDisabled();
   for (const route of ['/rooms/living', '/scenes']) {
     await page.goto(route);
     await expect(page.locator('h1')).toBeVisible();
     if (route.includes('/rooms/')) {
-      await expect(page.getByRole('heading', { name: 'Lighting', exact: true })).toBeVisible();
-      await expect(page.getByRole('heading', { name: 'Curtains', exact: true })).toBeVisible();
-      await expect(page.getByRole('heading', { name: 'Climate & sensors', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Освещение', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Шторы', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Климат и датчики', exact: true })).toBeVisible();
     } else {
       const card = page.getByRole('article', { name: 'Leaving home' });
-      await card.getByText('View controls (6)').click();
+      await card.getByText('Действия (6)').click();
       await expect(card.getByText('Desk lamp', { exact: false })).toBeVisible();
     }
     for (const theme of ['light', 'dark'] as const) {
-      if (await page.locator('html').getAttribute('data-theme') !== theme) await page.getByRole('button', { name: `Use ${theme} theme` }).click();
+      if (await page.locator('html').getAttribute('data-theme') !== theme) await page.getByRole('button', { name: theme === 'dark' ? 'Включить тёмную тему' : 'Включить светлую тему' }).click();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.screenshot({ path: testInfo.outputPath(`${route.includes('/rooms/') ? 'room' : 'scenes'}-${theme}.png`), fullPage: true });
     }

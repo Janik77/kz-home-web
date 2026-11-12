@@ -4,9 +4,9 @@ import { SectionHeading } from '../../components/ui/section-heading';
 import { DeviceGrid } from './device-grid';
 
 const groups: { kind: Device['kind']; label: string }[] = [
-  { kind: 'light', label: 'Lighting' }, { kind: 'curtain', label: 'Curtains' },
-  { kind: 'relay', label: 'Power' }, { kind: 'sensor', label: 'Climate & sensors' },
-  { kind: 'other', label: 'Reported states' },
+  { kind: 'light', label: 'Освещение' }, { kind: 'curtain', label: 'Шторы' },
+  { kind: 'relay', label: 'Питание' }, { kind: 'sensor', label: 'Климат и датчики' },
+  { kind: 'other', label: 'Данные устройств' },
 ];
 
 export function DeviceGroups({ devices, rooms }: { devices: Device[]; rooms: Room[] }) {
@@ -17,7 +17,7 @@ export function DeviceGroups({ devices, rooms }: { devices: Device[]; rooms: Roo
     if (!items.length) return null;
     const headingId = `${id}-${kind}`;
     return <section key={kind} aria-labelledby={headingId}><SectionHeading id={headingId} title={label}
-      action={<span className="section-count">{items.length} {items.length === 1 ? 'device' : 'devices'}</span>} />
+      action={<span className="section-count">{items.length}</span>} />
       <DeviceGrid devices={items} rooms={rooms} />
     </section>;
   })}</div>;

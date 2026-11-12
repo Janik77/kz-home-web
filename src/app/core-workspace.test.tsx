@@ -24,9 +24,9 @@ function setup(fetcher = vi.fn<typeof fetch>().mockImplementation(async (url) =>
 }
 
 async function signIn() {
-  fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'homeowner@example.test' } });
-  fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'test-input' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+  fireEvent.change(screen.getByLabelText('Электронная почта'), { target: { value: 'homeowner@example.test' } });
+  fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'test-input' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 }
 
 it('renders login pending, then a read-only home in StrictMode with no real control buttons', async () => {
@@ -34,8 +34,8 @@ it('renders login pending, then a read-only home in StrictMode with no real cont
   const fetcher = vi.fn<typeof fetch>().mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }))
     .mockImplementation(async (url) => Response.json(coreResponses[String(url).replace('/core-api', '')]));
   setup(fetcher); await signIn();
-  expect(screen.getByRole('button', { name: 'Signing in…' })).toHaveAttribute('aria-disabled', 'true');
-  expect(screen.getByLabelText('Password')).toHaveValue('');
+  expect(screen.getByRole('button', { name: 'Входим…' })).toHaveAttribute('aria-disabled', 'true');
+  expect(screen.getByLabelText('Пароль')).toHaveValue('');
   finish(Response.json(coreResponses['/auth/login']));
   expect(await screen.findByRole('heading', { name: 'Добро пожаловать домой', level: 1 })).toBeVisible();
   expect(screen.queryByRole('switch')).not.toBeInTheDocument();
@@ -47,17 +47,17 @@ it('renders login pending, then a read-only home in StrictMode with no real cont
 it('shows invalid credentials and Core network failures without server detail', async () => {
   const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(Response.json({ detail: 'private-input' }, { status: 401 }));
   setup(fetcher); await signIn();
-  expect(await screen.findByText('The email or password wasn’t accepted. Please try again.')).toBeVisible();
+  expect(await screen.findByText('Неверная почта или пароль. Попробуйте ещё раз.')).toBeVisible();
   fetcher.mockRejectedValueOnce(new TypeError('private-network-info')); await signIn();
-  expect(await screen.findByText(/We couldn’t reach Core/)).toBeVisible();
+  expect(await screen.findByText(/Нет соединения с Core/)).toBeVisible();
   expect(screen.queryByText(/private-input|private-network-info/)).not.toBeInTheDocument();
 });
 
 it('shows no accessible houses with a retry rather than a sample home', async () => {
   setup(vi.fn<typeof fetch>().mockImplementation(async (url) => Response.json(String(url).endsWith('/houses') ? [] : coreResponses[String(url).replace('/core-api', '')])));
   await signIn();
-  expect(await screen.findByRole('heading', { name: 'No accessible homes' })).toBeVisible();
-  expect(screen.getByRole('button', { name: 'Try again' })).toBeVisible();
+  expect(await screen.findByRole('heading', { name: 'Нет доступных домов' })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Повторить' })).toBeVisible();
   expect(screen.queryByRole('heading', { name: 'Добро пожаловать домой', level: 1 })).toBeNull();
 });
 
@@ -73,7 +73,7 @@ it('returns to session-expired login when refresh is rejected and removes house 
   fetcher.mockImplementation(async (url) => String(url).endsWith('/auth/refresh') || String(url).endsWith('/houses/house-a')
     ? new Response(null, { status: 401 }) : Response.json(coreResponses[String(url).replace('/core-api', '')]));
   fireEvent.click(screen.getByRole('button', { name: 'Обновить данные' }));
-  expect(await screen.findByText('Your session has expired. Sign in again to continue.')).toBeVisible();
+  expect(await screen.findByText('Сеанс истёк. Войдите снова.')).toBeVisible();
   await waitFor(() => expect(services.session.getSnapshot().status).toBe('anonymous'));
   expect(screen.queryByRole('heading', { name: 'Добро пожаловать домой', level: 1 })).toBeNull();
 });
@@ -106,7 +106,7 @@ it('aborts a previous house read and ignores its late state after switching home
   fireEvent.click(screen.getByRole('button', { name: 'Обновить данные' }));
   await waitFor(() => expect(finishOld).toBeTypeOf('function'));
   fireEvent.click(screen.getByRole('link', { name: 'Аккаунт и дома' }));
-  fireEvent.change(await screen.findByRole('combobox', { name: 'Home' }), { target: { value: 'house-b' } });
+  fireEvent.change(await screen.findByRole('combobox', { name: 'Дом' }), { target: { value: 'house-b' } });
   expect(await screen.findByRole('article', { name: 'Second relay · Second room' })).toHaveTextContent('Выключено');
   expect(oldSignal?.aborted).toBe(true);
   await act(async () => { finishOld(Response.json([{ ...coreDevice, name: 'Late old state', state: { on: true, brightness: 100 } }])); });
@@ -121,7 +121,7 @@ for (const stage of stages) {
   it(`isolates House B from a delayed House A ${stage} response`, async () => {
     const h = await delayedControl(stage);
     fireEvent.click(screen.getByRole('link', { name: 'Аккаунт и дома' }));
-    fireEvent.change(await screen.findByRole('combobox', { name: 'Home' }), { target: { value: 'house-b' } });
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Дом' }), { target: { value: 'house-b' } });
     await screen.findByRole('article', { name: 'Second relay · Second room' });
     expect(h.signal()?.aborted).toBe(true);
     await act(async () => h.release());
@@ -137,7 +137,7 @@ for (const stage of ['permissions', 'post', 'poll'] as const) {
       const h = await delayedControl(stage);
       if (end === 'logout') await act(async () => h.services.session.logout());
       else await act(async () => { await h.services.session.read('/expire', v => v).catch(() => undefined); });
-      await screen.findByLabelText('Email');
+      await screen.findByLabelText('Электронная почта');
       expect(h.signal()?.aborted).toBe(true);
       const calls = h.fetcher.mock.calls.length;
       await act(async () => h.release());

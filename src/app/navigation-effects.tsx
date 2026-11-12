@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router';
 
-const titles: Record<string, string> = { '/': 'Your home', '/rooms': 'Rooms', '/scenes': 'Scenes', '/settings': 'Settings' };
+const titles: Record<string, string> = { '/': 'Ваш дом', '/rooms': 'Комнаты', '/scenes': 'Сценарии', '/settings': 'Настройки', '/devices': 'Устройства', '/automations': 'Автоматизации', '/events': 'Журнал событий' };
 
 export function NavigationEffects() {
   const { pathname, hash } = useLocation();
   useEffect(() => {
-    document.title = `KZ Home · ${titles[pathname] ?? (pathname.startsWith('/rooms/') ? 'Room' : 'Page not found')}`;
+    document.title = `KZ Home · ${titles[pathname] ?? (pathname.startsWith('/rooms/') ? 'Комната' : 'Страница не найдена')}`;
     const target = hash ? document.getElementById(hash.slice(1)) : null;
     if (target) {
       target.scrollIntoView({ block: 'center', behavior: 'instant' });

@@ -17,11 +17,11 @@ test('LIVE browser → Vite proxy → Core → PostgreSQL acceptance', async ({ 
   });
   const responseFor = (path: string) => page.waitForResponse((response) => new URL(response.url()).pathname === `/core-api${path}`);
   async function signIn() {
-    await page.getByLabel('Email', { exact: true }).fill(account.email);
-    await page.getByLabel('Password', { exact: true }).fill(account.password);
+    await page.getByLabel('Электронная почта', { exact: true }).fill(account.email);
+    await page.getByLabel('Пароль', { exact: true }).fill(account.password);
     const login = responseFor('/auth/login');
     const me = responseFor('/auth/me');
-    await page.getByLabel('Password', { exact: true }).press('Enter');
+    await page.getByLabel('Пароль', { exact: true }).press('Enter');
     const result = await login;
     expect(result.status()).toBe(200);
     const user = await me;
@@ -31,9 +31,9 @@ test('LIVE browser → Vite proxy → Core → PostgreSQL acceptance', async ({ 
   }
   async function signOut() {
     const logout = responseFor('/auth/logout');
-    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await page.getByRole('button', { name: 'Выйти', exact: true }).click();
     expect((await logout).status()).toBe(204);
-    await expect(page.getByRole('heading', { name: 'Welcome home' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Добро пожаловать домой' })).toBeVisible();
   }
   async function api(path: string, method = 'GET', body?: unknown, token?: string, status = 200) {
     const response = await fetch(`http://127.0.0.1:18000${path}`, {
@@ -43,7 +43,7 @@ test('LIVE browser → Vite proxy → Core → PostgreSQL acceptance', async ({ 
     expect(response.status, `${method} ${path}`).toBe(status);
     return response.status === 204 ? undefined : response.json();
   }
-  const navigation = (target: Page) => target.getByRole('navigation', { name: target.viewportSize()!.width < 768 ? 'Mobile navigation' : 'Main navigation' });
+  const navigation = (target: Page) => target.getByRole('navigation', { name: target.viewportSize()!.width < 768 ? 'Мобильная навигация' : 'Основная навигация' });
   try {
     for (const endpoint of ['/health', '/ready']) await api(endpoint);
     await api('/auth/me', 'GET', undefined, undefined, 401);
@@ -52,7 +52,7 @@ test('LIVE browser → Vite proxy → Core → PostgreSQL acceptance', async ({ 
     await page.clock.install({ time: new Date() });
     await page.goto('/');
     await signIn();
-    await expect(page.getByRole('heading', { name: 'No accessible homes' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Нет доступных домов' })).toBeVisible();
     await signOut();
 
     // Operator-only fixture writes through actual HTTP. Never commands or /run.
@@ -73,7 +73,7 @@ test('LIVE browser → Vite proxy → Core → PostgreSQL acceptance', async ({ 
     const current = await signIn();
     const houses = await (await housesRead).json();
     expect(houses.map((house: { id: string }) => house.id).sort()).toEqual([ids.home, ids.empty].sort());
-    await expect(page.getByRole('heading', { name: 'Your homes', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Ваши дома', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Live acceptance home', exact: true }).click();
     await expect(page.getByRole('article', { name: 'Live reading light · Live room' })).toContainText('Включён · 37%');
     await expect(page.getByRole('article', { name: 'Live partial relay · Live room' })).toContainText('Нет данных о состоянии');
@@ -82,18 +82,18 @@ test('LIVE browser → Vite proxy → Core → PostgreSQL acceptance', async ({ 
     await expect(page.getByRole('button', { name: /Activate/ })).toHaveCount(0);
     await expect(page.locator('img')).toHaveCount(0);
     await navigation(page).getByRole('link', { name: 'Комнаты', exact: true }).click();
-    await page.getByRole('link', { name: /Live room.*devices/ }).click();
+    await page.getByRole('link', { name: /Live room.*Устройств/ }).click();
     await expect(page.getByRole('heading', { name: 'Live room', level: 1 })).toBeVisible();
     await navigation(page).getByRole('link', { name: 'Сценарии', exact: true }).click();
-    await page.getByText('View controls (1)').click();
-    await expect(page.getByText('Power: On · Brightness: 25%')).toBeVisible();
+    await page.getByText('Действия (1)').click();
+    await expect(page.getByText('Питание: Включено · Яркость: 25%')).toBeVisible();
 
     // Advance browser wall time only. Core still validates real JWTs on its clock.
     // The unmodified Web session sees its deadline and rotates via real HTTP.
     await page.clock.setFixedTime(new Date(Date.now() + 16 * 60_000));
     const refresh = responseFor('/auth/refresh');
     const refreshedHouse = responseFor(`/houses/${ids.home}`);
-    await page.getByRole('button', { name: 'Refresh home' }).click();
+    await page.getByRole('button', { name: 'Обновить данные' }).click();
     const rotation = await refresh;
     expect(rotation.status()).toBe(200);
     const rotated = await rotation.json();
@@ -103,8 +103,8 @@ test('LIVE browser → Vite proxy → Core → PostgreSQL acceptance', async ({ 
     expect(account.operator('inspect').activeSessions).toBe(1);
     expect(account.operator('inspect').revokedSessions).toBeGreaterThanOrEqual(3);
 
-    await page.getByRole('link', { name: 'Account & homes' }).click();
-    await page.getByRole('combobox', { name: 'Home', exact: true }).selectOption(ids.empty);
+    await page.getByRole('link', { name: 'Аккаунт и дома' }).click();
+    await page.getByRole('combobox', { name: 'Дом', exact: true }).selectOption(ids.empty);
     await expect(page.getByText('Устройств пока нет.', { exact: true })).toBeVisible();
     await expect(page.getByText('Комнат пока нет.', { exact: true })).toBeVisible();
     await expect(page.getByText('Сценариев пока нет. Они появятся здесь после добавления в дом.')).toBeVisible();
@@ -116,10 +116,10 @@ test('LIVE browser → Vite proxy → Core → PostgreSQL acceptance', async ({ 
     await api('/auth/me', 'GET', undefined, rotated.access_token);
     expect(account.operator('inspect').activeSessions).toBe(0);
     await signIn();
-    await expect(page.getByRole('heading', { name: 'Your homes', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Ваши дома', exact: true })).toBeVisible();
     await signOut();
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Welcome home' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Добро пожаловать домой' })).toBeVisible();
     const storage = await page.evaluate(() => ({ local: Object.keys(localStorage), session: Object.keys(sessionStorage) }));
     expect(storage.local.every((key) => key === 'kz-home-theme')).toBe(true);
     expect(storage.session).toEqual([]);

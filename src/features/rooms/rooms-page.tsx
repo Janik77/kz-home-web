@@ -9,12 +9,12 @@ export function RoomsPage() {
   const readOnly = useRepository().readOnly;
   const [floor, setFloor] = useState('all');
   return <HomeDataBoundary>{(home) => <div className="page rooms-page">
-    <PageHeading eyebrow={home.house.name} title="Rooms" description={`${home.rooms.length} rooms across ${home.floors.length} floors. Open a room to ${readOnly ? 'view' : 'manage'} its devices.`} />
+    <PageHeading eyebrow={home.house.name} title="Комнаты" description={`Комнат: ${home.rooms.length} · этажей: ${home.floors.length}. Откройте комнату для просмотра устройств.`} />
     <AvailabilityNotice devices={home.devices} rooms={home.rooms} readOnly={readOnly === true} />
-    <div className="filter-bar" role="group" aria-label="Filter rooms by floor">
-      {[{ id: 'all', name: 'All rooms' }, ...home.floors].map((item) => <button type="button" key={item.id} aria-pressed={floor === item.id} onClick={() => setFloor(item.id)}>{item.name}</button>)}
+    <div className="filter-bar" role="group" aria-label="Фильтр по этажу">
+      {[{ id: 'all', name: 'Все комнаты' }, ...home.floors].map((item) => <button type="button" key={item.id} aria-pressed={floor === item.id} onClick={() => setFloor(item.id)}>{item.name}</button>)}
     </div>
     <RoomGrid home={home} rooms={home.rooms.filter((room) => floor === 'all' || room.floorId === floor)} headingLevel={2} />
-    <p className="quiet-note">Active devices include lights and power that are on, and curtains that are open.</p>
+    <p className="quiet-note">Активными считаются включённые светильники и реле, а также открытые шторы.</p>
   </div>}</HomeDataBoundary>;
 }

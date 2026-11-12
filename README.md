@@ -1,8 +1,14 @@
 # KZ Home Web
 
+Текущая ветка расширяет существующий React/TypeScript/Vite клиент: русские экраны,
+поиск устройств, автоматизации и журнал событий Core. Дизайн-система, авторизация,
+подтверждаемое управление программными реле и все прежние маршруты сохранены.
+Точный объём, запуск и ограничения: [MVP workspace](docs/WORKSPACE_MVP_RU.md).
+
+
 A consumer interface for KZ Home. The current milestone is **v0.5: premium UI/UX redesign** with warm ivory/graphite themes, an architectural visual language and explicit device-state semantics. Core/mock repositories, session handling and read-only real controls are preserved. See the [v0.5 report](docs/PREMIUM_REDESIGN_V0.5.md) and the historical [v0.4 live acceptance procedure](docs/LIVE_CORE_ACCEPTANCE_V0.4.md). Firmware remains separate.
 
-Home, Rooms, room detail, Scenes and appearance settings retain the v0.2 design. **Mock mode** remains an isolated local preview with simulated controls. **Core mode** provides real JSON login, in-memory bearer sessions, house selection and read-only home data through the existing repository boundary. Real device control and scene execution are deliberately unavailable. No browser MQTT, frontend backend or deployment infrastructure is included.
+Home, Rooms, room detail, Scenes and appearance settings retain the v0.2 design. **Mock mode** remains an isolated local preview with simulated controls. **Core mode** provides real JSON login, in-memory bearer sessions, house selection and read-only home data through the existing repository boundary. Supported relay commands use the existing permission-checked receipt flow. Scene execution remains unavailable in Core mode. No browser MQTT, frontend backend or deployment infrastructure is included.
 
 ## Development
 
@@ -97,4 +103,4 @@ Sign in with an existing Core account; Web provides no registration or recovery.
 - Loading, empty, recoverable data errors, render errors, and unknown routes.
 - Desktop sidebar, tablet layout, and mobile bottom navigation.
 
-Reloading resets the simulated home. Mock photographs and sensor timestamps are illustrative fixture values. Core mode does not use them and preserves partial/unknown state in read-only cards. Onboarding, automations, energy, notifications and AI remain outside Web scope. `test:e2e:core` still intercepts contract fixtures; the separate opt-in `test:e2e:live` suite uses actual Core HTTP, disposable accounts and PostgreSQL reads. Browser history routing will eventually require a host fallback to `index.html`, but no hosting configuration is added here.
+Reloading resets the simulated home. Mock photographs and sensor timestamps are illustrative fixture values. Core mode does not use them and preserves partial/unknown state in read-only cards. Onboarding, automation editing/execution, energy, notifications and AI remain outside Web scope. Automation definitions and the last 100 house events are available as independent read-only views. `test:e2e:core` still intercepts contract fixtures; the separate opt-in `test:e2e:live` suite uses actual Core HTTP, disposable accounts and PostgreSQL reads. Browser history routing will eventually require a host fallback to `index.html`, but no hosting configuration is added here.
