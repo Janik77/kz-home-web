@@ -1,7 +1,7 @@
 import { CoreError } from './errors';
 
 export interface RequestOptions {
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'PATCH';
   body?: unknown;
   token?: string;
   signal?: AbortSignal | undefined;

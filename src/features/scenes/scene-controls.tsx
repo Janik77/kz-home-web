@@ -1,3 +1,4 @@
+import { RenameDefinition } from '../definitions/definition-forms';
 import { DoorOpen, Moon, Sofa, Sunrise, Layers } from 'lucide-react';
 import type { HomeSnapshot } from '../../domain/home';
 import { getSceneSummary } from '../../domain/selectors';
@@ -27,8 +28,9 @@ export function SceneControls({ home, detailed = false }: { home: HomeSnapshot; 
         <p className="scene-card__rooms">{scope.rooms.map((room) => room.name).join(' · ') || 'Комнаты не указаны'}</p>
         {scope.unavailableControls > 0 && <p className="scene-unavailable">Недоступно действий: {scope.unavailableControls}{!readOnly && ' · будет пропущено'}</p>}
         {detailed && <SceneDetails scene={item} home={home} />}
-        {readOnly ? <p className="quiet-note">Только просмотр · запуск недоступен</p> : <Button variant="secondary" className="scene-card__run" aria-label={`Запустить ${item.name}`} aria-disabled={pending}
+        {readOnly ? <p className="quiet-note">Запуск из Web недоступен</p> : <Button variant="secondary" className="scene-card__run" aria-label={`Запустить ${item.name}`} aria-disabled={pending}
           onClick={() => { if (!pending) scene.mutate(item.id); }}>{selected && scene.isPending ? 'Выполняем…' : 'Запустить сценарий'}</Button>}
+        {readOnly && detailed && <RenameDefinition kind="scenes" id={item.id} name={item.name} />}
         <div className="scene-card__feedback">
           {selected && scene.isPending && <Feedback tone="pending" message={`Симуляция: ${item.name}…`} />}
           {result && <Feedback tone={result.tone} message={result.message + ' Только симуляция.'} />}

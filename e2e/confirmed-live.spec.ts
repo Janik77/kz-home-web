@@ -206,3 +206,53 @@ test('LIVE mobile software relay ON/OFF with persisted MQTT receipts', async ({ 
   await page.screenshot({ path: 'test-results/live-software-mobile.png', fullPage: true });
   console.log('PASS LIVE mobile 390px ON/OFF through Core and MQTT');
 });
+
+
+test('LIVE create scene and rename definitions without running devices', async ({ page }) => {
+  async function control(action: string) {
+    const response = await fetch(`${process.env.RELAY_CONTROL_URL}/${action}`, { method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.RELAY_CONTROL_KEY}`, 'Content-Type': 'application/json' }, body: '{}' });
+    expect(response.status).toBe(200); return response.json();
+  }
+  await control('seed-definition');
+  const before = await control('definition-evidence');
+  const dangerous: string[] = [];
+  page.on('request', r => { if (r.method() !== 'GET' && /\/(run|enable|disable|commands)(\?|$)/.test(r.url())) dangerous.push(r.url()); });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.getByLabel('Электронная почта', { exact: true }).fill('owner@example.test');
+  await page.getByLabel('Пароль', { exact: true }).fill(process.env.RELAY_OWNER_PASSWORD!);
+  await page.getByLabel('Пароль', { exact: true }).press('Enter');
+  await page.getByRole('button', { name: 'Fixture', exact: true }).click();
+  await page.getByRole('link', { name: 'Сценарии', exact: true }).click();
+  await page.getByRole('button', { name: 'Создать сценарий' }).click();
+  await page.getByLabel('Название сценария', { exact: true }).fill('Вечер дома');
+  await page.getByLabel('Устройство 1', { exact: true }).selectOption('fixture_relay');
+  await page.getByLabel('Питание 1', { exact: true }).selectOption('true');
+  await page.screenshot({ path: 'test-results/live-software-scene-form-mobile.png', fullPage: true });
+  await page.getByRole('button', { name: 'Сохранить сценарий' }).click();
+  const scene = page.getByRole('article', { name: 'Вечер дома', exact: true });
+  await expect(scene).toBeVisible();
+  await scene.getByRole('button', { name: 'Изменить название' }).click();
+  await scene.getByLabel('Новое название').fill('Вечер с семьёй');
+  await scene.getByRole('button', { name: 'Сохранить название' }).click();
+  await expect(page.getByRole('article', { name: 'Вечер с семьёй', exact: true })).toBeVisible();
+  await page.locator('.mobile-more summary').click();
+  await page.getByRole('link', { name: 'Правила', exact: true }).click();
+  await page.getByRole('button', { name: 'Изменить название' }).click();
+  await page.getByLabel('Новое название').fill('Название без изменения логики');
+  await page.getByRole('button', { name: 'Сохранить название' }).click();
+  await expect(page.getByRole('heading', { name: 'Название без изменения логики' })).toBeVisible();
+  await page.screenshot({ path: 'test-results/live-software-rule-mobile.png', fullPage: true });
+  const after = await control('definition-evidence');
+  expect(after.scenes).toHaveLength(1);
+  expect(after.scenes[0]).toMatchObject({ name: 'Вечер с семьёй', house_id: 'fixture_house',
+    actions: [{ type: 'device_state', device_id: 'fixture_relay', state: { on: true } }] });
+  expect(after.rules).toHaveLength(1);
+  expect(after.rules[0]).toMatchObject({ name: 'Название без изменения логики', enabled: false,
+    trigger: before.rules[0].trigger, conditions: before.rules[0].conditions, actions: before.rules[0].actions });
+  expect(after.mqtt_commands).toBe(before.mqtt_commands); expect(after.mqtt_commands).toBe(18);
+  expect(dangerous).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  console.log('PASS LIVE definitions: persisted scene and renamed rule, untouched actions/trigger/enabled, zero extra MQTT commands');
+});

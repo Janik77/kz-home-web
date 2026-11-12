@@ -155,6 +155,15 @@ async def acceptance(values):
                     await api.request("POST", "/houses", {"id": "race_house", "name": "Race second house"})
                 elif action in ("/deactivate-owner", "/activate-owner"):
                     await asyncio.to_thread(sql, "UPDATE users SET is_active=" + ("false" if action == "/deactivate-owner" else "true") + " WHERE email='owner@example.test'")
+                elif action == "/seed-definition":
+                    await api.request("POST", "/automations", {
+                        "id": "definition_rule", "house_id": "fixture_house", "name": "Правило для проверки", "enabled": False,
+                        "trigger": {"type": "device_state", "device_id": "fixture_relay", "field": "on", "operator": "eq", "value": True},
+                        "conditions": [], "actions": [{"type": "delay", "seconds": 1},
+                            {"type": "device_state", "device_id": "fixture_relay", "state": {"on": True}}]})
+                elif action == "/definition-evidence":
+                    result = {"scenes": await api.request("GET", "/scenes"),
+                              "rules": await api.request("GET", "/automations"), "mqtt_commands": len(received)}
                 elif action == "/evidence":
                     result = {"received": received, "published": published, "forwarded": forwarded, "database": await asyncio.to_thread(database)}
                 else:
