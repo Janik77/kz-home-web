@@ -8,7 +8,8 @@ import type { HomeSnapshot } from '../../domain/home';
 import { homeKey } from '../home/use-home';
 
 function useEditor(permission: string) {
-  const definitions = useRepository().definitions;
+  const repository = useRepository();
+  const definitions = repository.definitions;
   const client = useQueryClient();
   const controller = useRef<AbortController | null>(null);
   const [pending, setPending] = useState(false), [message, setMessage] = useState('');
@@ -33,10 +34,29 @@ function useEditor(permission: string) {
       if (controller.current === current) controller.current = null;
     }
   }
+  async function refresh() {
+    if (controller.current) return;
+    const current = new AbortController(); controller.current = current; setPending(true);
+    try {
+      if (permission === 'scene') {
+        const home = await repository.getHome(current.signal);
+        if (!current.signal.aborted) client.setQueryData(homeKey, home);
+      } else {
+        const rules = await repository.activity!.automations(current.signal);
+        if (!current.signal.aborted) client.setQueryData(['activity', 'automations'], rules);
+      }
+      if (!current.signal.aborted) { setError(false); setMessage('Список обновлён из Core. Черновик не изменён.'); }
+    } catch {
+      if (!current.signal.aborted) { setError(true); setMessage('Не удалось обновить список. Черновик остаётся в форме.'); }
+    } finally {
+      if (!current.signal.aborted) setPending(false);
+      if (controller.current === current) controller.current = null;
+    }
+  }
   const notice = !definitions ? null : rights.isPending ? <p role="status">Проверяем права…</p>
     : rights.isError ? <p role="alert">Не удалось проверить права. <Button variant="quiet" onClick={() => void rights.refetch()}>Повторить проверку прав</Button></p>
     : !allowed ? <p className="quiet-note">Изменение доступно при наличии прав на чтение и управление.</p> : null;
-  return { definitions, allowed, pending, save, notice, feedback: message && <p role={error ? 'alert' : 'status'}>{message}</p> };
+  return { definitions, allowed, pending, save, notice, feedback: message && <><p role={error ? 'alert' : 'status'}>{message}</p>{error && <Button variant="secondary" disabled={pending} onClick={() => void refresh()}>Обновить список без сброса черновика</Button>}</> };
 }
 
 export function RenameDefinition({ kind, id, name }: { kind: DefinitionKind; id: string; name: string }) {

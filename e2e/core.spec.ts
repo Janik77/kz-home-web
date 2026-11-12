@@ -332,6 +332,8 @@ test('definition editor preserves draft on errors and stores names without execu
   await card.getByRole('button', { name: 'Сохранить название' }).click();
   await expect(card.getByRole('alert')).toContainText('Сохранение не подтверждено');
   await expect(card.getByLabel('Новое название')).toHaveValue('Семейный вечер');
+  await card.getByRole('button', { name: 'Обновить список без сброса черновика' }).click();
+  await expect(card.getByLabel('Новое название')).toHaveValue('Семейный вечер');
   fail = false; await card.getByRole('button', { name: 'Сохранить название' }).click();
   await expect(page.getByRole('article', { name: 'Семейный вечер', exact: true })).toBeVisible();
   expect(writes).toEqual([{ name: 'Семейный вечер' }, { name: 'Семейный вечер' }]);

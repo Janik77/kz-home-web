@@ -17,7 +17,7 @@ function Resource<T>({ name, read, children }: { name: string; read: ((signal: A
 }
 export function AutomationsPage() {
   const activity = useRepository().activity;
-  return <div className="page"><PageHeading eyebrow="ПРАВИЛА ДОМА" title="Автоматизации" description="Условия и действия из Core. Просмотр не запускает и не изменяет правила." />
+  return <div className="page"><PageHeading eyebrow="ПРАВИЛА ДОМА" title="Автоматизации" description="Условия и действия из Core. Названия можно изменить при наличии прав; просмотр не запускает правила." />
     <Resource<AutomationRule> name="automations" read={activity && (signal => activity.automations(signal))}>{rules => <div className="automation-grid">{rules.map(rule => <article className="settings-panel automation-card" key={rule.id}>
       <div className="resource-heading"><h2>{rule.name}</h2><span className="resource-badge">{rule.enabled ? 'Включена в Core' : 'Выключена в Core'}</span></div>
       <dl><dt>Когда</dt><dd>{rule.trigger}</dd><dt>При условиях</dt><dd>{rule.conditions.length ? <ul>{rule.conditions.map((c, i) => <li key={i}>{c}</li>)}</ul> : 'Без дополнительных условий'}</dd><dt>Выполнить</dt><dd><ol>{rule.actions.map((a, i) => <li key={i}>{a}</li>)}</ol></dd></dl>
