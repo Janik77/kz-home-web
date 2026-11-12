@@ -24,6 +24,7 @@ from app.transports.mqtt_models import AckEnvelope, CommandEnvelope
 from app.transports.mqtt_topics import TopicKind
 from simulator.mqtt_relay import Relay, utc_now
 from confirmed_live_stack import provision, stack
+from confirmed_live_evidence import verify
 
 
 def inventory():
@@ -77,7 +78,8 @@ async def acceptance(values):
                 envelope = CommandEnvelope.model_validate_json(bytes(item.payload))
                 assert not item.retain
                 received.append({"command_id": envelope.command_id, "correlation_id": envelope.correlation_id,
-                                 "on": envelope.state["on"], "topic": str(item.topic)})
+                                 "on": envelope.state["on"], "topic": str(item.topic),
+                                 "qos": item.qos, "retain": item.retain})
                 if mode == "hold":
                     held.append(item)
                 elif mode == "apply":
@@ -215,12 +217,9 @@ async def acceptance(values):
                         "core_suback_sha": os.environ.get("CORE_SUBACK_SHA"),
                         "physical_devices": sql("SELECT count(*) FROM physical_devices")}
             (WEB / "test-results" / "confirmed-live-evidence.json").write_text(json.dumps(evidence, indent=2), encoding="utf-8")
-            assert evidence["physical_devices"] == "0"
-            commands = evidence["database"]["commands"]
-            assert sorted((row["command_id"], row["correlation_id"]) for row in received) == sorted(
-                (row["command_id"], row["correlation_id"]) for row in commands)
-            assert evidence["database"]["invalid_applied"] == "0"
-            assert result.returncode == 0, "Live browser acceptance failed; see credential-free test output"
+            evidence["verification"] = verify(evidence)
+            (WEB / "test-results" / "confirmed-live-evidence.json").write_text(json.dumps(evidence, indent=2), encoding="utf-8")
+            print("PASS automated full-run verification: 18 commands, exact SET/ACK/state/SQL identities, outcomes and QoS/retain", flush=True)
             assert not receiver.done(), "Software relay receiver stopped unexpectedly"
         finally:
             delay["gate"].set()

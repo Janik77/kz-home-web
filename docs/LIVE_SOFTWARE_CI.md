@@ -58,8 +58,8 @@ Playwright route.fulfill или изменений command gate здесь не�
 1. Подготовить указанные checkout Web/Core и применить точный diff #33 как в workflow.
 2. Создать venv, установить Core `requirements-dev.txt`; в Web выполнить `npm ci`
    и `npx playwright install --with-deps chromium`.
-3. Заранее загрузить `postgres:17-bookworm`, `eclipse-mosquitto:2`,
-   `alpine/openssl:latest` (до baseline inventory).
+3. Заранее загрузить `postgres:17-bookworm@sha256:665dc7b37ac52a17e298511414c21d23ffa4e6a6ef6225b3e5d59c7afb35e994`, `eclipse-mosquitto:2@sha256:75d6662dee52c947dc9dd9c29f1d8d7ffef78ddaf38001caa09755681e8bbc98`,
+   `alpine/openssl:latest@sha256:6821afa2476e11be343f29275f2ca24291720ff0a7148bd131fd8e314ff26d9e` (до baseline inventory).
 4. Запустить из Web:
 
 ```sh
@@ -71,3 +71,20 @@ LIVE_CORE_SOURCE=/absolute/path/to/core /path/to/venv/bin/python -B e2e/confirme
 `confirmed-live-preservation.json`, `live-software-desktop.png`, `live-software-mobile.png` не содержат
 паролей, токенов или ключей. Trace/video и автоматические снимки форм входа
 отключены. Успех этого теста не является квалификацией физического оборудования.
+
+
+## Автоматическая проверка полного результата
+
+`confirmed_live_evidence.verify` вызывается runner после всех трёх браузерных
+сценариев и завершает CI ошибкой при любом несоответствии. Проверяются ровно
+18 уникальных SET/SQL-команд и корреляций, их intent, topic, QoS/retain; все
+16 applied требуют точного applied ACK и state, согласованных с SQL и его
+временами получения. Failed требует failed ACK без state; timed_out — отсутствие
+ACK/state и их SQL-свидетельств. Неизвестные/дублированные публикации запрещены,
+допускается ровно один отдельный initial-state. Успешный отчёт содержит
+`verification.commands_verified=18`. Отдельные negative tests проверяют порчу
+каждой команды/публикации и SQL-полей; это тесты валидатора, не замена live E2E.
+
+Все три Docker digest взяты из успешного live CI 43269761966, а не из
+непроверенных новых образов. Workflow pull и fixture используют одинаковые
+полные ссылки; изменяемые tags больше не определяют загружаемые bytes.

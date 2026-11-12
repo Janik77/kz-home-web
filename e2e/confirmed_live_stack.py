@@ -64,7 +64,7 @@ chmod 644 server.key
             f"type=bind,source={root},target=/lab",
             "--entrypoint",
             "sh",
-            "alpine/openssl:latest",
+            "alpine/openssl:latest@sha256:6821afa2476e11be343f29275f2ca24291720ff0a7148bd131fd8e314ff26d9e",
             "-c",
             certs,
         )
@@ -82,7 +82,7 @@ chmod 644 server.key
             f"type=bind,source={root},target=/lab",
             "--entrypoint",
             "mosquitto_passwd",
-            "eclipse-mosquitto:2",
+            "eclipse-mosquitto:2@sha256:75d6662dee52c947dc9dd9c29f1d8d7ffef78ddaf38001caa09755681e8bbc98",
             "-U",
             "/lab/passwd",
         )
@@ -133,7 +133,7 @@ log_type all
             "POSTGRES_PASSWORD=" + self.password,
             "-p",
             "127.0.0.1::5432",
-            "postgres:17-bookworm",
+            "postgres:17-bookworm@sha256:665dc7b37ac52a17e298511414c21d23ffa4e6a6ef6225b3e5d59c7afb35e994",
         )
         mqtt = self.name + "-mqtt"
         self.containers.append(mqtt)
@@ -154,7 +154,7 @@ log_type all
             "/mosquitto/log",
             "-p",
             "127.0.0.1::8883",
-            "eclipse-mosquitto:2",
+            "eclipse-mosquitto:2@sha256:75d6662dee52c947dc9dd9c29f1d8d7ffef78ddaf38001caa09755681e8bbc98",
             "mosquitto",
             "-c",
             "/lab/mosquitto.conf",
