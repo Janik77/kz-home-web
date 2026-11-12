@@ -10,7 +10,7 @@ import { CoreControlNotice } from './core-control-notice';
 import { ConfirmedRelayControl } from './confirmed-relay-control';
 
 const icons = { light: Lightbulb, relay: Plug, curtain: Blinds, sensor: Thermometer, other: Radio };
-const labels = { light: 'Светлая', relay: 'Питание', curtain: 'Curtain', sensor: 'Датчик', other: 'Устройство' };
+const labels = { light: 'Свет', relay: 'Питание', curtain: 'Шторы', sensor: 'Датчик', other: 'Устройство' };
 
 interface DeviceCardProps {
   device: Device;
