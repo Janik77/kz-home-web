@@ -159,7 +159,7 @@ test('signs in, reads a home without controls or mock images, switches homes, an
     '/devices?house_id=house-b': [],
   });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Добро пожаловать домой' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Вход в дом' })).toBeVisible();
   await accessible(page);
   await page.screenshot({ path: testInfo.outputPath('core-login-light.png'), fullPage: true });
   await login(page);
@@ -197,12 +197,12 @@ test('signs in, reads a home without controls or mock images, switches homes, an
   await page.getByRole('link', { name: 'Аккаунт и дома' }).click();
   await accessible(page);
   await page.getByRole('button', { name: 'Выйти', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Добро пожаловать домой' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Вход в дом' })).toBeVisible();
   await accessible(page);
   expect(await page.evaluate(() => Object.keys(localStorage))).toEqual([themeStorageKey]);
   expect(await page.evaluate(() => Object.keys(sessionStorage))).toEqual([]);
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Добро пожаловать домой' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Вход в дом' })).toBeVisible();
   expect(requests.filter((request) => request.method !== 'GET').map((request) => request.path)).toEqual(['/auth/login', '/auth/logout']);
   expect(errors).toEqual([]);
 });

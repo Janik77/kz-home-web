@@ -33,7 +33,7 @@ test('LIVE browser → Vite proxy → Core → PostgreSQL acceptance', async ({ 
     const logout = responseFor('/auth/logout');
     await page.getByRole('button', { name: 'Выйти', exact: true }).click();
     expect((await logout).status()).toBe(204);
-    await expect(page.getByRole('heading', { name: 'Добро пожаловать домой' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Вход в дом' })).toBeVisible();
   }
   async function api(path: string, method = 'GET', body?: unknown, token?: string, status = 200) {
     const response = await fetch(`http://127.0.0.1:18000${path}`, {
@@ -119,7 +119,7 @@ test('LIVE browser → Vite proxy → Core → PostgreSQL acceptance', async ({ 
     await expect(page.getByRole('heading', { name: 'Ваши дома', exact: true })).toBeVisible();
     await signOut();
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Добро пожаловать домой' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Вход в дом' })).toBeVisible();
     const storage = await page.evaluate(() => ({ local: Object.keys(localStorage), session: Object.keys(sessionStorage) }));
     expect(storage.local.every((key) => key === 'kz-home-theme')).toBe(true);
     expect(storage.session).toEqual([]);
