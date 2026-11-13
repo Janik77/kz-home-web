@@ -21,9 +21,9 @@ export function AutomationsPage() {
   const demo = useRuntime().mode === 'mock';
   return <div className="page"><PageHeading eyebrow="ПРАВИЛА ДОМА" title="Автоматизации" description={demo ? 'Примеры правил для виртуального дома. Автоматически не выполняются.' : 'Что происходит в доме по заданным условиям. Просмотр не запускает правила.'} />
     <Resource<AutomationRule> name="automations" read={activity && (signal => activity.automations(signal))}>{rules => <div className="automation-grid">{rules.map(rule => <article className="settings-panel automation-card" key={rule.id}>
-      <div className="resource-heading"><h2>{rule.name}</h2><span className="resource-badge">{demo ? 'Демо · отключена' : rule.enabled ? 'Включена в Core' : 'Выключена в Core'}</span></div>
+      <div className="resource-heading"><h2>{rule.name}</h2><span className="resource-badge">{demo ? 'Отключена' : rule.enabled ? 'Включена в Core' : 'Выключена в Core'}</span></div>
       <dl><dt>Когда</dt><dd>{rule.trigger}</dd><dt>При условиях</dt><dd>{rule.conditions.length ? <ul>{rule.conditions.map((c, i) => <li key={i}>{c}</li>)}</ul> : 'Без дополнительных условий'}</dd><dt>Выполнить</dt><dd><ol>{rule.actions.map((a, i) => <li key={i}>{a}</li>)}</ol></dd></dl>
-      <details className="diagnostics"><summary>О работе правила</summary><p className="quiet-note">Статус правила не подтверждает выполнение устройств. Можно изменить название; условия, действия и включение сохраняются без изменений. Запуск из Web недоступен.</p></details>
+      <details className="diagnostics"><summary>О работе правила</summary><p className="quiet-note">{demo ? 'Это пример правила. Оно не выполняется и не сохраняется в Core.' : 'Статус правила не подтверждает выполнение устройств. Можно изменить название; условия, действия и включение сохраняются без изменений. Запуск из Web недоступен.'}</p></details>
       <RenameDefinition kind="automations" id={rule.id} name={rule.name} revision={rule.revision} />
     </article>)}</div>}</Resource>
   </div>;

@@ -320,3 +320,13 @@
  .filter-bar { gap: 6px; }
  .filter-bar button { padding-inline: 12px; font-size: .75rem; }
 }
+
+@media (max-width: 767px) {
+ .signature-home { gap: 16px; }
+ .signature-heading { margin-bottom: 8px; }
+ .room-card__image { height: 84px; }
+}
+
+@media (max-width: 767px) {
+ .device-groups .device-grid:has(> .device-card:only-child) { grid-template-columns: 1fr; }
+}

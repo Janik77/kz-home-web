@@ -24,7 +24,7 @@ function SignatureHome({ home }: { home: HomeSnapshot }) {
   return <div className="signature-home" lang="ru">
     <header className={`signature-hero ${cover ? '' : 'signature-hero--plain'}`}>
       {cover && <InteriorPhoto src={cover.image} position={cover.imagePosition} eager className="signature-hero__photo" />}
-      <div className="signature-hero__content"><p className="signature-date">{new Intl.DateTimeFormat('ru', { weekday: 'long', day: 'numeric', month: 'long' }).format(today)}</p><h1>Добро пожаловать домой</h1><p className="signature-hero__subtitle">{displayName(home.house.name, readOnly)} · всё важное перед вами</p>
+      <div className="signature-hero__content"><p className="signature-date">{new Intl.DateTimeFormat('ru', { weekday: 'long', day: 'numeric', month: 'long' }).format(today)}</p><h1>Добро пожаловать домой</h1><p className="signature-hero__subtitle">{displayName(home.house.name, readOnly)}</p>
         <div className="signature-status" aria-label="Состояние дома">
           <div><Thermometer size={21} aria-hidden="true" /><span><strong>{summary.temperature === null ? 'Нет измерений' : `${summary.temperature.toFixed(1)} °C`}</strong><small>Средняя температура</small></span></div>
 
