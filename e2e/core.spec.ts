@@ -102,12 +102,12 @@ test('owner submits relay intent once, waits for confirmation and refreshes repo
   const card = page.getByRole('article', { name: 'Confirmed relay · Living room' });
   await card.getByRole('button', { name: 'Включить', exact: true }).click();
   await expect(card.getByRole('status')).toHaveText('Ожидаем подтверждение');
-  await expect(card.locator('.signature-device__state')).toHaveText('Выключено');
+  await expect(card.locator('.device-card__state')).toHaveText('Выключено');
   await expect(card.getByRole('button', { name: 'Выключить', exact: true })).toBeDisabled();
   expect(keys).toHaveLength(1); expect(keys[0]).toMatch(/^[a-f0-9-]{36}$/);
   relay.state.on = true; applied = true;
   await expect(card.getByRole('status')).toHaveText('Выполнено · данные Core обновлены');
-  await expect(card.locator('.signature-device__state')).toHaveText('Включено');
+  await expect(card.locator('.device-card__state')).toHaveText('Включено');
   await accessible(page); await page.getByRole('button', { name: 'Включить тёмную тему' }).click(); await accessible(page);
   expect(keys).toHaveLength(1);
 });
@@ -125,7 +125,7 @@ test('fails closed for online and offline relays and refreshes observed state wi
   await expect(card).toContainText('не подтверждает выполнение вашей команды');
   const offline = page.getByRole('article', { name: 'Offline relay · Living room' });
   await expect(offline).toContainText('Не в сети · последнее: Включено');
-  await expect(offline).not.toHaveClass(/signature-device--active/);
+  await expect(offline).not.toHaveClass(/device-card--active/);
   await offline.getByText('О состоянии и управлении').click();
   await expect(offline).toContainText('Core сообщает, что устройство не в сети.');
   const partial = page.getByRole('article', { name: 'Partial relay · Living room' });
@@ -265,7 +265,7 @@ test('keeps Cyrillic last-known ON data offline and distinguishes restricted acc
   const card = page.getByRole('article', { name: `${deviceName} · ${roomName}` });
   await expect(card).toContainText('Core сообщает: не в сети');
   await expect(card).toContainText('Не в сети · последнее: Включён · 45%');
-  await expect(card).not.toHaveClass(/signature-device--active/);
+  await expect(card).not.toHaveClass(/device-card--active/);
   await expect(page.getByRole('switch')).toHaveCount(0);
   await expect(page.getByRole('slider')).toHaveCount(0);
   await accessible(page);

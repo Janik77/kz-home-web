@@ -45,7 +45,7 @@ export function AppShell() {
   const runtime = useRuntime();
   const signature = useLocation().pathname === '/';
   const core = runtime.mode === 'core';
-  const modeLabel = core ? 'Core · Данные устройств' : 'Демо · Симуляция';
+  const modeLabel = core ? 'Core · Данные устройств' : 'Демо · без оборудования';
   const home = useHome();
   const summary = home.data ? getHomeSummary(home.data) : null;
   return (
@@ -57,8 +57,7 @@ export function AppShell() {
         <Navigation />
         <div className="sidebar__bottom">
           <div className="sidebar__message"><House size={21} aria-hidden="true" /><p>{home.data?.house.name ?? 'Ваш дом'}<br /><span>{home.isError ? 'Данные дома недоступны' : summary ? `В сети: ${summary.online} из ${summary.total}` : 'Загружаем состояние…'}</span></p></div>
-          <div className="preview-note"><span className="status-dot" /><span>{core ? 'Core · данные и управление' : 'Демо · симуляция'}</span></div>
-          <p className="sidebar__footnote">{core ? 'Допуск команд проверяет Core' : 'Без реального оборудования'}</p>
+
         </div>
       </aside>
       <div className="app-main">
@@ -70,12 +69,11 @@ export function AppShell() {
           </div>
         </header>
         <main id="main-content" className="main-content" tabIndex={-1}>
-          {!core && <p className="demo-banner">Демо-дом · виртуальные устройства. Изменения действуют только в этой вкладке.</p>}
           {!signature && core && <div className="connection-bar"><span>Core · Последние полученные данные</span><div><Button variant="quiet" aria-disabled={home.isFetching} onClick={() => { if (!home.isFetching) void home.refetch(); }}>{home.isFetching ? 'Обновляем…' : 'Обновить данные'}</Button><Link className="text-link" to="/settings">Аккаунт и дома</Link></div></div>
           }
           <Outlet />
         </main>
-        <footer className="app-footer"><span>KZ Home Web</span><span>{core ? 'Данные Core · актуальность неизвестна' : 'Симуляция · сброс при перезагрузке'}</span></footer>
+        <footer className="app-footer"><span>KZ Home Web</span><span>{core ? 'Данные Core · актуальность неизвестна' : 'Изменения сбрасываются при перезагрузке'}</span></footer>
       </div>
       <Navigation mobile />
       <NavigationEffects />

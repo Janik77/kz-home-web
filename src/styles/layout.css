@@ -221,3 +221,85 @@
 
 /* Match the shared page gutter at every breakpoint, including 834/1024px. */
 .signature-hero__photo { right: calc(-1 * var(--page-gutter)); }
+
+/* One card system for the dashboard, rooms and full catalogues. */
+.device-card, .scene-card { padding: 16px; }
+.device-card__top { gap: 10px; margin-bottom: 10px; align-items: flex-start; }
+.device-card__identity { flex: 1; min-width: 0; }
+.device-card__identity h3 { font-size: .875rem; line-height: 1.45; overflow-wrap: anywhere; }
+.device-card__room { margin: 4px 0 0; }
+.device-card__icon { width: 32px; height: 32px; border-radius: 10px; }
+.device-card__icon svg { width: 18px; }
+.device-card__type { display: none; }
+.device-card__state { margin-top: 8px; font-size: .8125rem; }
+.device-card__footnote { min-height: 0; margin-top: 8px; font-size: .75rem; line-height: 1.5; }
+.range-control { margin-top: 12px; }
+.curtain-actions { display: flex; gap: 4px; margin-top: 8px; }
+.curtain-actions .button { flex: 1; padding: 8px; font-size: .75rem; }
+.scene-grid, .scene-grid--detailed { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.scene-card, .scene-grid--detailed .scene-card { background: var(--color-surface); }
+.scene-card__icon { width: 32px; height: 32px; border-radius: 10px; }
+.scene-card__icon svg { width: 18px; }
+.scene-card__scope { max-width: 110px; font-size: .6875rem; }
+.scene-card__name, .scene-grid--detailed .scene-card__name { margin-top: 12px; font-size: .875rem; line-height: 1.45; }
+.scene-card__description, .scene-grid--detailed .scene-card__description { font-size: .75rem; line-height: 1.5; }
+.scene-details { margin: 0 0 8px; }
+.scene-card__run { min-height: 44px; padding: 8px; }
+.scene-card:has(details[open]) { grid-column: span 2; }
+.room-card__image { height: 132px; }
+.room-card__image .interior-photo { width: 100%; height: 100%; }
+.room-card__body { padding: 14px; }
+.room-card__body > .status-badge { margin-top: 6px; }
+.room-card h3, .room-card h2 { font-size: .875rem; }
+.room-card__meta { gap: 4px; font-size: .6875rem; }
+.signature-home { gap: 24px; }
+.signature-hero { min-height: 180px; padding-top: 8px; }
+.signature-status { margin-top: 16px; }
+.signature-status > div { padding: 10px 12px; }
+.signature-hero__photo { inset-block-end: 0; }
+@media (min-width: 768px) and (max-width: 1199px) {
+ :root { --sidebar-width: 112px; }
+ .scene-grid, .scene-grid--detailed { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 767px) {
+ .main-content { padding-top: 16px; }
+ .topbar { min-height: 64px; }
+ .preview-badge { display: inline-flex; max-width: 140px; padding: 6px 8px; font-size: .625rem; }
+ .signature-hero { min-height: 0; padding-top: 0; }
+ .signature-hero h1 { font-size: 1.5rem; }
+ .signature-date { margin-bottom: 8px; }
+ .signature-hero__subtitle { margin-top: 8px; }
+ .signature-status { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+ .signature-status > div { min-width: 0; gap: 6px; padding: 10px; }
+ .signature-status svg { width: 16px; }
+ .signature-status strong { font-size: .75rem; }
+ .signature-status small { font-size: .625rem; }
+ .signature-heading { margin-bottom: 12px; }
+ .signature-heading h2 { font-size: .9375rem; }
+ .signature-heading > a { font-size: .6875rem; }
+ .signature-home { gap: 20px; }
+ .device-grid, .device-groups .device-grid, .scene-grid, .scene-grid--detailed, .room-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+ .device-card, .scene-card { padding: 12px; }
+ .device-card__top { flex-wrap: wrap; gap: 6px; }
+ .device-card__icon { display: none; }
+ .device-card__identity { flex-basis: calc(100% - 50px); }
+ .device-card__identity h3 { font-size: .8125rem; }
+ .device-card__room { font-size: .6875rem; }
+ .device-card--core { grid-column: 1 / -1; }
+ .scene-card__scope { max-width: 80px; }
+ .scene-card__name, .scene-grid--detailed .scene-card__name { font-size: .8125rem; }
+ .room-card__image { height: 94px; }
+ .room-card__body { padding: 10px; }
+ .room-card__arrow { display: none; }
+ .room-card__floor { top: 8px; left: 8px; }
+ .room-intro { padding: 16px; gap: 14px; }
+ .room-intro__image { height: 100px; }
+ .page-heading { padding-bottom: 16px; }
+ .page-heading__description { margin-top: 8px; line-height: 1.5; }
+ .device-filters { gap: 12px; }
+}
+@media (max-width: 359px) {
+ .device-grid, .device-groups .device-grid { grid-template-columns: 1fr; }
+ .scene-card:has(details[open]) { grid-column: 1 / -1; }
+ .topbar__mobile-brand .wordmark { max-width: 92px; }
+}

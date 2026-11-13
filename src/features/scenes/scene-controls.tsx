@@ -1,3 +1,4 @@
+import { Link } from 'react-router';
 import { RenameDefinition } from '../definitions/definition-forms';
 import { DoorOpen, Moon, Sofa, Sunrise, Layers } from 'lucide-react';
 import type { HomeSnapshot } from '../../domain/home';
@@ -24,12 +25,14 @@ export function SceneControls({ home, detailed = false }: { home: HomeSnapshot; 
       return <article key={item.id} className={`scene-card scene-card--${item.icon} ${result?.tone === 'success' ? 'scene-card--applied' : ''}`} aria-label={item.name}>
         <div className="scene-card__top"><span className="scene-card__icon"><Icon size={23} aria-hidden="true" /></span>
           <span className="scene-card__scope">Устройств: {scope.deviceCount} · комнат: {scope.rooms.length}</span></div>
-        <Heading className="scene-card__name">{item.name}</Heading><p className="scene-card__description">{item.description}</p>
-        <p className="scene-card__rooms">{scope.rooms.map((room) => room.name).join(' · ') || 'Комнаты не указаны'}</p>
+        <Heading className="scene-card__name">{item.name}</Heading>
+
         {scope.unavailableControls > 0 && <p className="scene-unavailable">Недоступно действий: {scope.unavailableControls}{!readOnly && ' · будет пропущено'}</p>}
-        {detailed && <SceneDetails scene={item} home={home} />}
+        <p className="scene-card__description">{item.description}</p>
+        <SceneDetails scene={item} home={home} />
         {readOnly ? <p className="quiet-note">Запуск из Web недоступен</p> : <Button variant="secondary" className="scene-card__run" aria-label={`Запустить ${item.name}`} aria-disabled={pending}
-          onClick={() => { if (!pending) scene.mutate(item.id); }}>{selected && scene.isPending ? 'Выполняем…' : 'Запустить сценарий'}</Button>}
+          onClick={() => { if (!pending) scene.mutate(item.id); }}>{selected && scene.isPending ? 'Выполняем…' : 'Запустить'}</Button>}
+        {readOnly && !detailed && <Link className="text-link" to="/scenes">Подробнее</Link>}
         {readOnly && detailed && <RenameDefinition kind="scenes" id={item.id} name={item.name} revision={item.revision} />}
         <div className="scene-card__feedback">
           {selected && scene.isPending && <Feedback tone="pending" message={`Симуляция: ${item.name}…`} />}

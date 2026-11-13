@@ -33,7 +33,7 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
   }
   const owner = await login('owner');
   const card = page.getByRole('article', { name: 'Software relay · Room' });
-  const state = card.locator('.signature-device__state');
+  const state = card.locator('.device-card__state');
   const status = card.getByRole('status');
   const on = card.getByRole('button', { name: 'Включить', exact: true });
   const off = card.getByRole('button', { name: 'Выключить', exact: true });
@@ -200,7 +200,7 @@ test('LIVE mobile software relay ON/OFF with persisted MQTT receipts', async ({ 
     await card.getByRole('button', { name: value ? 'Включить' : 'Выключить', exact: true }).click();
     expect((await response).status()).toBe(202);
     await expect(card.getByRole('status')).toHaveText('Выполнено · данные Core обновлены');
-    await expect(card.locator('.signature-device__state')).toHaveText(value ? 'Включено' : 'Выключено');
+    await expect(card.locator('.device-card__state')).toHaveText(value ? 'Включено' : 'Выключено');
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: 'test-results/live-software-mobile.png', fullPage: true });

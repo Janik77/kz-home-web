@@ -28,7 +28,7 @@ try {
         const name = `${device}-${theme}-${(route || 'home').replaceAll('/', '-')}.png`;
         if (!(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))) throw new Error(`Overflow: ${device} ${theme} ${route}`);
         await page.screenshot({ path: resolve(output, name), fullPage: true });
-        manifest.push({ name, width, height, theme, route: route || '/', data: 'mock simulation' });
+        manifest.push({ name, width, height, theme, route: route || '/', data: 'mock simulation', documentHeight: await page.evaluate(() => document.documentElement.scrollHeight) });
       }
     }
     await page.close();
