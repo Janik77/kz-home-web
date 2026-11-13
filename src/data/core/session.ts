@@ -104,7 +104,7 @@ export class CoreSession {
   }
 
   /** Mutations are sent once. A 401 expires the session; never replay a POST. */
-  async command<T>(path: string, body: unknown, key: string, decode: (value: unknown) => T, signal: AbortSignal): Promise<T> {
+  async command<T>(path: string, body: unknown, key: string, decode: (value: unknown) => T, signal: AbortSignal, expectedStatus: 201 | 202 = 202): Promise<T> {
     signal = AbortSignal.any([signal, this.lifetime.signal]);
     const revision = this.revision;
     if (this.snapshot.status !== 'authenticated' || !this.tokens) throw new CoreError('unauthorized');
@@ -113,7 +113,7 @@ export class CoreSession {
     if (revision !== this.revision || !this.tokens || this.snapshot.status !== 'authenticated') throw new CoreError('unauthorized');
     try {
       const result = await this.http.request(path, decode, { method: 'POST', body, idempotencyKey: key,
-        expectedStatus: 202, token: this.tokens.access_token, signal });
+        expectedStatus, token: this.tokens.access_token, signal });
       signal.throwIfAborted();
       if (revision !== this.revision) throw new CoreError('unauthorized');
       return result;
