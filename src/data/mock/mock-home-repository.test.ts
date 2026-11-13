@@ -61,3 +61,14 @@ describe('mock repository boundary', () => {
     await expect(repository.getHome(controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
   });
 });
+
+
+it('keeps illustrative rules disabled and separate from simulated device state', async () => {
+  const repository = createMockHomeRepository(initialHome, 0);
+  const before = await repository.getHome();
+  const rules = await repository.activity!.automations();
+  expect(rules).toHaveLength(2);
+  expect(rules.every(rule => !rule.enabled)).toBe(true);
+  expect((await repository.activity!.events()).every(event => event.type.startsWith('Пример:'))).toBe(true);
+  expect(await repository.getHome()).toEqual(before);
+});

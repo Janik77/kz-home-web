@@ -439,3 +439,14 @@ test('409 and retry retain guarded rename; verified save releases navigation', a
   await expect(page.getByLabel('Новое название')).toHaveValue('Мой черновик');
   expect(attempts).toBe(3);
 });
+
+
+test('login is accessible in both themes without submitting credentials', async ({ page }, info) => {
+  await page.goto('/');
+  await expect(page.getByLabel('Электронная почта', { exact: true })).toBeVisible();
+  for (const theme of ['light', 'dark']) {
+    if (await page.locator('html').getAttribute('data-theme') !== theme) await page.getByRole('button', { name: theme === 'dark' ? 'Включить тёмную тему' : 'Включить светлую тему' }).click();
+    await accessible(page);
+    await page.screenshot({ path: info.outputPath(`login-${theme}.png`), fullPage: true });
+  }
+});
