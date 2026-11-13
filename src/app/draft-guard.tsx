@@ -11,7 +11,13 @@ function LeaveDialog({ stay, discard, pending }: { stay: () => void; discard: ()
     dialog.showModal(); stayRef.current?.focus();
     return () => dialog.close();
   }, []);
-  return <dialog ref={ref} className="draft-dialog" aria-labelledby="draft-dialog-title" aria-describedby="draft-dialog-description" onCancel={event => { event.preventDefault(); stay(); }}>
+  return <dialog ref={ref} className="draft-dialog" aria-labelledby="draft-dialog-title" aria-describedby="draft-dialog-description" onKeyDown={event => {
+    if (event.key !== 'Tab') return;
+    const buttons = event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)');
+    const first = buttons[0], last = buttons[buttons.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  }} onCancel={event => { event.preventDefault(); stay(); }}>
     <h2 id="draft-dialog-title">Есть несохранённые изменения</h2>
     <p id="draft-dialog-description">Останьтесь, чтобы продолжить редактирование. Если продолжить переход или отмену, черновик будет удалён из памяти.</p>
     {pending && <p>Запрос сохранения ещё выполняется. Уход не отменяет запись, которую Core уже мог принять. Проверьте данные после возвращения.</p>}

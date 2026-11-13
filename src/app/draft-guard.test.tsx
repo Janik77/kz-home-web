@@ -36,6 +36,8 @@ it('aggregates multiple drafts, blocks unload and resets only after all saves', 
   await userEvent.click(screen.getByText('Save First')); expect(unload()).toBe(true);
   await userEvent.click(screen.getByText('Other'));
   expect(screen.getByRole('dialog')).toBeVisible(); expect(screen.getByText('Остаться')).toHaveFocus();
+  await userEvent.tab({ shift: true }); expect(screen.getByText('Отменить изменения и продолжить')).toHaveFocus();
+  await userEvent.tab(); expect(screen.getByText('Остаться')).toHaveFocus();
   await userEvent.click(screen.getByText('Остаться'));
   expect(screen.getByLabelText('Second')).toHaveValue('two');
   await userEvent.click(screen.getByText('Save Second')); expect(unload()).toBe(false);
