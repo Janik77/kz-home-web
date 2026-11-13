@@ -9,7 +9,7 @@ interface StatePanelProps {
   retryLabel?: string;
 }
 
-export function StatePanel({ kind, title, description, onRetry, retryLabel = 'Try again' }: StatePanelProps) {
+export function StatePanel({ kind, title, description, onRetry, retryLabel = 'Повторить' }: StatePanelProps) {
   const Icon = kind === 'error' ? CircleAlert : kind === 'restricted' ? LockKeyhole : kind === 'loading' ? LoaderCircle : Layers;
   return (
     <div className={`state-panel state-panel--${kind}`} role={kind === 'error' || kind === 'restricted' ? 'alert' : 'status'}>

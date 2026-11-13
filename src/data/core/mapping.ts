@@ -4,13 +4,13 @@ import { CoreError } from './errors';
 
 function numeric(value: unknown): value is number { return typeof value === 'number' && Number.isFinite(value); }
 function percent(value: unknown): value is number { return numeric(value) && Number.isInteger(value) && value >= 0 && value <= 100; }
-const labels: Record<string, string> = { on: 'Power', brightness: 'Brightness', position: 'Open amount', temperature: 'Temperature', humidity: 'Humidity', motion: 'Motion', leak: 'Leak', target_temperature: 'Target temperature', illuminance: 'Illuminance' };
+const labels: Record<string, string> = { on: 'Питание', brightness: 'Яркость', position: 'Открытие', temperature: 'Температура', humidity: 'Влажность', motion: 'Движение', leak: 'Протечка', target_temperature: 'Целевая температура', illuminance: 'Освещённость' };
 
 function describeValue(key: string, value: unknown): string {
-  if (typeof value === 'boolean') return key === 'on' ? (value ? 'On' : 'Off') : value ? 'Detected' : 'Not detected';
+  if (typeof value === 'boolean') return key === 'on' ? (value ? 'Включено' : 'Выключено') : value ? 'Обнаружено' : 'Не обнаружено';
   if (numeric(value)) return `${value}${['position', 'brightness', 'humidity'].includes(key) ? '%' : ['temperature', 'target_temperature'].includes(key) ? '°C' : ''}`;
   if (typeof value === 'string') return value;
-  return 'Unavailable';
+  return 'Недоступно';
 }
 
 export function mapDevice(dto: CoreDevice): Device {
@@ -35,9 +35,9 @@ export function mapDevice(dto: CoreDevice): Device {
 }
 
 function mapScene(dto: CoreScene): Scene {
-  return { id: dto.id, name: dto.name, description: '', icon: 'scene', actions: [],
+  return { id: dto.id, name: dto.name, revision: dto.revision, description: '', icon: 'scene', actions: [],
     readActions: dto.actions.map((action) => ({ deviceId: action.device_id,
-      description: Object.entries(action.state).map(([key, value]) => `${labels[key] ?? key.replaceAll('_', ' ')}: ${describeValue(key, value)}`).join(' · ') || 'No state changes' })) };
+      description: Object.entries(action.state).map(([key, value]) => `${labels[key] ?? key.replaceAll('_', ' ')}: ${describeValue(key, value)}`).join(' · ') || 'Нет изменений состояния' })) };
 }
 
 export function mapHome(house: CoreHouse, allFloors: CoreFloor[], allRooms: CoreRoom[], devices: CoreDevice[], allScenes: CoreScene[]): HomeSnapshot {

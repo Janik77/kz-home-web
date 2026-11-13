@@ -46,7 +46,7 @@ export class CoreSession {
         try { await this.http.request('/auth/logout', () => undefined, { method: 'POST', body: { refresh_token: pair.refresh_token } }); } catch { /* Best-effort revocation after an incomplete login. */ }
       }
       if (revision === this.revision) this.forget(error instanceof CoreError && error.kind === 'unauthorized'
-        ? 'The email or password wasn’t accepted. Please try again.' : coreErrorMessage(error));
+        ? 'Неверная почта или пароль. Попробуйте ещё раз.' : coreErrorMessage(error));
     }
   }
 
@@ -60,7 +60,7 @@ export class CoreSession {
       .catch((error: unknown) => {
         // Never retry a rotating refresh after a lost response: the old token may be consumed.
         if (revision === this.revision) this.forget(error instanceof CoreError && error.kind === 'unauthorized'
-          ? 'Your session has expired. Sign in again to continue.' : 'Your session couldn’t be renewed. Sign in again to continue.');
+          ? 'Сеанс истёк. Войдите снова.' : 'Не удалось продлить сеанс. Войдите снова.');
         throw error;
       }).finally(() => { if (this.refreshInFlight === operation) this.refreshInFlight = null; });
     this.refreshInFlight = operation;
@@ -96,7 +96,7 @@ export class CoreSession {
         return result;
       } catch (retryError) {
         if (retryError instanceof CoreError && retryError.kind === 'unauthorized' && revision === this.revision) {
-          this.forget('Your session has expired. Sign in again to continue.');
+          this.forget('Сеанс истёк. Войдите снова.');
         }
         throw retryError;
       }
@@ -118,7 +118,27 @@ export class CoreSession {
       if (revision !== this.revision) throw new CoreError('unauthorized');
       return result;
     } catch (error) {
-      if (error instanceof CoreError && error.kind === 'unauthorized' && revision === this.revision) this.forget('Your session has expired. Sign in again to continue.');
+      if (error instanceof CoreError && error.kind === 'unauthorized' && revision === this.revision) this.forget('Сеанс истёк. Войдите снова.');
+      throw error;
+    }
+  }
+
+  /** Mutations are sent once. A 401 expires the session; never replay a definition mutation. */
+  async definitionWrite<T>(path: string, method: 'POST' | 'PATCH', body: unknown, expectedStatus: 200 | 201, decode: (value: unknown) => T, signal: AbortSignal): Promise<T> {
+    signal = AbortSignal.any([signal, this.lifetime.signal]);
+    const revision = this.revision;
+    if (this.snapshot.status !== 'authenticated' || !this.tokens) throw new CoreError('unauthorized');
+    if (this.now() >= this.expiresAt - 5_000) await this.refresh();
+    signal.throwIfAborted();
+    if (revision !== this.revision || !this.tokens || this.snapshot.status !== 'authenticated') throw new CoreError('unauthorized');
+    try {
+      const result = await this.http.request(path, decode, { method, body,
+        expectedStatus, token: this.tokens.access_token, signal });
+      signal.throwIfAborted();
+      if (revision !== this.revision) throw new CoreError('unauthorized');
+      return result;
+    } catch (error) {
+      if (error instanceof CoreError && error.kind === 'unauthorized' && revision === this.revision) this.forget('Сеанс истёк. Войдите снова.');
       throw error;
     }
   }

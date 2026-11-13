@@ -4,6 +4,8 @@ import { decodeDevice, decodeFloor, decodeHouse, decodeRoom, decodeScene, list }
 import { CoreError } from './errors';
 import { mapHome } from './mapping';
 import type { CoreSession } from './session';
+import { createDefinitions } from './definitions';
+import { createHomeActivity } from './activity';
 import { createRelayControl } from './relay-control';
 
 export function readHouses(session: CoreSession, signal?: AbortSignal): Promise<AccessibleHouse[]> {
@@ -14,6 +16,8 @@ export function createCoreHomeRepository(session: CoreSession, houseId: string):
   // Legacy/mock snapshot mutations remain disabled. v0.15 uses separate receipts.
   return {
     readOnly: true,
+    definitions: createDefinitions(session, houseId),
+    activity: createHomeActivity(session, houseId),
     relayControl: createRelayControl(session, houseId),
     async getHome(signal) {
       const [house, floors, rooms, devices, scenes] = await Promise.all([

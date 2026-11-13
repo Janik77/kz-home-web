@@ -17,12 +17,12 @@ it('explains unavailable confirmation without inferring denial from a successful
 });
 
 it.each([
-  [{ ...relay, connection: 'offline', on: true } as Device, 'Core reports this device offline.'],
-  [{ ...relay, kind: 'other', typeLabel: 'relay', readings: [] } as Device, 'Web has no supported control for this reported data.'],
+  [{ ...relay, connection: 'offline', on: true } as Device, 'Core сообщает, что устройство не в сети.'],
+  [{ ...relay, kind: 'other', typeLabel: 'relay', readings: [] } as Device, 'Для этих данных нет поддержанного управления Web.'],
 ])('gives an offline or unsupported reason without claiming a command failure', async (device, reason) => {
   render(<CoreControlNotice device={device} />);
-  await userEvent.click(screen.getByText('Why controls are unavailable'));
+  await userEvent.click(screen.getByText('Почему управление недоступно'));
   expect(screen.getByText(reason)).toBeVisible();
-  expect(screen.getByText(/matching state does not confirm/)).toBeVisible();
+  expect(screen.getByText(/совпадение состояния не подтверждает/)).toBeVisible();
   expect(screen.queryByRole('status')).toBeNull();
 });

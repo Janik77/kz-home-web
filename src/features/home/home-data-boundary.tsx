@@ -4,7 +4,7 @@ import { StatePanel } from '../../components/ui/state-panel';
 import { useHome } from './use-home';
 import { CoreError, coreErrorMessage } from '../../data/core/errors';
 
-export function HomeDataBoundary({ children, locale = 'en' }: { children: (home: HomeSnapshot) => ReactNode; locale?: 'en' | 'ru' }) {
+export function HomeDataBoundary({ children, locale = 'ru' }: { children: (home: HomeSnapshot) => ReactNode; locale?: 'en' | 'ru' }) {
   const query = useHome();
   if (locale === 'ru') {
     if (query.isPending) return <StatePanel kind="loading" title="Готовим ваш дом" description="Загружаем комнаты и устройства." />;
@@ -15,11 +15,11 @@ export function HomeDataBoundary({ children, locale = 'en' }: { children: (home:
     }
     return children(query.data);
   }
-  if (query.isPending) return <StatePanel kind="loading" title="Getting your home ready" description="Bringing your rooms and devices together." />;
+  if (query.isPending) return <StatePanel kind="loading" title="Готовим ваш дом" description="Bringing your rooms and devices together." />;
   if (query.isError) {
     const restricted = query.error instanceof CoreError && query.error.kind === 'forbidden';
     const unavailable = query.error instanceof CoreError && ['network', 'server'].includes(query.error.kind);
-    return <StatePanel kind={restricted ? 'restricted' : 'error'} title={restricted ? 'Access is limited' : unavailable ? 'Core is unavailable' : 'We couldn’t load your home'} description={coreErrorMessage(query.error)} onRetry={() => void query.refetch()} />;
+    return <StatePanel kind={restricted ? 'restricted' : 'error'} title={restricted ? 'Доступ ограничен' : unavailable ? 'Core недоступен' : 'Не удалось загрузить дом'} description={coreErrorMessage(query.error)} onRetry={() => void query.refetch()} />;
   }
   return children(query.data);
 }

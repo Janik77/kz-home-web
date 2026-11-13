@@ -13,9 +13,9 @@ describe('confirmed device controls', () => {
     let resolve!: (home: HomeSnapshot) => void;
     const sendCommand = vi.fn(() => new Promise<HomeSnapshot>((done) => { resolve = done; }));
     renderHome({ ...repository, sendCommand }, (home) => <DeviceGrid devices={home.devices} rooms={home.rooms} />);
-    const toggle = await screen.findByRole('switch', { name: 'Ceiling lights in Living room' });
+    const toggle = await screen.findByRole('switch', { name: 'Ceiling lights · Living room' });
     await userEvent.click(toggle);
-    expect(await screen.findByText('Updating simulation…')).toBeInTheDocument();
+    expect(await screen.findByText('Обновляем симуляцию…')).toBeInTheDocument();
     expect(toggle).toHaveAttribute('aria-checked', 'true');
     expect(toggle).toHaveAttribute('aria-disabled', 'true');
     expect(toggle).toHaveFocus();
@@ -24,7 +24,7 @@ describe('confirmed device controls', () => {
     const updated = await repository.sendCommand({ type: 'set-power', deviceId: 'living-main', on: false });
     await act(async () => resolve(updated));
     await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'false'));
-    expect(await screen.findByText('Simulation updated.')).toBeInTheDocument();
+    expect(await screen.findByText('Симуляция обновлена.')).toBeInTheDocument();
     expect(toggle).toHaveFocus();
   });
 
@@ -32,13 +32,13 @@ describe('confirmed device controls', () => {
     const repository = createMockHomeRepository(initialHome, 0);
     const sendCommand = vi.fn().mockRejectedValueOnce(new Error('Internal adapter error 500')).mockImplementation(repository.sendCommand);
     renderHome({ ...repository, sendCommand }, (home) => <DeviceGrid devices={home.devices} rooms={home.rooms} />);
-    const toggle = await screen.findByRole('switch', { name: 'Ceiling lights in Living room' });
+    const toggle = await screen.findByRole('switch', { name: 'Ceiling lights · Living room' });
     await userEvent.click(toggle);
-    expect(await screen.findByRole('alert')).toHaveTextContent('Its last confirmed sample state is shown');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Показано последнее подтверждённое демо-состояние');
     expect(screen.queryByText(/Internal adapter/)).not.toBeInTheDocument();
     expect(toggle).toHaveAttribute('aria-checked', 'true');
     expect(sendCommand).toHaveBeenCalledTimes(1);
-    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Повторить' }));
     await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'false'));
     expect(sendCommand).toHaveBeenCalledTimes(2);
   });
@@ -47,16 +47,16 @@ describe('confirmed device controls', () => {
     const repository = createMockHomeRepository(initialHome, 0);
     const sendCommand = vi.fn().mockRejectedValue(new Error('Adapter failure'));
     renderHome({ ...repository, sendCommand }, (home) => <DeviceGrid devices={home.devices} rooms={home.rooms} />);
-    const slider = await screen.findByRole('slider', { name: 'Ceiling lights brightness in Living room' });
+    const slider = await screen.findByRole('slider', { name: 'Ceiling lights · яркость · Living room' });
     slider.focus();
     fireEvent.change(slider, { target: { value: '31' } });
     fireEvent.keyUp(slider, { key: 'ArrowLeft' });
     await screen.findByRole('alert');
     expect(slider).toHaveValue('72');
     expect(slider).toHaveFocus();
-    expect(screen.getByRole('slider', { name: 'Ceiling lights brightness in Living room' })).toBe(slider);
-    await userEvent.click(screen.getByRole('switch', { name: 'Coffee corner in Kitchen' }));
-    await waitFor(() => expect(within(screen.getByRole('article', { name: 'Coffee corner in Kitchen' })).getByRole('alert')).toBeInTheDocument());
+    expect(screen.getByRole('slider', { name: 'Ceiling lights · яркость · Living room' })).toBe(slider);
+    await userEvent.click(screen.getByRole('switch', { name: 'Coffee corner · Kitchen' }));
+    await waitFor(() => expect(within(screen.getByRole('article', { name: 'Coffee corner · Kitchen' })).getByRole('alert')).toBeInTheDocument());
     expect(slider).toHaveValue('72');
   });
 
@@ -64,20 +64,20 @@ describe('confirmed device controls', () => {
     const repository = createMockHomeRepository(initialHome, 0);
     const sendCommand = vi.fn(repository.sendCommand);
     renderHome({ ...repository, sendCommand }, (home) => <DeviceGrid devices={home.devices} rooms={home.rooms} />);
-    const slider = await screen.findByRole('slider', { name: 'Ceiling lights brightness in Living room' });
+    const slider = await screen.findByRole('slider', { name: 'Ceiling lights · яркость · Living room' });
     fireEvent.change(slider, { target: { value: '20' } });
     fireEvent.pointerCancel(slider);
     fireEvent.blur(slider);
     expect(slider).toHaveValue('72');
     expect(sendCommand).not.toHaveBeenCalled();
-    const offline = screen.getByRole('article', { name: 'Desk lamp in Home office' });
+    const offline = screen.getByRole('article', { name: 'Desk lamp · Home office' });
     expect(within(offline).getByRole('switch')).toBeDisabled();
     expect(within(offline).queryByRole('slider')).not.toBeInTheDocument();
-    expect(offline).toHaveTextContent('Last known: Off');
+    expect(offline).toHaveTextContent('Последнее состояние: Выключено');
   });
 
   it('provides an empty device state', async () => {
     renderHome(createMockHomeRepository(initialHome, 0), (home) => <DeviceGrid devices={[]} rooms={home.rooms} />);
-    expect(await screen.findByRole('heading', { name: 'No devices here yet' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Устройств пока нет' })).toBeInTheDocument();
   });
 });

@@ -9,7 +9,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
     if (import.meta.env.DEV) console.error('KZ Home render error', error, info.componentStack);
   }
   render() {
-    if (this.state.failed) return <main className="fatal-error"><StatePanel kind="error" title="Something didn’t go as planned" description="Reload KZ Home to try again." onRetry={() => window.location.reload()} /></main>;
+    if (this.state.failed) return <main className="fatal-error"><StatePanel kind="error" title="Произошла ошибка" description="Перезагрузите KZ Home и повторите." onRetry={() => window.location.reload()} /></main>;
     return this.props.children;
   }
 }

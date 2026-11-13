@@ -31,7 +31,7 @@ describe('memory-only Core session', () => {
     fetcher.mockResolvedValueOnce(Response.json({ detail: 'private-input' }, { status: 401 }));
     await Promise.all([session.login('test@example.test', 'wrong'), session.login('test@example.test', 'wrong')]);
     expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(session.getSnapshot()).toMatchObject({ status: 'anonymous', message: 'The email or password wasn’t accepted. Please try again.' });
+    expect(session.getSnapshot()).toMatchObject({ status: 'anonymous', message: 'Неверная почта или пароль. Попробуйте ещё раз.' });
   });
   it('rotates once for concurrent expired reads and revokes the new refresh token on logout', async () => {
     const { fetcher, session, login, advance } = harness(); await login(); advance();
@@ -60,7 +60,7 @@ describe('memory-only Core session', () => {
       if (response instanceof Response) fetcher.mockResolvedValueOnce(response); else fetcher.mockRejectedValueOnce(response);
       await expect(session.read('/houses', (v) => v)).rejects.toThrow();
       expect(session.getSnapshot().status).toBe('anonymous');
-      expect(session.getSnapshot().message).toMatch(/Sign in again/);
+      expect(session.getSnapshot().message).toMatch(/Войдите снова/);
       expect(fetcher.mock.calls.filter(([url]) => url === '/core-api/auth/refresh')).toHaveLength(1);
     }
   });
