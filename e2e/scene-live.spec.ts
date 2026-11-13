@@ -63,6 +63,7 @@ test('LIVE caller-driven scene runs require real applied ACK and state, preserve
     for (const checked of [false, true]) {
       await unknown.getByRole('checkbox').setChecked(checked);
       if (checked) await expect(prepareNew).toBeEnabled(); else await expect(prepareNew).toBeDisabled();
+      await unknown.locator('.run-review').evaluate(element => element.scrollIntoView({ block: 'start' }));
       await unknown.locator('.run-review').screenshot({ path: `test-results/live-software-new-preparation-${width}-${theme}-${checked ? 'checked' : 'unchecked'}.png` });
       expect(posts).toHaveLength(count); expect((await control('evidence')).received).toHaveLength(23);
     }

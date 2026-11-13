@@ -284,3 +284,5 @@
   .scene-grid--detailed .scene-card:has(.core-scene-shell) > .scene-unavailable,
   .scene-grid--detailed .scene-card:has(.core-scene-shell) > .scene-card__feedback:not(:empty) { grid-column: 1 / -1; grid-row: auto; }
 }
+
+.run-review .button:disabled { opacity: .55; cursor: not-allowed; }
