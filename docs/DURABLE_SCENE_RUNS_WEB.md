@@ -84,3 +84,16 @@ zero MQTT commands. Baseline Web #18 at `1a3226527e6b9501735b29e251a2982c7f5577f
 Web are captured against the same real Core fixture at 390/768/1440, light/dark, both the
 closed list and a read-only recovered result. Baseline is a separate checkout for visual
 comparison only, not a launcher or runtime change.
+
+
+## Conservative preparation acknowledgement
+
+Every separate new preparation now requires acknowledgement that local history is
+incomplete, including when the selected run succeeded. Selecting B after an unknown
+or timed-out A, refreshing either result by GET, or navigating cannot turn the selected
+result into a safety assessment of all prior runs. This deliberately adds one explicit
+confirmation even after successful runs instead of caching an aggregate outcome ledger.
+The 20-reference memory-only history is unchanged; eviction, reload, logout or context
+change may hide earlier runs. Absence of locally known unknowns is never a safety claim.
+The checkbox acknowledges a new intent, sends no request itself, and resets for each
+review. Preparing and dispatching still require separate explicit buttons.

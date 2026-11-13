@@ -77,7 +77,6 @@ export function CoreSceneRun({ scene, home }: { scene: Scene; home: HomeSnapshot
     finally { if (!current.signal.aborted) setBusy(false); if (controller.current === current) controller.current = null; }
   }
   const hasHistory = history.some(item => item.sceneId === scene.id);
-  const uncertain = (!run && hasHistory) || (!!run && (run.status === 'unknown' || run.actions.some(a => ['dispatch_unknown', 'timed_out'].includes(a.status))));
   const canStartNew = run ? ['succeeded', 'stopped', 'expired', 'unknown'].includes(run.status) : attempted || hasHistory;
   const next = run?.actions.find(a => a.status === 'ready');
   return <section className="core-scene-run" aria-label={`Подтверждённый запуск: ${scene.name}`}>
@@ -111,8 +110,9 @@ export function CoreSceneRun({ scene, home }: { scene: Scene; home: HomeSnapshot
     {review && <div className="run-review" aria-label="Новая подготовка">
       <h4>Новый запуск: {review.scene.name}</h4><p>Актуальная версия: {review.scene.revision}. Предыдущий запуск не изменится. Команды пока не отправляются.</p>
       <SceneDetails scene={review.scene} home={review.home} />
-      {uncertain && <label className="run-acknowledgement"><input type="checkbox" checked={acknowledged} onChange={e => setAcknowledged(e.target.checked)} />Понимаю: прежний результат неизвестен. Новый запуск — отдельное намерение, не повтор команды.</label>}
-      <div className="definition-buttons"><Button disabled={busy || !allowed || (uncertain && !acknowledged)} onClick={() => {
+      <p className="quiet-note">История ограничена 20 ID текущего дома и сеанса и очищается при перезагрузке, выходе или смене контекста. Успех выбранного запуска и отсутствие неизвестных результатов в этом списке не доказывают безопасность нового запуска.</p>
+      <label className="run-acknowledgement"><input type="checkbox" checked={acknowledged} onChange={e => setAcknowledged(e.target.checked)} />Понимаю: история неполна, результаты других запусков могут быть неизвестны. Новый запуск — отдельное намерение, не повтор команды.</label>
+      <div className="definition-buttons"><Button disabled={busy || !allowed || !acknowledged} onClick={() => {
         if (controller.current) return;
         const intent = { key: crypto.randomUUID(), revision: review.scene.revision! }; attempt.current = intent;
         setAttempted(true); setRun(null); setReview(null);
