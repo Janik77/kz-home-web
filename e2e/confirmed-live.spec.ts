@@ -230,6 +230,9 @@ test('LIVE create scene and rename definitions without running devices', async (
   await page.getByLabel('Устройство 1', { exact: true }).selectOption('fixture_relay');
   await page.getByLabel('Питание 1', { exact: true }).selectOption('true');
   await page.screenshot({ path: 'test-results/live-software-scene-form-mobile.png', fullPage: true });
+  await page.getByRole('link', { name: 'Комнаты', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Остаться', exact: true }).click();
+  await expect(page.getByLabel('Название сценария', { exact: true })).toHaveValue('Вечер дома');
   await page.getByRole('button', { name: 'Сохранить сценарий' }).click();
   const scene = page.getByRole('article', { name: 'Вечер дома', exact: true });
   await expect(scene).toBeVisible();
@@ -305,6 +308,14 @@ test('LIVE independent editors, atomic 409 and legacy ABA preserve drafts withou
       const loser = pages[failed]!;
       await expect(loser.getByRole('alert')).toContainText('Черновик и его исходная версия сохранены');
       await expect(loser.getByLabel('Новое название')).toHaveValue(`Concurrent ${kind} ${failed}`);
+      if (kind === 'automations') await loser.setViewportSize({ width: 390, height: 844 });
+      await loser.getByRole('link', { name: 'Комнаты', exact: true }).click();
+      const leaveDialog = loser.getByRole('dialog', { name: 'Есть несохранённые изменения' });
+      await expect(leaveDialog).toBeVisible();
+      await loser.screenshot({ path: `test-results/live-software-${kind}-draft-guard.png` });
+      await leaveDialog.getByRole('button', { name: 'Остаться', exact: true }).click();
+      await expect(loser.getByLabel('Новое название')).toHaveValue(`Concurrent ${kind} ${failed}`);
+      expect(attempts).toHaveLength(2);
       await loser.getByRole('button', { name: 'Обновить список без сброса черновика' }).click();
       await expect(loser.getByRole('button', { name: 'Я сравнил изменения — использовать текущую версию' })).toBeVisible();
       await expect(loser.getByLabel('Новое название')).toHaveValue(`Concurrent ${kind} ${failed}`);
