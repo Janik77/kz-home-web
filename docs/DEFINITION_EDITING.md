@@ -40,3 +40,35 @@ npm run test:e2e:core; workflow Live Web Core MQTT software relay. Новый li
 сценарий создаёт описание сцены, переименовывает сцену и отключённое тестовое
 правило, сверяет повторное чтение Core и отсутствие дополнительных MQTT-команд.
 Никакие реальные физические устройства, production или секреты не используются.
+
+## Conditional revision integration (continuation of Web #12)
+
+This continuation requires Core #35 at `9a6283c260c92acfe0447b0c425668cbb1a64002`
+(based on #32), with migration `0009_definition_revisions`. The isolated live
+workflow applies the same exact #33 transport delta to that disposable checkout.
+No production migrations or deploys are performed.
+
+The editor captures revision when opened and sends `expected_revision` in its
+minimal name PATCH. The server, not Web's preflight GET, supplies atomic CAS.
+Success requires the PATCH response to increment revision and a matching GET
+readback. A missing revision disables renaming while retaining read access and
+scene creation. Web never falls back to unconditional PATCH or silently adopts
+a newly fetched revision. HTTP 409 preserves the draft and its captured version.
+Refresh shows the current name/version; only the explicit comparison button
+adopts that version, preserving the user's draft, and a separate Save is required.
+A second race can still conflict. Network ambiguity never triggers a hidden retry.
+
+This supersedes the preflight-only limitation above for Core #35. Normal ABA
+(name A → B → A) and legacy PATCH clients are detected because every write
+increments revision. Legacy clients themselves still lack stale-draft protection.
+Counters apply to one record lifetime: delete/recreate of the same ID, database
+restore/downgrade, external SQL and mixed old/new Core writers are outside this
+contract. Close old drafts after such operations; upgrade all Core writers together.
+A response revision is a contract prerequisite, not proof against out-of-band writers.
+
+Regression coverage includes missing/invalid revisions, 409 without replay,
+two independent clients, response/readback verification, actual two-browser
+PATCH races against isolated PostgreSQL/Core, explicit reconciliation and legacy
+ABA for both scenes and automations. Definition tests assert preserved actions,
+trigger/conditions/enabled and zero additional MQTT commands. Existing 18-command
+software-relay verification remains active, with no physical identities or commands.

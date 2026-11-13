@@ -256,3 +256,78 @@ test('LIVE create scene and rename definitions without running devices', async (
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   console.log('PASS LIVE definitions: persisted scene and renamed rule, untouched actions/trigger/enabled, zero extra MQTT commands');
 });
+
+test('LIVE independent editors, atomic 409 and legacy ABA preserve drafts without MQTT', async ({ browser }) => {
+  async function control(action: string, data = {}) {
+    const response = await fetch(`${process.env.RELAY_CONTROL_URL}/${action}`, { method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.RELAY_CONTROL_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    expect(response.status).toBe(200); return response.json();
+  }
+  const baseline = await control('definition-evidence');
+  for (const kind of ['scenes', 'automations'] as const) {
+    const contexts = await Promise.all([browser.newContext(), browser.newContext()]);
+    try {
+      const pages = await Promise.all(contexts.map(context => context.newPage()));
+      await Promise.all(pages.map(async page => {
+        await page.goto('/');
+        await page.getByLabel('Электронная почта', { exact: true }).fill('owner@example.test');
+        await page.getByLabel('Пароль', { exact: true }).fill(process.env.RELAY_OWNER_PASSWORD!);
+        await page.getByLabel('Пароль', { exact: true }).press('Enter');
+        await page.getByRole('button', { name: 'Fixture', exact: true }).click();
+        await page.getByRole('link', { name: kind === 'scenes' ? 'Сценарии' : 'Правила', exact: true }).click();
+        await page.getByRole('button', { name: 'Изменить название' }).click();
+      }));
+      let arrived = 0; let release!: () => void;
+      const bothReady = new Promise<void>(resolve => { release = resolve; });
+      const attempts: { expected_revision: number; name: string }[] = [];
+      const statuses: number[] = [];
+      // Delay only outbound requests until both real preflight GETs have finished.
+      // Responses and the PostgreSQL CAS decision come entirely from real Core.
+      await Promise.all(pages.map(page => page.route(`**/core-api/${kind}/*`, async route => {
+        if (route.request().method() === 'PATCH') {
+          attempts.push(route.request().postDataJSON()); if (++arrived === 2) release();
+          await bothReady;
+        }
+        await route.continue();
+      })));
+      pages.forEach(page => page.on('response', r => {
+        if (r.request().method() === 'PATCH' && r.url().includes(`/core-api/${kind}/`)) statuses.push(r.status());
+      }));
+      await Promise.all(pages.map(async (page, i) => {
+        await page.getByLabel('Новое название').fill(`Concurrent ${kind} ${i}`);
+        await page.getByRole('button', { name: 'Сохранить название' }).click();
+      }));
+      await expect.poll(() => statuses.length).toBe(2);
+      expect([...statuses].sort()).toEqual([200, 409]);
+      expect(attempts).toHaveLength(2); expect(attempts[0]!.expected_revision).toBe(attempts[1]!.expected_revision);
+      await expect.poll(async () => (await pages[0]!.getByLabel('Новое название').count()) + (await pages[1]!.getByLabel('Новое название').count())).toBe(1);
+      const failed = (await pages[0]!.getByLabel('Новое название').count()) ? 0 : 1;
+      const loser = pages[failed]!;
+      await expect(loser.getByRole('alert')).toContainText('Черновик и его исходная версия сохранены');
+      await expect(loser.getByLabel('Новое название')).toHaveValue(`Concurrent ${kind} ${failed}`);
+      await loser.getByRole('button', { name: 'Обновить список без сброса черновика' }).click();
+      await expect(loser.getByRole('button', { name: 'Я сравнил изменения — использовать текущую версию' })).toBeVisible();
+      await expect(loser.getByLabel('Новое название')).toHaveValue(`Concurrent ${kind} ${failed}`);
+      expect(attempts).toHaveLength(2); // refresh must never submit or replace the captured revision
+      if (kind === 'automations') await loser.setViewportSize({ width: 390, height: 844 });
+      await loser.screenshot({ path: `test-results/live-software-${kind}-revision-conflict.png`, fullPage: true });
+      await loser.getByRole('button', { name: 'Я сравнил изменения — использовать текущую версию' }).click();
+      await loser.getByRole('button', { name: 'Сохранить название' }).click();
+      await expect(loser.getByLabel('Новое название')).toHaveCount(0);
+      expect(attempts).toHaveLength(3); expect(attempts[2]!.expected_revision).toBe(attempts[0]!.expected_revision + 1);
+      await loser.getByRole('button', { name: 'Изменить название' }).click();
+      await loser.getByLabel('Новое название').fill('Draft survives legacy ABA');
+      const aba = await control('legacy-definition-aba', { kind });
+      expect(aba.stale_status).toBe(409);
+      await loser.getByRole('button', { name: 'Сохранить название' }).click();
+      await expect(loser.getByRole('alert')).toContainText('Черновик и его исходная версия сохранены');
+      await expect(loser.getByLabel('Новое название')).toHaveValue('Draft survives legacy ABA');
+      expect(attempts).toHaveLength(3); // ABA detected by revision even though name is unchanged
+    } finally { await Promise.all(contexts.map(context => context.close())); }
+  }
+  const after = await control('definition-evidence');
+  expect(after.mqtt_commands).toBe(baseline.mqtt_commands); expect(after.mqtt_commands).toBe(18);
+  expect(after.scenes[0].actions).toEqual(baseline.scenes[0].actions);
+  for (const field of ['trigger', 'conditions', 'actions', 'enabled']) expect(after.rules[0][field]).toEqual(baseline.rules[0][field]);
+  console.log('PASS LIVE revisions: two independent browser clients per kind; actual PostgreSQL/Core 200+409; explicit reconciliation; legacy ABA rejected; zero extra MQTT');
+});

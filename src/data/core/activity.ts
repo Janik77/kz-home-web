@@ -1,6 +1,6 @@
 import type { HomeActivity, AutomationRule, HomeEvent } from '../../domain/activity';
 import type { CoreSession } from './session';
-import { boolean, list, number, object, string } from './dtos';
+import { boolean, decodeRevision, list, number, object, string } from './dtos';
 import { CoreError } from './errors';
 
 const operators: Record<string, string> = { eq: '=', neq: '≠', gt: '>', gte: '≥', lt: '<', lte: '≤' };
@@ -12,7 +12,7 @@ function stateRule(value: unknown): string {
 }
 export function decodeAutomation(value: unknown): AutomationRule & { houseId: string } {
   const v = object(value);
-  return { id: string(v.id), houseId: string(v.house_id), name: string(v.name), enabled: boolean(v.enabled),
+  return { revision: decodeRevision(v.revision), id: string(v.id), houseId: string(v.house_id), name: string(v.name), enabled: boolean(v.enabled),
     trigger: stateRule(v.trigger),
     conditions: list(v.conditions, value => {
       const c = object(value);
