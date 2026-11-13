@@ -6,6 +6,7 @@ export function SceneDetails({ scene, home }: { scene: Scene; home: HomeSnapshot
   const readOnly = useRepository().readOnly;
   const actions = scene.readActions ?? scene.actions.map((action) => ({ deviceId: action.deviceId, description: describeCommand(action) }));
   return <details className="scene-details"><summary>Действия ({actions.length})</summary>
+    <p className="scene-card__description">{scene.description}</p>
     <ul>{actions.map((action, index) => {
       const device = home.devices.find((item) => item.id === action.deviceId);
       const room = home.rooms.find((item) => item.id === device?.roomId);

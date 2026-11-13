@@ -81,3 +81,14 @@ describe('confirmed device controls', () => {
     expect(await screen.findByRole('heading', { name: 'Устройств пока нет' })).toBeInTheDocument();
   });
 });
+
+
+it('formats observed sensor dates in Russian even when the browser locale is English', async () => {
+  renderHome(createMockHomeRepository(initialHome, 0), (home) => <DeviceGrid devices={home.devices} rooms={home.rooms} />);
+  const dates = await screen.findAllByText(/Измерено ·/);
+  expect(dates.length).toBeGreaterThan(0);
+  for (const date of dates) {
+    expect(date.textContent).toMatch(/окт/);
+    expect(date.textContent).not.toMatch(/Oct|AM|PM|Демо-показание/);
+  }
+});

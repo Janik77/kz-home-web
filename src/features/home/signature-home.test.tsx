@@ -23,8 +23,8 @@ it('keeps an offline last-known ON device inactive and prohibits simulation comm
   const sendCommand = vi.fn(repository.sendCommand);
   renderHome({ ...repository, sendCommand }, () => <HomePage />);
   const card = await screen.findByRole('article', { name: 'Потолочный свет · Гостиная' });
-  expect(card).toHaveTextContent('Не в сети · последнее: Включён · 72%');
-  expect(card).not.toHaveClass('signature-device--active');
+  expect(card).toHaveTextContent('Последнее состояние: Включено · яркость 72%');
+  expect(card).not.toHaveClass('device-card--active');
   expect(within(card).getByRole('switch')).toBeDisabled();
   expect(within(card).queryByRole('slider')).toBeNull();
   await userEvent.click(within(card).getByRole('switch'));
@@ -39,8 +39,8 @@ it('keeps Core data read-only and photo-free without substituting sample rooms',
   const activateScene = vi.fn();
   renderHome({ ...repository, readOnly: true, sendCommand, activateScene }, () => <HomePage />);
   await screen.findByRole('heading', { name: 'Добро пожаловать домой' });
-  expect(screen.getByRole('link', { name: 'Открыть комнату: Гостиная' })).toBeVisible();
-  expect(document.querySelectorAll('.signature-room .interior-photo--empty')).toHaveLength(4);
+  expect(screen.getByRole('link', { name: /Гостиная.*Устройств/ })).toBeVisible();
+  expect(document.querySelectorAll('.room-card .interior-photo--empty')).toHaveLength(4);
   expect(document.querySelector('img')).toBeNull();
   expect(screen.queryByRole('switch')).toBeNull();
   expect(screen.queryByRole('slider')).toBeNull();
@@ -52,7 +52,7 @@ it('keeps Core data read-only and photo-free without substituting sample rooms',
 
 it('recovers gracefully from a broken room photograph', async () => {
   renderHome(createMockHomeRepository(initialHome, 0), () => <HomePage />);
-  const room = await screen.findByRole('link', { name: 'Открыть комнату: Гостиная' });
+  const room = await screen.findByRole('link', { name: /Гостиная.*Устройств/ });
   fireEvent.error(room.querySelector('img')!);
   expect(room.querySelector('img')).toBeNull();
   expect(room.querySelector('.interior-photo--empty')).not.toBeNull();
