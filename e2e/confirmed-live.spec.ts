@@ -309,6 +309,7 @@ test('LIVE independent editors, atomic 409 and legacy ABA preserve drafts withou
       await expect(loser.getByRole('button', { name: 'Я сравнил изменения — использовать текущую версию' })).toBeVisible();
       await expect(loser.getByLabel('Новое название')).toHaveValue(`Concurrent ${kind} ${failed}`);
       expect(attempts).toHaveLength(2); // refresh must never submit or replace the captured revision
+      if (kind === 'automations') await loser.setViewportSize({ width: 390, height: 844 });
       await loser.screenshot({ path: `test-results/live-software-${kind}-revision-conflict.png`, fullPage: true });
       await loser.getByRole('button', { name: 'Я сравнил изменения — использовать текущую версию' }).click();
       await loser.getByRole('button', { name: 'Сохранить название' }).click();
