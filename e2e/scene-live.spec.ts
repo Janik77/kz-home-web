@@ -56,6 +56,20 @@ test('LIVE caller-driven scene runs require real applied ACK and state, preserve
   expect(posts).toHaveLength(count);
   const prepareNew = unknown.getByRole('button', { name: 'Подготовить новый запуск', exact: true });
   await expect(prepareNew).toBeDisabled();
+  for (const width of [390, 1440]) for (const theme of ['light', 'dark']) {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
+    const toggle = page.getByRole('button', { name: theme === 'dark' ? 'Включить тёмную тему' : 'Включить светлую тему', exact: true });
+    if (await toggle.count()) await toggle.click();
+    for (const checked of [false, true]) {
+      await unknown.getByRole('checkbox').setChecked(checked);
+      if (checked) await expect(prepareNew).toBeEnabled(); else await expect(prepareNew).toBeDisabled();
+      await unknown.locator('.run-review').evaluate(element => element.scrollIntoView({ block: 'start' }));
+      await unknown.locator('.run-review').screenshot({ path: `test-results/live-software-new-preparation-${width}-${theme}-${checked ? 'checked' : 'unchecked'}.png` });
+      expect(posts).toHaveLength(count); expect((await control('evidence')).received).toHaveLength(23);
+    }
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: 'Включить светлую тему', exact: true }).click();
   await unknown.getByRole('checkbox').check();
   await prepareNew.evaluate(button => { (button as HTMLButtonElement).click(); (button as HTMLButtonElement).click(); });
   await expect(unknown).toContainText('команды ещё не отправлены'); expect(posts).toHaveLength(count + 1);
@@ -88,6 +102,8 @@ test('LIVE caller-driven scene runs require real applied ACK and state, preserve
   const beforeReview = posts.length;
   await changed.getByRole('button', { name: 'Обновить сценарий для нового запуска', exact: true }).click();
   await expect(changed).toContainText(`Актуальная версия: ${revision.revision}`); expect(posts).toHaveLength(beforeReview);
+  await expect(changed.getByRole('button', { name: 'Подготовить новый запуск', exact: true })).toBeDisabled();
+  await changed.getByRole('checkbox').check();
   await changed.getByRole('button', { name: 'Подготовить новый запуск', exact: true }).click();
   await expect(changed).toContainText('команды ещё не отправлены'); expect(posts).toHaveLength(beforeReview + 1);
   expect((await control('evidence')).received).toHaveLength(23);

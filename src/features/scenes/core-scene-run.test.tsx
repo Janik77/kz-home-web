@@ -63,6 +63,7 @@ it.each(['succeeded', 'expired', 'stopped'] as const)('starts a distinct %s foll
   await userEvent.click(await screen.findByRole('button', { name: 'Обновить сценарий для нового запуска' }));
   expect(h.service.create).toHaveBeenCalledTimes(1); expect(h.service.dispatch).not.toHaveBeenCalled();
   const next = screen.getByRole('button', { name: 'Подготовить новый запуск' });
+  expect(next).toBeDisabled(); await userEvent.click(screen.getByRole('checkbox'));
   let resolve!: (value: SceneRun) => void;
   vi.mocked(h.service.create).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
   await userEvent.click(next); await userEvent.click(next);
@@ -92,7 +93,47 @@ it('uses a newly fetched revision after conflict, never silently resubmits the o
   await userEvent.click(screen.getByRole('button', { name: 'Обновить сценарий для нового запуска' }));
   expect(await screen.findByText(/Актуальная версия: 4/)).toBeVisible(); expect(h.service.create).toHaveBeenCalledTimes(1);
   vi.mocked(h.service.create).mockResolvedValueOnce({ ...run(), scene_revision: 4 });
+  await userEvent.click(screen.getByRole('checkbox'));
   await userEvent.click(screen.getByRole('button', { name: 'Подготовить новый запуск' }));
   const calls = vi.mocked(h.service.create).mock.calls; expect(calls).toHaveLength(2); expect(calls[1]![1]).toBe(4); expect(calls[1]![2]).not.toBe(calls[0]![2]);
   expect(h.service.dispatch).not.toHaveBeenCalled();
+});
+
+
+it.each(['unknown', 'timed_out'] as const)('retains conservative acknowledgement after A %s, B succeeded, GET updates and navigation', async outcome => {
+  const h = harness();
+  const a: SceneRun = { ...run(outcome === 'unknown' ? 'unknown' : 'stopped'), id: 'A', actions: [{ ...run().actions[0]!, status: outcome === 'unknown' ? 'blocked' : 'timed_out' }] };
+  const b: SceneRun = { ...run('succeeded'), id: 'B', actions: [{ ...run().actions[0]!, status: 'applied' }] };
+  h.service.history!.remember({ id: 'A', sceneId: scene.id, createdAt: a.created_at });
+  h.service.history!.remember({ id: 'B', sceneId: scene.id, createdAt: b.created_at });
+  vi.mocked(h.service.read).mockImplementation(async id => id === 'A' ? a : b);
+  await userEvent.click(await screen.findByText('Недавние запуски этой сцены'));
+  await userEvent.click(screen.getByRole('button', { name: 'Открыть запуск A' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Открыть запуск B' }));
+  expect(await screen.findByRole('status')).toHaveTextContent('Все действия подтверждены');
+  await userEvent.click(screen.getByRole('button', { name: 'Обновить сценарий для нового запуска' }));
+  expect(screen.getByRole('button', { name: 'Подготовить новый запуск' })).toBeDisabled();
+  expect(screen.getByText(/Успех выбранного запуска/)).toBeVisible();
+  await userEvent.click(screen.getByRole('checkbox'));
+  expect(screen.getByRole('button', { name: 'Подготовить новый запуск' })).toBeEnabled();
+  await userEvent.click(screen.getByRole('button', { name: 'Отмена подготовки' }));
+  // Even a later GET resolving A cannot prove complete history or carry acknowledgement forward.
+  vi.mocked(h.service.read).mockResolvedValue({ ...b, id: 'A' });
+  await userEvent.click(screen.getByRole('button', { name: 'Открыть запуск A' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Обновить сценарий для нового запуска' }));
+  expect(screen.getByRole('checkbox')).not.toBeChecked();
+  expect(screen.getByRole('button', { name: 'Подготовить новый запуск' })).toBeDisabled();
+  h.unmount(); const view = h.mount();
+  await userEvent.click(await screen.findByRole('button', { name: 'Обновить сценарий для нового запуска' }));
+  expect(screen.getByRole('button', { name: 'Подготовить новый запуск' })).toBeDisabled();
+  expect(h.service.create).not.toHaveBeenCalled(); expect(h.service.dispatch).not.toHaveBeenCalled();
+  view.unmount();
+  const isolated = harness(run('succeeded'));
+  expect(screen.queryByText('Недавние запуски этой сцены')).not.toBeInTheDocument();
+  const first = await screen.findByRole('button', { name: 'Подготовить запуск' });
+  await waitFor(() => expect(first).toBeEnabled()); await userEvent.click(first);
+  await userEvent.click(screen.getByRole('button', { name: 'Обновить сценарий для нового запуска' }));
+  expect(screen.getByRole('checkbox')).not.toBeChecked();
+  expect(screen.getByRole('button', { name: 'Подготовить новый запуск' })).toBeDisabled();
+  expect(isolated.service.dispatch).not.toHaveBeenCalled();
 });
