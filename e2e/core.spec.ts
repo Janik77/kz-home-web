@@ -430,4 +430,12 @@ test('409 and retry retain guarded rename; verified save releases navigation', a
   await expect(page.getByLabel('Новое название')).toHaveCount(0); expect(attempts).toBe(3);
   await page.getByRole('link', { name: 'Комнаты', exact: true }).click();
   await expect(page).toHaveURL(/\/rooms$/); await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('link', { name: 'Сценарии', exact: true }).click();
+  await page.getByRole('button', { name: 'Изменить название' }).click();
+  await page.getByLabel('Новое название').fill('Отменяемый текст');
+  await page.getByRole('button', { name: 'Отмена', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Отменить изменения и продолжить' }).click();
+  await page.getByRole('button', { name: 'Изменить название' }).click();
+  await expect(page.getByLabel('Новое название')).toHaveValue('Мой черновик');
+  expect(attempts).toBe(3);
 });

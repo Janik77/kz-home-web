@@ -72,7 +72,7 @@ export function RenameDefinition({ kind, id, name, revision }: { kind: Definitio
       <fieldset disabled={editor.pending}><legend>Название</legend><label>Новое название<input autoFocus required maxLength={255} value={draft} onChange={e => setDraft(e.target.value)} /></label>
       <p className="quiet-note">Исходная версия: {originalRevision}. Текущая: {revision}; название в Core: {name}.</p>
       {revision !== originalRevision && <Button variant="secondary" onClick={() => { setOriginal(name); setOriginalRevision(revision); }}>Я сравнил изменения — использовать текущую версию</Button>}
-      <p className="quiet-note">Остальные параметры сохраняются. Выполнение не запускается.</p><div className="definition-buttons"><Button type="submit" disabled={!validName(draft)}>{editor.pending ? 'Сохраняем…' : 'Сохранить название'}</Button><Button variant="quiet" onClick={() => discard(() => setEditing(false))}>Отмена</Button></div></fieldset>
+      <p className="quiet-note">Остальные параметры сохраняются. Выполнение не запускается.</p><div className="definition-buttons"><Button type="submit" disabled={!validName(draft)}>{editor.pending ? 'Сохраняем…' : 'Сохранить название'}</Button><Button variant="quiet" onClick={() => discard(() => { setEditing(false); setDraft(name); setOriginal(name); setOriginalRevision(revision); })}>Отмена</Button></div></fieldset>
     </form>)}{editor.feedback}</div>;
 }
 
