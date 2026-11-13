@@ -43,3 +43,12 @@ it.each(['expired', 'stopped'] as const)('shows %s without dispatch or success',
   await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Подтверждено: 0 из 1'));
   expect(screen.queryByRole('button', { name: 'Выполнить действие 1' })).not.toBeInTheDocument(); expect(h.service.dispatch).not.toHaveBeenCalled();
 });
+
+it('observes a durable unknown claim without offering dispatch or automatic recovery', async () => {
+  const h = harness(run('unknown')); const button = await screen.findByRole('button', { name: 'Подготовить запуск' });
+  await waitFor(() => expect(button).toBeEnabled()); await userEvent.click(button);
+  expect(await screen.findByRole('status')).toHaveTextContent('Результат неизвестен');
+  expect(screen.getByText('Отправка неизвестна — повтора нет')).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Выполнить действие 1' })).not.toBeInTheDocument();
+  expect(h.service.dispatch).not.toHaveBeenCalled(); h.unmount();
+});

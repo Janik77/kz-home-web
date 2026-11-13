@@ -47,6 +47,9 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -r ../kz-home-core/requirements-dev.txt
 npm ci
 npx playwright install chromium
+docker pull postgres:17-bookworm@sha256:665dc7b37ac52a17e298511414c21d23ffa4e6a6ef6225b3e5d59c7afb35e994
+docker pull eclipse-mosquitto:2@sha256:75d6662dee52c947dc9dd9c29f1d8d7ffef78ddaf38001caa09755681e8bbc98
+docker pull alpine/openssl:latest@sha256:6821afa2476e11be343f29275f2ca24291720ff0a7148bd131fd8e314ff26d9e
 LIVE_CORE_SOURCE="$(realpath ../kz-home-core)" CORE_BASE_SHA=f946a07f67f9ccb1e8f62c99860a0842bf3a062b .venv/bin/python -B e2e/confirmed-live-runner.py
 ```
 
