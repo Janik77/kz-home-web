@@ -59,14 +59,17 @@ function useEditor(permission: string) {
   return { definitions, allowed, pending, save, notice, feedback: message && <><p role={error ? 'alert' : 'status'}>{message}</p>{error && <Button variant="secondary" disabled={pending} onClick={() => void refresh()}>Обновить список без сброса черновика</Button>}</> };
 }
 
-export function RenameDefinition({ kind, id, name }: { kind: DefinitionKind; id: string; name: string }) {
+export function RenameDefinition({ kind, id, name, revision }: { kind: DefinitionKind; id: string; name: string; revision?: number | undefined }) {
   const editor = useEditor(kind === 'scenes' ? 'scene' : 'automation');
   const [editing, setEditing] = useState(false), [draft, setDraft] = useState(name), [original, setOriginal] = useState(name);
+  const [originalRevision, setOriginalRevision] = useState(revision);
   if (!editor.definitions) return null;
-  return <div className="definition-editor">{editor.notice}{editor.allowed && (!editing
-    ? <Button variant="secondary" onClick={() => { setDraft(name); setOriginal(name); setEditing(true); }}>Изменить название</Button>
-    : <form aria-label={`Название: ${name}`} onSubmit={e => { e.preventDefault(); if (validName(draft)) void editor.save(signal => editor.definitions!.rename(kind, id, original, draft, signal), () => setEditing(false)); }}>
+  return <div className="definition-editor">{editor.notice}{revision === undefined && <p role="status">Core не предоставляет revision. Переименование недоступно до обновления Core.</p>}{editor.allowed && revision !== undefined && (!editing
+    ? <Button variant="secondary" onClick={() => { setDraft(name); setOriginal(name); setOriginalRevision(revision); setEditing(true); }}>Изменить название</Button>
+    : <form aria-label={`Название: ${name}`} onSubmit={e => { e.preventDefault(); if (validName(draft)) void editor.save(signal => editor.definitions!.rename(kind, id, original, draft, signal, originalRevision), () => setEditing(false)); }}>
       <fieldset disabled={editor.pending}><legend>Название</legend><label>Новое название<input autoFocus required maxLength={255} value={draft} onChange={e => setDraft(e.target.value)} /></label>
+      <p className="quiet-note">Исходная версия: {originalRevision}. Текущая: {revision}; название в Core: {name}.</p>
+      {revision !== originalRevision && <Button variant="secondary" onClick={() => { setOriginal(name); setOriginalRevision(revision); }}>Я сравнил изменения — использовать текущую версию</Button>}
       <p className="quiet-note">Остальные параметры сохраняются. Выполнение не запускается.</p><div className="definition-buttons"><Button type="submit" disabled={!validName(draft)}>{editor.pending ? 'Сохраняем…' : 'Сохранить название'}</Button><Button variant="quiet" onClick={() => setEditing(false)}>Отмена</Button></div></fieldset>
     </form>)}{editor.feedback}</div>;
 }

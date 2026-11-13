@@ -30,7 +30,7 @@ export function SceneControls({ home, detailed = false }: { home: HomeSnapshot; 
         {detailed && <SceneDetails scene={item} home={home} />}
         {readOnly ? <p className="quiet-note">Запуск из Web недоступен</p> : <Button variant="secondary" className="scene-card__run" aria-label={`Запустить ${item.name}`} aria-disabled={pending}
           onClick={() => { if (!pending) scene.mutate(item.id); }}>{selected && scene.isPending ? 'Выполняем…' : 'Запустить сценарий'}</Button>}
-        {readOnly && detailed && <RenameDefinition kind="scenes" id={item.id} name={item.name} />}
+        {readOnly && detailed && <RenameDefinition kind="scenes" id={item.id} name={item.name} revision={item.revision} />}
         <div className="scene-card__feedback">
           {selected && scene.isPending && <Feedback tone="pending" message={`Симуляция: ${item.name}…`} />}
           {result && <Feedback tone={result.tone} message={result.message + ' Только симуляция.'} />}

@@ -10,6 +10,7 @@ export interface CoreDevice extends CoreHouse {
   capabilities: string[]; updated_at: string;
 }
 export interface CoreScene extends CoreHouse {
+  revision?: number | undefined;
   house_id: string; actions: { type: 'device_state'; device_id: string; state: Record<string, unknown> }[];
 }
 export interface TokenPair { access_token: string; refresh_token: string; token_type: 'bearer'; expires_in: number }
@@ -48,9 +49,14 @@ export function decodeDevice(value: unknown): CoreDevice {
   return { ...decodeHouse(item), room_id: string(item.room_id), type: string(item.type),
     state: object(item.state), online: boolean(item.online), capabilities: list(item.capabilities, string), updated_at: string(item.updated_at) };
 }
+export function decodeRevision(value: unknown): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) throw new CoreError('protocol');
+  return value;
+}
 export function decodeScene(value: unknown): CoreScene {
   const item = object(value);
-  return { ...decodeHouse(item), house_id: string(item.house_id), actions: list(item.actions, (value) => {
+  return { ...decodeHouse(item), revision: decodeRevision(item.revision), house_id: string(item.house_id), actions: list(item.actions, (value) => {
     const action = object(value);
     if (action.type !== 'device_state') throw new CoreError('protocol');
     return { type: 'device_state', device_id: string(action.device_id), state: object(action.state) };

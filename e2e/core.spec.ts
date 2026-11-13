@@ -319,7 +319,7 @@ test('definition editor preserves draft on errors and stores names without execu
       if (route.request().method() === 'PATCH') {
         const body = route.request().postDataJSON(); writes.push(body);
         if (fail) return route.fulfill({ status: 503 });
-        stored = { ...stored, ...body };
+        stored = { ...stored, ...body, revision: stored.revision + 1 };
       }
       return route.fulfill({ json: stored });
     }
@@ -336,11 +336,20 @@ test('definition editor preserves draft on errors and stores names without execu
   await expect(card.getByLabel('Новое название')).toHaveValue('Семейный вечер');
   fail = false; await card.getByRole('button', { name: 'Сохранить название' }).click();
   await expect(page.getByRole('article', { name: 'Семейный вечер', exact: true })).toBeVisible();
-  expect(writes).toEqual([{ name: 'Семейный вечер' }, { name: 'Семейный вечер' }]);
+  expect(writes).toEqual([{ name: 'Семейный вечер', expected_revision: 1 }, { name: 'Семейный вечер', expected_revision: 1 }]);
   expect(stored.actions).toEqual(coreScene.actions);
   await page.getByRole('button', { name: 'Создать сценарий' }).click();
   await page.getByLabel('Название сценария', { exact: true }).fill('Новый вечер');
   await page.getByLabel('Устройство 1', { exact: true }).selectOption('lamp-a');
   await accessible(page);
   await page.screenshot({ path: `test-results/definition-editor-${info.project.name}.png`, fullPage: true });
+});
+
+test('old Core without revision keeps scenes readable but does not offer unsafe rename', async ({ page }) => {
+  await interceptCore(page, { '/scenes': [{ ...coreScene, revision: undefined }] });
+  await page.goto('/scenes'); await login(page);
+  const card = page.getByRole('article', { name: 'Evening', exact: true });
+  await expect(card).toBeVisible();
+  await expect(card.getByRole('status')).toContainText('Core не предоставляет revision');
+  await expect(card.getByRole('button', { name: 'Изменить название' })).toHaveCount(0);
 });

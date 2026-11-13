@@ -42,6 +42,7 @@ export type DeviceCommand =
   | { type: 'set-position'; deviceId: string; position: number };
 
 export interface Scene {
+  revision?: number | undefined;
   id: string;
   name: string;
   description: string;

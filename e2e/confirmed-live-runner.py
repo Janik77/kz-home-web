@@ -161,6 +161,23 @@ async def acceptance(values):
                         "trigger": {"type": "device_state", "device_id": "fixture_relay", "field": "on", "operator": "eq", "value": True},
                         "conditions": [], "actions": [{"type": "delay", "seconds": 1},
                             {"type": "device_state", "device_id": "fixture_relay", "state": {"on": True}}]})
+                elif action == "/legacy-definition-aba":
+                    # Only fixture definitions; legacy name-only writes never execute actions.
+                    assert data["kind"] in ("scenes", "automations")
+                    records = await api.request("GET", "/" + data["kind"])
+                    assert len(records) == 1
+                    record = records[0]
+                    assert record["house_id"] == "fixture_house"
+                    path = "/" + data["kind"] + "/" + record["id"]
+                    await api.request("PATCH", path, {"name": "Legacy intermediate"})
+                    restored = await api.request("PATCH", path, {"name": record["name"]})
+                    assert restored["revision"] == record["revision"] + 2
+                    async with httpx.AsyncClient(base_url=api.base) as http:
+                        stale = await http.patch(path, headers={"Authorization": "Bearer " + api.token},
+                            json={"name": "Must not persist", "expected_revision": record["revision"]})
+                    assert stale.status_code == 409
+                    assert stale.json()["code"] == "definition_revision_conflict"
+                    result = {"revision": restored["revision"], "stale_status": stale.status_code}
                 elif action == "/definition-evidence":
                     result = {"scenes": await api.request("GET", "/scenes"),
                               "rules": await api.request("GET", "/automations"), "mqtt_commands": len(received)}

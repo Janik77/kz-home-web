@@ -35,7 +35,7 @@ export function mapDevice(dto: CoreDevice): Device {
 }
 
 function mapScene(dto: CoreScene): Scene {
-  return { id: dto.id, name: dto.name, description: '', icon: 'scene', actions: [],
+  return { id: dto.id, name: dto.name, revision: dto.revision, description: '', icon: 'scene', actions: [],
     readActions: dto.actions.map((action) => ({ deviceId: action.device_id,
       description: Object.entries(action.state).map(([key, value]) => `${labels[key] ?? key.replaceAll('_', ' ')}: ${describeValue(key, value)}`).join(' · ') || 'Нет изменений состояния' })) };
 }

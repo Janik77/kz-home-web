@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      CORE_BASE_SHA: 159eb98f2349b1aa2b8afd313c3a3f1fbf9b6bd2
+      CORE_BASE_SHA: 9a6283c260c92acfe0447b0c425668cbb1a64002
       CORE_SUBACK_SHA: bbb9d7af8647ecc727b9c8201a936f66fa99a91e
       PYTHONDONTWRITEBYTECODE: '1'
       LIVE_CORE_SOURCE: ${{ github.workspace }}/core

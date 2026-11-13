@@ -13,6 +13,7 @@ import shutil
 import socket
 import ssl
 import subprocess
+import sys
 import tempfile
 import time
 from uuid import uuid4
@@ -247,6 +248,11 @@ async def stack(core):
     engine = server = serve_task = sock = None
     try:
         services.start()
+        # Explicit owned PostgreSQL URL; Core tests create/drop only random schemas.
+        await asyncio.to_thread(subprocess.run,
+            [sys.executable, "-m", "pytest", "-q", "tests/test_definition_postgresql.py"],
+            cwd=core, env={**os.environ, "TEST_POSTGRESQL_URL": services.url},
+            check=True, timeout=120)
         engine = create_engine(services.url)
         migration_config = AlembicConfig(str(core / "alembic.ini"))
         migration_config.set_main_option("script_location", str(core / "alembic"))
