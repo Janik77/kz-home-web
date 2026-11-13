@@ -183,9 +183,14 @@ async def acceptance(values):
                         ("run_success", "Проверка успеха", [True, False]),
                         ("run_partial", "Проверка частичного результата", [True, False]),
                         ("run_unknown", "Проверка неизвестного результата", [False]),
+                        ("run_revision", "Проверка новой версии", [False]),
                     ]:
                         await api.request("POST", "/scenes", {"id": identifier, "house_id": "fixture_house", "name": name,
                             "actions": [{"type": "device_state", "device_id": "fixture_relay", "state": {"on": on}} for on in states]})
+                elif action == "/scene-visual-run":
+                    result = {"id": sql("SELECT r.id FROM scene_runs r JOIN scene_run_receipts l ON l.run_id=r.id WHERE r.scene_id='run_unknown' LIMIT 1")}
+                elif action == "/scene-revision-change":
+                    result = await api.request("PATCH", "/scenes/run_revision", {"name": "Проверка новой версии"})
                 elif action == "/definition-evidence":
                     result = {"scenes": await api.request("GET", "/scenes"),
                               "rules": await api.request("GET", "/automations"), "mqtt_commands": len(received)}
@@ -272,6 +277,12 @@ async def acceptance(values):
             scene_evidence["scene_receipt_links"] = links
             (WEB / "test-results" / "scene-live-evidence.json").write_text(json.dumps(scene_evidence, indent=2), encoding="utf-8")
             print("PASS scene browser: explicit sequential success, partial failure, timeout; all 23 commands verified against SET/ACK/state/SQL", flush=True)
+            if os.environ.get("BASELINE_WEB_SOURCE"):
+                baseline = await asyncio.to_thread(subprocess.run,
+                    ["npx", "playwright", "test", "--config", "playwright.scene-live.config.ts"], cwd=WEB,
+                    env={**env, "SCENE_VISUAL_ONLY": "1", "SCENE_WEB_ROOT": os.environ["BASELINE_WEB_SOURCE"], "SCENE_SCREENSHOT_PREFIX": "before"}, timeout=180)
+                assert baseline.returncode == 0, "Baseline visual browser failed"
+                assert len(received) == 23, "Read-only visual comparison published commands"
             assert not receiver.done(), "Software relay receiver stopped unexpectedly"
         finally:
             delay["gate"].set()
