@@ -21,6 +21,11 @@ test('renders home without overflow or broken images, with accessible light and 
     await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   }
   await page.evaluate(() => window.scrollTo(0, 0));
+  for (const img of await page.locator('img').all()) {
+    await img.scrollIntoViewIfNeeded();
+    await expect.poll(() => img.evaluate(image => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0)).toBe(true);
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
   const imageHealth = await page.locator('img').evaluateAll((images) => images.every((image) => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0));
   expect(imageHealth).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -112,7 +117,7 @@ test('matches Signature composition, exposes device attention, and renders group
     await expect(page.locator('h1')).toBeVisible();
     if (route.includes('/rooms/')) {
       await expect(page.getByRole('heading', { name: 'Освещение', exact: true })).toBeVisible();
-      await expect(page.getByRole('heading', { name: 'Шторы', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Шторы', exact: true, level: 2 })).toBeVisible();
       await expect(page.getByRole('heading', { name: 'Климат и датчики', exact: true })).toBeVisible();
     } else {
       const card = page.getByRole('article', { name: 'Ушёл из дома' });

@@ -212,3 +212,9 @@
  .signature-heading > a { font-size: .75rem; }
  .signature-date { font-size: .6875rem; }
 }
+
+@media (max-width: 767px) {
+ .signature-device__top { flex-wrap: nowrap; }
+ .signature-device__top > div { flex-basis: auto; }
+ .signature-device__top .switch { margin-left: 0; }
+}

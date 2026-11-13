@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { House, LayoutGrid, Settings2, Layers3, FlaskConical, Plug, Workflow, ListChecks, Ellipsis } from 'lucide-react';
+import { House, LayoutGrid, Settings2, Layers3, Plug, Workflow, ListChecks, Ellipsis } from 'lucide-react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { Wordmark } from '../components/brand/wordmark';
 import { ThemeToggle } from '../components/ui/theme-toggle';
@@ -71,8 +71,8 @@ export function AppShell() {
         </header>
         <main id="main-content" className="main-content" tabIndex={-1}>
           {!core && <p className="demo-banner">Демо-дом · виртуальные устройства. Изменения действуют только в этой вкладке.</p>}
-          {!signature && (core ? <div className="connection-bar"><span>Core · Последние полученные данные</span><div><Button variant="quiet" aria-disabled={home.isFetching} onClick={() => { if (!home.isFetching) void home.refetch(); }}>{home.isFetching ? 'Обновляем…' : 'Обновить данные'}</Button><Link className="text-link" to="/settings">Аккаунт и дома</Link></div></div>
-            : <div className="mode-notice"><FlaskConical size={14} aria-hidden="true" /><span>Демо · Симуляция <span className="mode-notice__detail">· Пример дома</span></span></div>)}
+          {!signature && core && <div className="connection-bar"><span>Core · Последние полученные данные</span><div><Button variant="quiet" aria-disabled={home.isFetching} onClick={() => { if (!home.isFetching) void home.refetch(); }}>{home.isFetching ? 'Обновляем…' : 'Обновить данные'}</Button><Link className="text-link" to="/settings">Аккаунт и дома</Link></div></div>
+          }
           <Outlet />
         </main>
         <footer className="app-footer"><span>KZ Home Web</span><span>{core ? 'Данные Core · актуальность неизвестна' : 'Симуляция · сброс при перезагрузке'}</span></footer>
