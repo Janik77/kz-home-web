@@ -13,6 +13,7 @@ jobs:
     timeout-minutes: 20
     env:
       CORE_BASE_SHA: f946a07f67f9ccb1e8f62c99860a0842bf3a062b
+      BASELINE_WEB_SOURCE: ${{ github.workspace }}/web-before
       PYTHONDONTWRITEBYTECODE: '1'
       LIVE_CORE_SOURCE: ${{ github.workspace }}/core
     steps:
@@ -25,6 +26,11 @@ jobs:
           repository: Janik77/kz-home-core
           ref: ${{ env.CORE_BASE_SHA }}
           path: core
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 1a3226527e6b9501735b29e251a2982c7f5577f4
+          path: web-before
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -41,6 +47,7 @@ jobs:
           "$RUNNER_TEMP/live-venv/bin/python" -m pip install -r ../core/requirements-dev.txt
           "$RUNNER_TEMP/live-venv/bin/python" -m pip check
           npm ci
+          npm --prefix ../web-before ci
           npx playwright install --with-deps chromium
       - name: Evidence verifier negative regressions
         working-directory: web
@@ -65,4 +72,5 @@ jobs:
             web/test-results/scene-live-evidence.json
             web/test-results/confirmed-live-preservation.json
             web/test-results/live-software-*.png
+            web/test-results/scene-visual-*.json
           if-no-files-found: error
