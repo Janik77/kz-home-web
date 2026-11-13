@@ -49,7 +49,7 @@ export function AppShell() {
   const home = useHome();
   const summary = home.data ? getHomeSummary(home.data) : null;
   return (
-    <div className={`app-shell ${signature ? 'signature-shell' : ''}`}>
+    <div className={'app-shell'}>
       <a lang="ru" className="skip-link" href="#main-content">К содержимому</a>
       <aside className="sidebar">
         <Link to="/" className="brand-link" aria-label="KZ Home — главная"><Wordmark /></Link>
@@ -70,6 +70,7 @@ export function AppShell() {
           </div>
         </header>
         <main id="main-content" className="main-content" tabIndex={-1}>
+          {!core && <p className="demo-banner">Демо-дом · виртуальные устройства. Изменения действуют только в этой вкладке.</p>}
           {!signature && (core ? <div className="connection-bar"><span>Core · Последние полученные данные</span><div><Button variant="quiet" aria-disabled={home.isFetching} onClick={() => { if (!home.isFetching) void home.refetch(); }}>{home.isFetching ? 'Обновляем…' : 'Обновить данные'}</Button><Link className="text-link" to="/settings">Аккаунт и дома</Link></div></div>
             : <div className="mode-notice"><FlaskConical size={14} aria-hidden="true" /><span>Демо · Симуляция <span className="mode-notice__detail">· Пример дома</span></span></div>)}
           <Outlet />

@@ -9,7 +9,7 @@ export function CoreControlNotice({ device, locale = 'ru' }: { device: Device; l
       ? ru ? 'Для этих данных нет поддержанного управления Web.' : 'Для этих данных нет поддержанного управления Web.'
       : ru ? 'Управление доступно только при подтверждённых правах и поддержке реле.' : 'Control requires verified permission and a supported relay.';
   return <details className="core-control-notice" lang={locale}>
-    <summary>{ru ? 'Почему управление недоступно' : 'Почему управление недоступно'}</summary>
+    <summary>{ru ? 'О состоянии и управлении' : 'О состоянии и управлении'}</summary>
     <p>{reason}</p>
     <p>{ru ? 'Подтверждение команды требует результата applied от Core v0.15; совпадение состояния не подтверждает выполнение вашей команды.' : 'Command confirmation requires an applied result from Core v0.15; a совпадение состояния не подтверждает your command was applied.'}</p>
     <p>{ru ? 'Обновление показывает данные Core; их свежесть неизвестна. Права на управление из этих данных не определяются.' : 'Refresh shows Core-reported data; freshness is unknown. These reads do not establish control permission.'}</p>

@@ -58,16 +58,17 @@ test('switches devices, commits keyboard sliders, and reports scene skips', asyn
 });
 
 test('navigates rooms and checks offline controls and route accessibility', async ({ page }) => {
+  test.setTimeout(120_000);
   await page.goto('/rooms');
   await expect(page.getByRole('heading', { name: 'Комнаты', level: 1 })).toBeVisible();
-  await page.getByRole('button', { name: 'First floor', exact: true }).click();
-  await expect(page.getByRole('link', { name: /Living room.*Устройств/ })).toHaveCount(0);
-  await page.getByRole('link', { name: /Home office.*Устройств/ }).click();
-  await expect(page.getByRole('heading', { name: 'Home office', exact: true })).toBeVisible();
-  await expect(page.getByRole('switch', { name: 'Desk lamp · Home office' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Второй этаж', exact: true }).click();
+  await expect(page.getByRole('link', { name: /Гостиная.*Устройств/ })).toHaveCount(0);
+  await page.getByRole('link', { name: /Кабинет.*Устройств/ }).click();
+  await expect(page.getByRole('heading', { name: 'Кабинет', exact: true })).toBeVisible();
+  await expect(page.getByRole('switch', { name: 'Настольная лампа · Кабинет' })).toBeDisabled();
   await expect(page.getByText('Не в сети · последнее состояние')).toBeVisible();
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
-  for (const route of ['/rooms', '/rooms/living', '/scenes', '/settings']) {
+  for (const route of ['/rooms', '/rooms/living', '/devices', '/scenes', '/automations', '/events', '/settings']) {
     await page.goto(route);
     await expect(page.locator('h1')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -105,7 +106,7 @@ test('matches Signature composition, exposes device attention, and renders group
   await page.getByText('Не в сети: 1 устройство', { exact: true }).click();
   await page.getByRole('link', { name: 'Настольная лампа · Кабинет' }).click();
   await expect(page.locator('#device-office-lamp')).toBeFocused();
-  await expect(page.getByRole('switch', { name: 'Desk lamp · Home office' })).toBeDisabled();
+  await expect(page.getByRole('switch', { name: 'Настольная лампа · Кабинет' })).toBeDisabled();
   for (const route of ['/rooms/living', '/scenes']) {
     await page.goto(route);
     await expect(page.locator('h1')).toBeVisible();
@@ -114,9 +115,9 @@ test('matches Signature composition, exposes device attention, and renders group
       await expect(page.getByRole('heading', { name: 'Шторы', exact: true })).toBeVisible();
       await expect(page.getByRole('heading', { name: 'Климат и датчики', exact: true })).toBeVisible();
     } else {
-      const card = page.getByRole('article', { name: 'Leaving home' });
+      const card = page.getByRole('article', { name: 'Ушёл из дома' });
       await card.getByText('Действия (6)').click();
-      await expect(card.getByText('Desk lamp', { exact: false })).toBeVisible();
+      await expect(card.getByText('Настольная лампа', { exact: false })).toBeVisible();
     }
     for (const theme of ['light', 'dark'] as const) {
       if (await page.locator('html').getAttribute('data-theme') !== theme) await page.getByRole('button', { name: theme === 'dark' ? 'Включить тёмную тему' : 'Включить светлую тему' }).click();

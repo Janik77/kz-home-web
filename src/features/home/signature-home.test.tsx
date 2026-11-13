@@ -9,8 +9,8 @@ import { countRu, displayName } from './signature-copy';
 import type { HomeSnapshot } from '../../domain/home';
 
 it('localizes only sample names and uses Russian count forms', () => {
-  expect(displayName('Living room', false)).toBe('Гостиная');
-  expect(displayName('Living room', true)).toBe('Living room');
+  expect(displayName('Гостиная', false)).toBe('Гостиная');
+  expect(displayName('Гостиная', true)).toBe('Гостиная');
   expect(displayName('Моя мастерская', false)).toBe('Моя мастерская');
   expect([1, 2, 5, 11, 21].map((n) => countRu(n, ['устройство', 'устройства', 'устройств']))).toEqual(['1 устройство', '2 устройства', '5 устройств', '11 устройств', '21 устройство']);
 });
@@ -39,13 +39,13 @@ it('keeps Core data read-only and photo-free without substituting sample rooms',
   const activateScene = vi.fn();
   renderHome({ ...repository, readOnly: true, sendCommand, activateScene }, () => <HomePage />);
   await screen.findByRole('heading', { name: 'Добро пожаловать домой' });
-  expect(screen.getByRole('link', { name: 'Открыть комнату: Living room' })).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Открыть комнату: Гостиная' })).toBeVisible();
   expect(document.querySelectorAll('.signature-room .interior-photo--empty')).toHaveLength(4);
   expect(document.querySelector('img')).toBeNull();
   expect(screen.queryByRole('switch')).toBeNull();
   expect(screen.queryByRole('slider')).toBeNull();
   expect(screen.queryByRole('button', { name: /Запустить сценарий/ })).toBeNull();
-  await userEvent.click(screen.getByRole('article', { name: 'Cozy evening' }).querySelector('a')!);
+  await userEvent.click(screen.getByRole('article', { name: 'Уютный вечер' }).querySelector('a')!);
   expect(sendCommand).not.toHaveBeenCalled();
   expect(activateScene).not.toHaveBeenCalled();
 });

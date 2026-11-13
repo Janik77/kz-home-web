@@ -12,8 +12,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      CORE_BASE_SHA: 9a6283c260c92acfe0447b0c425668cbb1a64002
-      CORE_SUBACK_SHA: bbb9d7af8647ecc727b9c8201a936f66fa99a91e
+      CORE_BASE_SHA: 6783ce0347004d101ec2ffa5eb60c48946901786
       PYTHONDONTWRITEBYTECODE: '1'
       LIVE_CORE_SOURCE: ${{ github.workspace }}/core
     steps:
@@ -27,16 +26,6 @@ jobs:
           ref: ${{ env.CORE_BASE_SHA }}
           path: core
           persist-credentials: false
-      - name: Apply exact reviewed Core SUBACK delta to disposable checkout
-        working-directory: core
-        run: |
-          test "$(git rev-parse HEAD)" = "$CORE_BASE_SHA"
-          git fetch origin "$CORE_SUBACK_SHA"
-          test "$(git rev-parse FETCH_HEAD)" = "$CORE_SUBACK_SHA"
-          git fetch origin 2359807c2781ce956ed43bc603772b66dd27955b
-          test "$(git rev-parse "$CORE_SUBACK_SHA^1")" = 2359807c2781ce956ed43bc603772b66dd27955b
-          git diff "$CORE_SUBACK_SHA^1" "$CORE_SUBACK_SHA" --binary | git apply --index
-          git diff --cached --stat
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24

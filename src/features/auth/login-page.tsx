@@ -26,13 +26,13 @@ export function LoginPage({ session, snapshot }: { session: CoreSession; snapsho
     await session.login(email, password);
   }
   return <main className="session-page session-page--login" ref={main}>
-    <aside className="session-intro" aria-label="KZ Home introduction">
+    <aside className="session-intro" aria-label="О вашем доме">
       <p className="eyebrow">ПРОСТРАНСТВО ДЛЯ ГЛАВНОГО</p><p className="session-intro__title">Дом.<br />В гармонии.</p>
       <div className="architecture-window" aria-hidden="true"><span /><span /><span /></div>
       <p className="session-intro__caption">Меньше забот.<br />Больше места для жизни.</p>
     </aside>
     <div className="session-card"><div className="session-card__brand"><Wordmark /><ThemeToggle /></div>
-    <PageHeading eyebrow="ПОДКЛЮЧЕНИЕ К CORE" title="Вход в дом" description="Войдите в KZ Home Core. Доступные действия определяются правами вашей учётной записи." />
+    <PageHeading eyebrow="ВАШЕ ПРОСТРАНСТВО" title="Вход в дом" description="Войдите, чтобы увидеть свой дом и доступные устройства." />
     {snapshot.message && <Feedback tone="error" message={snapshot.message} />}
     {busy && <Feedback tone="pending" message="Проверяем учётную запись…" />}
     <form className="login-form" onSubmit={(event) => void submit(event)} aria-busy={busy}>

@@ -18,14 +18,15 @@ try {
     for (const theme of ['light', 'dark']) {
       await page.goto('http://127.0.0.1:5186/settings');
       await page.locator(`input[name="theme"][value="${theme}"]`).check();
-      for (const route of ['', 'rooms', 'settings']) {
+      for (const route of ['', 'rooms', 'rooms/living', 'devices', 'scenes', 'automations', 'events', 'settings']) {
         await page.goto(`http://127.0.0.1:5186/${route}`);
         await page.locator('h1').waitFor();
-        await page.locator('.topbar__location strong').filter({ hasText: 'Family home' }).waitFor({ state: 'attached' });
-        await page.locator('.room-card, .theme-options, .signature-hero').first().waitFor();
+        await page.locator('.topbar__location strong').filter({ hasText: /Family home|Демонстрационный дом/ }).waitFor({ state: 'attached' });
+        await page.locator('.state-panel--loading').waitFor({ state: 'hidden' });
         await page.evaluate(() => document.fonts.ready);
         await page.evaluate(async () => { await Promise.all([...document.images].map(img => img.decode().catch(() => {}))); });
-        const name = `${device}-${theme}-${route || 'home'}.png`;
+        const name = `${device}-${theme}-${(route || 'home').replaceAll('/', '-')}.png`;
+        if (!(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))) throw new Error(`Overflow: ${device} ${theme} ${route}`);
         await page.screenshot({ path: resolve(output, name), fullPage: true });
         manifest.push({ name, width, height, theme, route: route || '/', data: 'mock simulation' });
       }
@@ -34,3 +35,25 @@ try {
   }
   await writeFile(resolve(output, 'manifest.json'), JSON.stringify(manifest, null, 2));
 } finally { await browser?.close(); await server.close(); }
+
+// Login is the actual Core login component; no credentials or requests are submitted.
+process.env.VITE_DATA_MODE = 'core';
+process.env.VITE_API_URL = '/core-api';
+const loginServer = await createServer({ server: { host: '127.0.0.1', port: 5187, strictPort: true } });
+await loginServer.listen();
+let loginBrowser;
+try {
+  loginBrowser = await chromium.launch();
+  for (const [device, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 844], ['compact', 320, 740]]) {
+    const page = await loginBrowser.newPage({ viewport: { width, height } });
+    await page.goto('http://127.0.0.1:5187');
+    await page.locator('#login-email').waitFor();
+    for (const theme of ['light', 'dark']) {
+      if (await page.locator('html').getAttribute('data-theme') !== theme) await page.locator('.icon-button').click();
+      await page.evaluate(() => document.fonts.ready);
+      if (!(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))) throw new Error(`Login overflow: ${device}`);
+      await page.screenshot({ path: resolve(output, `${device}-${theme}-login.png`), fullPage: true });
+    }
+    await page.close();
+  }
+} finally { await loginBrowser?.close(); await loginServer.close(); }

@@ -38,6 +38,16 @@ function wait(delay: number, signal?: AbortSignal): Promise<void> {
 export function createMockHomeRepository(seed: HomeSnapshot = initialHome, delay = 320): HomeRepository {
   let state = structuredClone(seed);
   return {
+    activity: {
+      async automations(signal) { await wait(delay, signal); return [
+        { id: 'demo-evening', name: 'Вечерний свет', enabled: false, trigger: 'После захода солнца (пример)', conditions: ['Кто-то дома (пример)'], actions: ['Приглушить свет в гостиной до 35%'] },
+        { id: 'demo-away', name: 'Дом отдыхает', enabled: false, trigger: 'Никого нет дома (пример)', conditions: [], actions: ['Выключить свет и выбранные розетки'] },
+      ]; },
+      async events(signal) { await wait(delay, signal); return [
+        { id: 'demo-event-1', type: 'Пример: свет в гостиной включён', entityId: 'Виртуальное устройство · не реальное событие', createdAt: '2026-10-04T12:00:00Z' },
+        { id: 'demo-event-2', type: 'Пример: лампа в кабинете не в сети', entityId: 'Симуляция недоступности', createdAt: '2026-10-04T11:55:00Z' },
+      ]; },
+    },
     async getHome(signal) { await wait(delay, signal); return structuredClone(state); },
     async sendCommand(command) {
       await wait(delay);

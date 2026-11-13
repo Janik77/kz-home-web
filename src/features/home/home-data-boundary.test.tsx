@@ -33,7 +33,7 @@ describe('home data boundary', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Готовим ваш дом');
     expect(await screen.findByRole('alert')).toHaveTextContent('Не удалось загрузить дом');
     await userEvent.click(screen.getByRole('button', { name: 'Повторить' }));
-    expect(await screen.findByRole('heading', { name: 'Family home' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Демонстрационный дом' })).toBeInTheDocument();
     expect(getHome).toHaveBeenCalledTimes(2);
     client.clear();
   });

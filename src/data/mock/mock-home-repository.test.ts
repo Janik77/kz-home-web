@@ -8,7 +8,7 @@ describe('mock repository boundary', () => {
     const second = createMockHomeRepository(initialHome, 0);
     const snapshot = await first.getHome();
     snapshot.house.name = 'Changed outside the repository';
-    expect((await first.getHome()).house.name).toBe('Family home');
+    expect((await first.getHome()).house.name).toBe('Демонстрационный дом');
     await first.sendCommand({ type: 'set-power', deviceId: 'living-main', on: false });
     expect((await second.getHome()).devices.find((device) => device.id === 'living-main')).toMatchObject({ on: true });
     expect(initialHome.devices.find((device) => device.id === 'living-main')).toMatchObject({ on: true });
