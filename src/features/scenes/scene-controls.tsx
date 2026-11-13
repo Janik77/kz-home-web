@@ -27,8 +27,7 @@ export function SceneControls({ home, detailed = false }: { home: HomeSnapshot; 
           <span className="scene-card__scope">Устройств: {scope.deviceCount} · комнат: {scope.rooms.length}</span></div>
         <Heading className="scene-card__name">{item.name}</Heading>
 
-        {scope.unavailableControls > 0 && <p className="scene-unavailable">Недоступно действий: {scope.unavailableControls}{!readOnly && ' · будет пропущено'}</p>}
-        <p className="scene-card__description">{item.description}</p>
+        {scope.unavailableControls > 0 && <p className="scene-unavailable">Недоступно: {scope.unavailableControls}</p>}
         <SceneDetails scene={item} home={home} />
         {readOnly ? <p className="quiet-note">Запуск из Web недоступен</p> : <Button variant="secondary" className="scene-card__run" aria-label={`Запустить ${item.name}`} aria-disabled={pending}
           onClick={() => { if (!pending) scene.mutate(item.id); }}>{selected && scene.isPending ? 'Выполняем…' : 'Запустить'}</Button>}

@@ -12,8 +12,7 @@ export function RoomCard({ room, devices, floorName, headingLevel = 3 }: { room:
     <div className={`room-card__image ${room.image ? '' : 'room-card__image--empty'}`}><InteriorPhoto src={room.image} position={room.imagePosition} />
       <span className="room-card__floor">{floorName}</span><span className="room-card__arrow"><ArrowUpRight size={17} aria-hidden="true" /></span>
     </div>
-    <div className="room-card__body"><Heading>{room.name}</Heading><div className="room-card__meta"><span>Устройств: {summary.total} · активно: {summary.active}</span>
-      {summary.temperature !== null && <span className="room-card__temperature"><Thermometer size={13} aria-hidden="true" />{summary.temperature.toFixed(1)}°C</span>}</div>
+    <div className="room-card__body"><div className="room-card__title"><Heading>{room.name}</Heading>{summary.temperature !== null && <span className="room-card__temperature"><Thermometer size={13} aria-hidden="true" />{summary.temperature.toFixed(1)}°C</span>}</div><div className="room-card__meta"><span>Устройств: {summary.total} · активно: {summary.active}</span></div>
       <StatusBadge online={summary.offline === 0} label={summary.total === 0 ? 'Нет устройств' : summary.offline ? `Не в сети: ${summary.offline} · в сети: ${summary.online}` : `В сети: ${summary.online}`} />
     </div>
   </Link>;

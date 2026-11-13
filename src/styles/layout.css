@@ -303,3 +303,20 @@
  .scene-card:has(details[open]) { grid-column: 1 / -1; }
  .topbar__mobile-brand .wordmark { max-width: 92px; }
 }
+
+/* Closed cards keep the explanation behind their action disclosure. */
+.scene-card > .scene-unavailable { margin-bottom: 0; }
+.scene-card .scene-details[open] { margin-top: 8px; }
+@media (max-width: 767px) {
+ .device-card__state { font-size: .75rem; }
+ .signature-hero__subtitle { max-width: 28ch; }
+ .app-footer { padding-top: 16px; padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+}
+
+.room-card__title { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px; }
+.room-card__title .room-card__temperature { font-size: .6875rem; color: var(--color-muted); }
+@media (min-width: 1200px) { .signature-home .device-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 767px) {
+ .filter-bar { gap: 6px; }
+ .filter-bar button { padding-inline: 12px; font-size: .75rem; }
+}

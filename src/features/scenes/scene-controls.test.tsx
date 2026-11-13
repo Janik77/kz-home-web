@@ -28,7 +28,7 @@ describe('trustworthy scene execution', () => {
     renderHome(createMockHomeRepository(initialHome, 0), (home) => <SceneControls home={home} detailed />);
     const card = await screen.findByRole('article', { name: 'Ушёл из дома' });
     expect(card).toHaveTextContent('Устройств: 6 · комнат: 4');
-    expect(card).toHaveTextContent('Недоступно действий: 1 · будет пропущено');
+    expect(card).toHaveTextContent('Недоступно: 1');
     await userEvent.click(within(card).getByText('Действия (6)'));
     expect(within(card).getByText('Настольная лампа')).toBeVisible();
     await userEvent.click(within(card).getByRole('button', { name: 'Запустить Ушёл из дома' }));
