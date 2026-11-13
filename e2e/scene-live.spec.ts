@@ -62,9 +62,14 @@ test('LIVE caller-driven scene runs require real applied ACK and state, preserve
   expect(await unknown.locator('code').first().textContent()).not.toBe(id);
   expect((await control('evidence')).received).toHaveLength(23);
   await page.getByRole('link', { name: 'Комнаты', exact: true }).click();
+  await expect(page).toHaveURL(/\/rooms$/);
+  await expect(page.getByRole('heading', { name: 'Комнаты', exact: true })).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/\/scenes$/);
-  await page.getByRole('article', { name: 'Проверка неизвестного результата', exact: true }).getByText('Запуск и результат', { exact: true }).click();
+  const restoredShell = page.getByRole('article', { name: 'Проверка неизвестного результата', exact: true }).locator('.core-scene-shell');
+  if (await restoredShell.getAttribute('open') === null) await restoredShell.getByText('Запуск и результат', { exact: true }).click();
+  await expect(unknown).toBeVisible();
+  await page.screenshot({ path: 'test-results/live-software-history-back-mobile.png', fullPage: true });
   await expect(unknown.getByRole('button', { name: 'Подготовить запуск', exact: true })).toHaveCount(0);
   await unknown.getByText('Недавние запуски этой сцены', { exact: true }).click();
   await unknown.getByRole('button', { name: `Открыть запуск ${id}`, exact: true }).click();
@@ -76,6 +81,7 @@ test('LIVE caller-driven scene runs require real applied ACK and state, preserve
   expect((await control('evidence')).received).toHaveLength(23);
   await page.getByRole('article', { name: 'Проверка новой версии', exact: true }).getByText('Запуск и результат', { exact: true }).click();
   const changed = page.getByRole('region', { name: 'Подтверждённый запуск: Проверка новой версии' });
+  await page.waitForLoadState('networkidle');
   const revision = await control('scene-revision-change');
   await changed.getByRole('button', { name: 'Подготовить запуск', exact: true }).click();
   await expect(changed.getByRole('alert')).toContainText('Конфликт версии');

@@ -18,14 +18,13 @@ physical inventory, including mislabelled devices. Web does not infer physical s
 from names, online status or relay type. Existing transport/physical gates are unchanged.
 
 A lost create response can be explicitly recovered using the same in-memory key and
-original revision. A 409 does not silently replace that revision. Refresh/reopen the
-scene deliberately to prepare a different revision. After a dispatch error only GET
+original revision. A 409 does not silently replace that revision. Use the explicit fresh-scene review and new-preparation confirmation to prepare a different revision. After a dispatch error only GET
 observation is offered until refreshed evidence is available. Unknown, partial, expired,
 failed and timed-out outcomes remain distinct from success. Timeout is not proof of OFF
 or non-execution; no compensation is sent. The original five-minute admission deadline
 is authoritative in Core; Web never extends it.
 
-Copy the visible run ID before navigation; Open saved run by ID performs GET only.
+Recent run IDs survive route navigation in the current house session. Copy an ID before changing house, logging out or reloading; Open saved run by ID performs GET only.
 No run key, token or payload is persisted to browser storage. Leaving stops observation,
 not a command already admitted by Core. There is no list, cancellation, automatic resume
 or automatic new run. Only the original creator may dispatch in Core. An older Core

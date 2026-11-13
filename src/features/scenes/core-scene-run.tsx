@@ -17,7 +17,7 @@ const labels: Record<RunAction['status'], string> = {
 const summaries: Record<SceneRun['status'], string> = { ready: 'Подготовлен, команды ещё не отправлены', running: 'Запуск начат', succeeded: 'Все действия подтверждены', stopped: 'Запуск остановлен', unknown: 'Результат неизвестен', expired: 'Срок отправки истёк' };
 function errorMessage(error: unknown) {
   if (error instanceof CoreError) {
-    if (error.kind === 'conflict') return 'Конфликт версии или состояния запуска. Обновите данные; автоматического повтора нет.';
+    if (error.kind === 'conflict') return 'Конфликт версии или состояния запуска. Для нового намерения выберите «Обновить сценарий для нового запуска». Автоматического повтора нет.';
     if (error.kind === 'forbidden') return 'Нет прав или Core запретил действие. Физические ограничения не обходятся.';
     if (error.kind === 'not-found') return 'Запуск не найден или эта версия Core не поддерживает подтверждённые запуски.';
     if (error.kind === 'validation') return 'Core отклонил сценарий. Поддерживаются только 1–16 действий программных реле с состоянием Вкл/Выкл.';
@@ -82,6 +82,7 @@ export function CoreSceneRun({ scene, home }: { scene: Scene; home: HomeSnapshot
   const next = run?.actions.find(a => a.status === 'ready');
   return <section className="core-scene-run" aria-label={`Подтверждённый запуск: ${scene.name}`}>
     {!run && !review && <>
+      {hasHistory && <p>Есть недавние запуски этой сцены. Откройте результат из списка ниже или отдельно подготовьте новый.</p>}
       <p className="quiet-note">Только программные реле. Подготовка не отправляет команды; каждое действие запускается отдельно.</p>
       {rights.isPending ? <p role="status">Проверяем права запуска…</p> : rights.isError ? <p role="alert">Не удалось проверить права. <Button variant="quiet" onClick={() => void rights.refetch()}>Проверить права запуска</Button></p> : !allowed ? <p>Нет прав на запуск и управление устройствами.</p> : null}
       {scene.revision === undefined && <p>Core не предоставляет revision. Подготовка недоступна.</p>}
