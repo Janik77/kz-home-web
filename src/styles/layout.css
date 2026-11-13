@@ -218,3 +218,6 @@
  .signature-device__top > div { flex-basis: auto; }
  .signature-device__top .switch { margin-left: 0; }
 }
+
+/* Match the shared page gutter at every breakpoint, including 834/1024px. */
+.signature-hero__photo { right: calc(-1 * var(--page-gutter)); }

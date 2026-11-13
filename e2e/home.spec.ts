@@ -21,14 +21,9 @@ test('renders home without overflow or broken images, with accessible light and 
     await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   }
   await page.evaluate(() => window.scrollTo(0, 0));
-  for (const img of await page.locator('img').all()) {
-    await img.scrollIntoViewIfNeeded();
-    await expect.poll(() => img.evaluate(image => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0)).toBe(true);
-  }
-  await page.evaluate(() => window.scrollTo(0, 0));
   const imageHealth = await page.locator('img').evaluateAll((images) => images.every((image) => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0));
   expect(imageHealth).toBe(true);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath('home-light.png'), fullPage: true });
   await page.getByRole('button', { name: 'Включить тёмную тему' }).click();
@@ -76,10 +71,10 @@ test('navigates rooms and checks offline controls and route accessibility', asyn
   for (const route of ['/rooms', '/rooms/living', '/devices', '/scenes', '/automations', '/events', '/settings']) {
     await page.goto(route);
     await expect(page.locator('h1')).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
     for (const theme of ['light', 'dark'] as const) {
       if ((await page.locator('html').getAttribute('data-theme')) !== theme) await page.getByRole('button', { name: theme === 'dark' ? 'Включить тёмную тему' : 'Включить светлую тему' }).click();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
       expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
     }
   }
@@ -126,7 +121,7 @@ test('matches Signature composition, exposes device attention, and renders group
     }
     for (const theme of ['light', 'dark'] as const) {
       if (await page.locator('html').getAttribute('data-theme') !== theme) await page.getByRole('button', { name: theme === 'dark' ? 'Включить тёмную тему' : 'Включить светлую тему' }).click();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
       await page.screenshot({ path: testInfo.outputPath(`${route.includes('/rooms/') ? 'room' : 'scenes'}-${theme}.png`), fullPage: true });
     }
   }

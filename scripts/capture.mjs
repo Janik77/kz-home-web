@@ -13,7 +13,7 @@ let browser;
 try {
   browser = await chromium.launch(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH } : {});
   const manifest = [];
-  for (const [device, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 844], ['compact', 320, 740]]) {
+  for (const [device, width, height] of [['desktop', 1440, 1000], ['small-desktop', 1024, 900], ['tablet', 834, 1112], ['mobile', 390, 844], ['compact', 320, 740]]) {
     const page = await browser.newPage({ viewport: { width, height }, isMobile: device !== 'desktop', hasTouch: device !== 'desktop' });
     for (const theme of ['light', 'dark']) {
       await page.goto('http://127.0.0.1:5186/settings');
@@ -44,7 +44,7 @@ await loginServer.listen();
 let loginBrowser;
 try {
   loginBrowser = await chromium.launch();
-  for (const [device, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 844], ['compact', 320, 740]]) {
+  for (const [device, width, height] of [['desktop', 1440, 1000], ['small-desktop', 1024, 900], ['tablet', 834, 1112], ['mobile', 390, 844], ['compact', 320, 740]]) {
     const page = await loginBrowser.newPage({ viewport: { width, height } });
     await page.goto('http://127.0.0.1:5187');
     await page.locator('#login-email').waitFor();
