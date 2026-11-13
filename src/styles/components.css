@@ -249,8 +249,8 @@
 .scene-card:has(.core-scene-shell[open]) { grid-column: 1 / -1; }
 .core-scene-shell > summary { cursor: pointer; min-height: 44px; padding-block: .65rem; }
 
-.scene-create--closed { padding: 0; border: 0; background: none; margin: 0; }
-.scene-create--closed > .button { margin: 0; }
+.scenes-page .scene-create--closed { padding: 0; border: 0; background: none; margin: 0; }
+.scenes-page .scene-create--closed > .button { margin: 0; }
 .scene-grid--detailed .scene-card:has(.core-scene-shell) { gap: .55rem; }
 .scene-grid--detailed .scene-card:has(.core-scene-shell) > .definition-editor { margin: 0; }
 .core-scene-shell > summary { font-size: var(--text-sm); }
