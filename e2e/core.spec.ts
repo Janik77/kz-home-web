@@ -141,7 +141,7 @@ test('fails closed for online and offline relays and refreshes observed state wi
   relay.state.on = true;
   await page.getByRole('button', { name: 'Обновить данные' }).click();
   await expect(card).toContainText('Включено');
-  await expect(card).toContainText('последнее известное состояние');
+  await expect(card).toContainText('их свежесть неизвестна');
   await expect(page.getByRole('status')).toHaveCount(0);
   expect(requests.filter((request) => request.method !== 'GET').map((request) => request.path)).toEqual(['/auth/login']);
   expect(requests.filter((request) => request.path === '/devices?house_id=house-a')).toHaveLength(readsBeforeRefresh + 1);
@@ -263,7 +263,7 @@ test('keeps Cyrillic last-known ON data offline and distinguishes restricted acc
   await login(page);
   await page.evaluate(() => { document.documentElement.lang = 'ru'; });
   const card = page.getByRole('article', { name: `${deviceName} · ${roomName}` });
-  await expect(card).toContainText('Core сообщает: не в сети');
+  await expect(card).toContainText('Core сообщает, что устройство не в сети.');
   await expect(card).toContainText('Не в сети · последнее: Включён · 45%');
   await expect(card).not.toHaveClass(/device-card--active/);
   await expect(page.getByRole('switch')).toHaveCount(0);
@@ -450,3 +450,4 @@ test('login is accessible in both themes without submitting credentials', async 
     await page.screenshot({ path: info.outputPath(`login-${theme}.png`), fullPage: true });
   }
 });
+
