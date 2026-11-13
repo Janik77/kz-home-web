@@ -120,16 +120,16 @@ test('fails closed for online and offline relays and refreshes observed state wi
   await page.goto('/'); await login(page);
   const card = page.getByRole('article', { name: 'Core relay · Living room' });
   await expect(card).toContainText('Выключено');
-  await card.getByText('Почему управление недоступно').click();
+  await card.getByText('О состоянии и управлении').click();
   await expect(card).toContainText('Подтверждение команды требует результата applied');
   await expect(card).toContainText('не подтверждает выполнение вашей команды');
   const offline = page.getByRole('article', { name: 'Offline relay · Living room' });
   await expect(offline).toContainText('Не в сети · последнее: Включено');
   await expect(offline).not.toHaveClass(/signature-device--active/);
-  await offline.getByText('Почему управление недоступно').click();
+  await offline.getByText('О состоянии и управлении').click();
   await expect(offline).toContainText('Core сообщает, что устройство не в сети.');
   const partial = page.getByRole('article', { name: 'Partial relay · Living room' });
-  await partial.getByText('Почему управление недоступно').click();
+  await partial.getByText('О состоянии и управлении').click();
   await expect(partial).toContainText('Для этих данных нет поддержанного управления Web.');
   await expect(page.getByRole('switch')).toHaveCount(0);
   await expect(page.getByRole('slider')).toHaveCount(0);
@@ -438,4 +438,15 @@ test('409 and retry retain guarded rename; verified save releases navigation', a
   await page.getByRole('button', { name: 'Изменить название' }).click();
   await expect(page.getByLabel('Новое название')).toHaveValue('Мой черновик');
   expect(attempts).toBe(3);
+});
+
+
+test('login is accessible in both themes without submitting credentials', async ({ page }, info) => {
+  await page.goto('/');
+  await expect(page.getByLabel('Электронная почта', { exact: true })).toBeVisible();
+  for (const theme of ['light', 'dark']) {
+    if (await page.locator('html').getAttribute('data-theme') !== theme) await page.getByRole('button', { name: theme === 'dark' ? 'Включить тёмную тему' : 'Включить светлую тему' }).click();
+    await accessible(page);
+    await page.screenshot({ path: info.outputPath(`login-${theme}.png`), fullPage: true });
+  }
 });

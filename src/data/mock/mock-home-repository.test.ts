@@ -8,7 +8,7 @@ describe('mock repository boundary', () => {
     const second = createMockHomeRepository(initialHome, 0);
     const snapshot = await first.getHome();
     snapshot.house.name = 'Changed outside the repository';
-    expect((await first.getHome()).house.name).toBe('Family home');
+    expect((await first.getHome()).house.name).toBe('Демонстрационный дом');
     await first.sendCommand({ type: 'set-power', deviceId: 'living-main', on: false });
     expect((await second.getHome()).devices.find((device) => device.id === 'living-main')).toMatchObject({ on: true });
     expect(initialHome.devices.find((device) => device.id === 'living-main')).toMatchObject({ on: true });
@@ -60,4 +60,15 @@ describe('mock repository boundary', () => {
     await expect(request).rejects.toMatchObject({ name: 'AbortError' });
     await expect(repository.getHome(controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
   });
+});
+
+
+it('keeps illustrative rules disabled and separate from simulated device state', async () => {
+  const repository = createMockHomeRepository(initialHome, 0);
+  const before = await repository.getHome();
+  const rules = await repository.activity!.automations();
+  expect(rules).toHaveLength(2);
+  expect(rules.every(rule => !rule.enabled)).toBe(true);
+  expect((await repository.activity!.events()).every(event => event.type.startsWith('Пример:'))).toBe(true);
+  expect(await repository.getHome()).toEqual(before);
 });

@@ -18,7 +18,8 @@ test('device search, offline filtering and honest integration placeholders', asy
   await expect(page.getByRole('heading', { name: 'Устройства не найдены' })).toBeVisible();
   for (const route of ['/automations', '/events']) {
     await page.goto(route);
-    await expect(page.getByRole('heading', { name: 'Доступно при подключении к Core' })).toBeVisible();
+    await expect(page.getByText(/Демо-дом · виртуальные устройства/)).toBeVisible();
+    await expect(page.locator(route === '/automations' ? '.automation-card' : '.event-list li')).toHaveCount(2);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
   }

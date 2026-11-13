@@ -157,3 +157,67 @@
   .automation-grid, .device-filters { grid-template-columns: 1fr; }
   .event-list li { grid-template-columns: 1fr; gap: 8px; padding: 20px; }
 }
+
+/* Shared interior workspace: every route uses the same scale and surfaces. */
+:root { --sidebar-width: 224px; --content-width: 1320px; --text-display: clamp(1.8rem, 3vw, 2.4rem); }
+.sidebar { padding: 32px 16px 24px; }
+.sidebar__label { margin-top: 40px; letter-spacing: .1em; }
+.sidebar__nav { gap: 4px; }
+.nav-item--active, .nav-item--active:hover { color: var(--color-accent); background: var(--color-accent-soft); box-shadow: none; }
+.topbar { min-height: 72px; background: var(--color-bg); }
+.main-content { padding-top: 28px; }
+.page { gap: 24px; }
+.page-heading { padding-bottom: 22px; border-bottom: 1px solid var(--color-border); }
+.page-heading__description { max-width: 65ch; line-height: 1.7; }
+.settings-panel, .automation-card, .room-intro { box-shadow: none; padding: 24px; }
+.device-card, .scene-card { padding: 22px; border-radius: var(--radius-md); box-shadow: none; }
+.room-card { border-radius: var(--radius-md); box-shadow: none; }
+.room-card__image { height: 180px; }
+.room-card__body { padding: 20px; }
+.device-card__top { margin-bottom: 16px; }
+.device-card__connection { flex-wrap: wrap; gap: 8px; }
+.device-card__footnote { line-height: 1.7; }
+.scene-grid--detailed, .automation-grid { gap: 20px; }
+.automation-card dl { margin: 18px 0; }
+.automation-card dt { margin-top: 12px; }
+.definition-editor > summary { cursor: pointer; min-height: 44px; padding-block: 10px; font-weight: 600; }
+.diagnostics { font-size: var(--text-sm); color: var(--color-muted); }
+.diagnostics > summary { min-height: 44px; padding-block: 10px; cursor: pointer; }
+.diagnostics p + p { margin-top: 12px; }
+.demo-banner { padding: 12px 16px; border-radius: var(--radius-sm); background: var(--color-accent-soft); color: var(--color-accent); font-size: var(--text-sm); margin-bottom: 20px; }
+.session-card { box-shadow: var(--shadow-md); }
+.session-card .page-heading { border: 0; padding-bottom: 0; }
+.signature-hero { padding-top: 16px; min-height: 240px; }
+.signature-hero__photo { inset-block-start: -28px; }
+.signature-status small, .signature-scene small, .signature-device__source, .signature-device__top p { font-size: .75rem; }
+.signature-device h3, .signature-device__state, .signature-scene strong { font-size: .875rem; }
+.signature-heading > a, .signature-heading > span, .signature-system { font-size: .75rem; }
+.signature-date { font-size: .75rem; }
+.signature-hero__subtitle { font-size: .875rem; }
+.signature-device-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+@media (min-width: 768px) and (max-width: 1199px) { :root { --sidebar-width: 88px; } }
+@media (max-width: 767px) {
+ .main-content { padding-top: 20px; }
+ .topbar { gap: 8px; }
+ .preview-badge { max-width: 130px; font-size: .625rem; }
+ .page-heading { padding-bottom: 18px; }
+ .room-card__image { height: 140px; }
+ .settings-panel, .automation-card, .room-intro, .scene-card, .device-card { padding: 20px; }
+ .signature-hero { min-height: 210px; }
+ .signature-device-grid { grid-template-columns: 1fr; }
+ .signature-hero__photo { inset-block-start: 0; }
+ .signature-status small { font-size: .6875rem; }
+ .signature-room p { font-size: .75rem; }
+ .signature-scene strong { font-size: .75rem; }
+ .signature-heading > a { font-size: .75rem; }
+ .signature-date { font-size: .6875rem; }
+}
+
+@media (max-width: 767px) {
+ .signature-device__top { flex-wrap: nowrap; }
+ .signature-device__top > div { flex-basis: auto; }
+ .signature-device__top .switch { margin-left: 0; }
+}
+
+/* Match the shared page gutter at every breakpoint, including 834/1024px. */
+.signature-hero__photo { right: calc(-1 * var(--page-gutter)); }

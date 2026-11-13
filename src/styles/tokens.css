@@ -25,6 +25,7 @@
   --radius-xl: 28px;
   --radius-pill: 999px;
   --color-bg: #f6f4ef;
+  --signature-photo-wash: var(--color-bg);
   --color-sidebar: #eeece5;
   --color-surface: #fffefa;
   --color-surface-soft: #eeede7;
