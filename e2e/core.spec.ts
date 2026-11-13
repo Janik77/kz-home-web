@@ -353,3 +353,81 @@ test('old Core without revision keeps scenes readable but does not offer unsafe 
   await expect(card.getByRole('status')).toContainText('Core не предоставляет revision');
   await expect(card.getByRole('button', { name: 'Изменить название' })).toHaveCount(0);
 });
+
+test('dirty scene draft blocks links, history and reload; keyboard stay and explicit discard', async ({ page }, info) => {
+  await interceptCore(page);
+  await page.route('**/core-api/**/me/permissions', route => route.fulfill({ json: { house_id: 'house-a', permissions: ['scene.read', 'scene.manage'] } }));
+  await page.goto('/'); await login(page);
+  await page.getByRole('link', { name: 'Сценарии', exact: true }).click();
+  await page.getByRole('button', { name: 'Создать сценарий' }).click();
+  await page.getByLabel('Название сценария', { exact: true }).fill('Не потерять черновик');
+  await page.getByRole('button', { name: 'Свернуть черновик' }).click();
+  await page.getByRole('link', { name: 'Комнаты', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Есть несохранённые изменения' });
+  await expect(dialog).toBeVisible();
+  const stay = dialog.getByRole('button', { name: 'Остаться', exact: true });
+  const discard = dialog.getByRole('button', { name: 'Отменить изменения и продолжить' });
+  await expect(stay).toBeFocused();
+  await page.keyboard.press('Shift+Tab'); await expect(discard).toBeFocused();
+  await page.keyboard.press('Tab'); await expect(stay).toBeFocused();
+  await accessible(page);
+  await page.screenshot({ path: `test-results/draft-guard-${info.project.name}.png` });
+  await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0);
+  await expect(page).toHaveURL(/\/scenes$/);
+  await page.getByRole('button', { name: 'Продолжить черновик' }).click();
+  await expect(page.getByLabel('Название сценария', { exact: true })).toHaveValue('Не потерять черновик');
+  await page.evaluate(() => history.back()); await expect(dialog).toBeVisible(); await stay.click();
+  await expect(page).toHaveURL(/\/scenes$/);
+  const beforeUnload = page.waitForEvent('dialog');
+  await page.evaluate(() => { setTimeout(() => location.reload(), 0); });
+  const warning = await beforeUnload; expect(warning.type()).toBe('beforeunload'); await warning.dismiss();
+  await expect(page.getByLabel('Название сценария', { exact: true })).toHaveValue('Не потерять черновик');
+  expect(await page.evaluate(() => Object.keys(sessionStorage))).toEqual([]);
+  expect(await page.evaluate(() => Object.keys(localStorage).filter(key => key !== 'kz-home-theme'))).toEqual([]);
+  await page.getByRole('button', { name: 'Удалить черновик' }).click(); await expect(dialog).toBeVisible(); await stay.click();
+  await page.evaluate(() => history.back()); await expect(dialog).toBeVisible(); await discard.click();
+  await expect(page).toHaveURL(/\/$/);
+  await page.evaluate(() => history.forward()); await expect(page).toHaveURL(/\/scenes$/);
+  await expect(page.getByRole('button', { name: 'Создать сценарий', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Комнаты', exact: true }).click(); await expect(dialog).toHaveCount(0);
+});
+
+test('409 and retry retain guarded rename; verified save releases navigation', async ({ page }) => {
+  let stored = { ...coreScene }, attempts = 0;
+  await interceptCore(page);
+  await page.route('**/core-api/**', async route => {
+    const path = new URL(route.request().url()).pathname.replace('/core-api', '');
+    if (path.endsWith('/me/permissions')) return route.fulfill({ json: { house_id: 'house-a', permissions: ['scene.read', 'scene.manage'] } });
+    if (path === '/scenes') return route.fulfill({ json: [stored] });
+    if (path === '/scenes/scene-a') {
+      if (route.request().method() === 'PATCH') {
+        attempts += 1;
+        if (attempts === 1) { stored = { ...stored, name: 'Другой клиент', revision: 2 }; return route.fulfill({ status: 409, json: { code: 'definition_revision_conflict' } }); }
+        if (attempts === 2) return route.fulfill({ status: 503 });
+        const body = route.request().postDataJSON(); expect(body.expected_revision).toBe(2);
+        stored = { ...stored, name: body.name, revision: 3 };
+      }
+      return route.fulfill({ json: stored });
+    }
+    return route.fallback();
+  });
+  await page.goto('/scenes'); await login(page);
+  await page.getByRole('button', { name: 'Изменить название' }).click();
+  await page.getByLabel('Новое название').fill('Мой черновик');
+  await page.getByRole('button', { name: 'Сохранить название' }).click();
+  await expect(page.getByRole('alert')).toContainText('Черновик и его исходная версия сохранены');
+  await page.getByRole('link', { name: 'Комнаты', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Остаться', exact: true }).click();
+  await expect(page.getByLabel('Новое название')).toHaveValue('Мой черновик'); expect(attempts).toBe(1);
+  await page.getByRole('button', { name: 'Обновить список без сброса черновика' }).click();
+  await page.getByRole('button', { name: 'Я сравнил изменения — использовать текущую версию' }).click();
+  await page.getByRole('button', { name: 'Сохранить название' }).click();
+  await expect(page.getByRole('alert')).toContainText('Сохранение не подтверждено');
+  await page.getByRole('button', { name: 'Отмена', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Остаться', exact: true }).click();
+  expect(attempts).toBe(2);
+  await page.getByRole('button', { name: 'Сохранить название' }).click();
+  await expect(page.getByLabel('Новое название')).toHaveCount(0); expect(attempts).toBe(3);
+  await page.getByRole('link', { name: 'Комнаты', exact: true }).click();
+  await expect(page).toHaveURL(/\/rooms$/); await expect(page.getByRole('dialog')).toHaveCount(0);
+});

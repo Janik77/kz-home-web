@@ -235,3 +235,9 @@
 .definition-editor input, .definition-editor select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--color-border); border-radius: 10px; padding: 10px; color: inherit; background: var(--color-surface); font: inherit; }
 .definition-editor .definition-action { padding: 14px; margin-block: 14px; border: 1px solid var(--color-border); border-radius: 12px; }
 .definition-buttons { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.draft-dialog { width: min(34rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; margin: auto; padding: var(--space-6); color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
+.draft-dialog::backdrop { background: rgb(0 0 0 / 45%); }
+.draft-dialog h2 { margin-bottom: var(--space-4); }
+.draft-dialog p { margin-bottom: var(--space-4); }
+.draft-dialog .button { white-space: normal; }

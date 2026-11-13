@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/button';
 import { definitionError, validName } from '../../data/core/definitions';
 import type { DefinitionKind } from '../../data/core/definitions';
 import type { HomeSnapshot } from '../../domain/home';
+import { useDraftGuard } from '../../app/draft-guard-context';
 import { homeKey } from '../home/use-home';
 
 function useEditor(permission: string) {
@@ -63,6 +64,7 @@ export function RenameDefinition({ kind, id, name, revision }: { kind: Definitio
   const editor = useEditor(kind === 'scenes' ? 'scene' : 'automation');
   const [editing, setEditing] = useState(false), [draft, setDraft] = useState(name), [original, setOriginal] = useState(name);
   const [originalRevision, setOriginalRevision] = useState(revision);
+  const discard = useDraftGuard(!!editor.definitions && editing && draft !== original, editor.pending);
   if (!editor.definitions) return null;
   return <div className="definition-editor">{editor.notice}{revision === undefined && <p role="status">Core не предоставляет revision. Переименование недоступно до обновления Core.</p>}{editor.allowed && revision !== undefined && (!editing
     ? <Button variant="secondary" onClick={() => { setDraft(name); setOriginal(name); setOriginalRevision(revision); setEditing(true); }}>Изменить название</Button>
@@ -70,7 +72,7 @@ export function RenameDefinition({ kind, id, name, revision }: { kind: Definitio
       <fieldset disabled={editor.pending}><legend>Название</legend><label>Новое название<input autoFocus required maxLength={255} value={draft} onChange={e => setDraft(e.target.value)} /></label>
       <p className="quiet-note">Исходная версия: {originalRevision}. Текущая: {revision}; название в Core: {name}.</p>
       {revision !== originalRevision && <Button variant="secondary" onClick={() => { setOriginal(name); setOriginalRevision(revision); }}>Я сравнил изменения — использовать текущую версию</Button>}
-      <p className="quiet-note">Остальные параметры сохраняются. Выполнение не запускается.</p><div className="definition-buttons"><Button type="submit" disabled={!validName(draft)}>{editor.pending ? 'Сохраняем…' : 'Сохранить название'}</Button><Button variant="quiet" onClick={() => setEditing(false)}>Отмена</Button></div></fieldset>
+      <p className="quiet-note">Остальные параметры сохраняются. Выполнение не запускается.</p><div className="definition-buttons"><Button type="submit" disabled={!validName(draft)}>{editor.pending ? 'Сохраняем…' : 'Сохранить название'}</Button><Button variant="quiet" onClick={() => discard(() => setEditing(false))}>Отмена</Button></div></fieldset>
     </form>)}{editor.feedback}</div>;
 }
 
@@ -80,12 +82,15 @@ export function CreateScene({ home }: { home: HomeSnapshot }) {
   const [open, setOpen] = useState(false), [name, setName] = useState('');
   const [id, setId] = useState(() => crypto.randomUUID());
   const [actions, setActions] = useState([{ deviceId: '', on: false }]);
+  const dirty = name !== '' || actions.length !== 1 || actions[0]?.deviceId !== '' || actions[0]?.on !== false;
+  const discard = useDraftGuard(!!editor.definitions && dirty, editor.pending);
+  const clearDraft = () => { setOpen(false); setName(''); setActions([{ deviceId: '', on: false }]); setId(crypto.randomUUID()); };
   const devices = home.devices.filter(d => d.kind === 'relay' || d.kind === 'light');
   if (!editor.definitions) return null;
   return <section className="settings-panel definition-editor" aria-label="Создание сценария">{editor.notice}
-    {editor.allowed && (!open ? <Button onClick={() => setOpen(true)}>Создать сценарий</Button> : <form onSubmit={e => {
+    {editor.allowed && (!open ? <Button onClick={() => setOpen(true)}>{dirty ? 'Продолжить черновик' : 'Создать сценарий'}</Button> : <form onSubmit={e => {
       e.preventDefault(); if (!validName(name) || actions.some(a => !a.deviceId)) return;
-      void editor.save(signal => editor.definitions!.createScene({ id, name, actions }, signal), () => { setOpen(false); setName(''); setActions([{ deviceId: '', on: false }]); setId(crypto.randomUUID()); });
+      void editor.save(signal => editor.definitions!.createScene({ id, name, actions }, signal), clearDraft);
     }}><fieldset disabled={editor.pending}><legend>Новый сценарий</legend><label>Название сценария<input autoFocus required maxLength={255} value={name} onChange={e => setName(e.target.value)} /></label>
       <p>Сохраняется только описание действий. Устройства не переключаются.</p>
       {!devices.length && <p role="status">Нет доступных устройств с питанием ON/OFF. Создание пока недоступно.</p>}
@@ -95,8 +100,8 @@ export function CreateScene({ home }: { home: HomeSnapshot }) {
         <Button variant="quiet" disabled={actions.length === 1} aria-label={`Удалить действие ${index + 1}`} onClick={() => setActions(rows => rows.filter((_, i) => i !== index))}>Убрать действие</Button>
       </fieldset>)}
       <div className="definition-buttons"><Button variant="secondary" disabled={actions.length >= 100} onClick={() => setActions(rows => [...rows, { deviceId: '', on: false }])}>Добавить действие</Button>
-      <Button type="submit" disabled={!validName(name) || actions.some(a => !a.deviceId) || !devices.length}>{editor.pending ? 'Сохраняем…' : 'Сохранить сценарий'}</Button><Button variant="quiet" onClick={() => setOpen(false)}>Свернуть черновик</Button></div>
-      <p className="quiet-note">До 100 действий. Черновик хранится только на этой странице; при переходе он будет потерян.</p>
+      <Button type="submit" disabled={!validName(name) || actions.some(a => !a.deviceId) || !devices.length}>{editor.pending ? 'Сохраняем…' : 'Сохранить сценарий'}</Button><Button variant="quiet" onClick={() => setOpen(false)}>Свернуть черновик</Button><Button variant="quiet" onClick={() => discard(clearDraft)}>Удалить черновик</Button></div>
+      <p className="quiet-note">До 100 действий. Черновик хранится только в памяти. При уходе появится предупреждение; после подтверждённого ухода восстановить его нельзя.</p>
     </fieldset></form>)}{editor.feedback}
   </section>;
 }
