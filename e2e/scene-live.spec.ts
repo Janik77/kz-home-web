@@ -12,6 +12,8 @@ test('LIVE caller-driven scene runs require real applied ACK and state, preserve
   await page.getByRole('button', { name: 'Fixture', exact: true }).click();
   await page.getByRole('link', { name: 'Сценарии', exact: true }).click();
   const posts: string[] = []; page.on('request', r => { if (r.method() === 'POST' && r.url().includes('/scene-runs')) posts.push(r.url()); });
+  await page.screenshot({ path: 'test-results/live-software-scene-list-desktop.png', fullPage: true });
+  await page.getByRole('article', { name: 'Проверка успеха', exact: true }).getByText('Запуск и результат', { exact: true }).press('Enter');
   const success = page.getByRole('region', { name: 'Подтверждённый запуск: Проверка успеха' });
   await success.getByRole('button', { name: 'Подготовить запуск', exact: true }).click();
   await expect(success).toContainText('команды ещё не отправлены'); expect(posts).toHaveLength(1);
@@ -26,12 +28,14 @@ test('LIVE caller-driven scene runs require real applied ACK and state, preserve
   expect(posts).toHaveLength(2); expect((await control('evidence')).received).toHaveLength(19);
   await success.getByRole('button', { name: 'Выполнить действие 2' }).click();
   await expect(success).toContainText('Все действия подтверждены'); expect(posts).toHaveLength(3);
+  await page.getByRole('article', { name: 'Проверка частичного результата', exact: true }).getByText('Запуск и результат', { exact: true }).click();
   const partial = page.getByRole('region', { name: 'Подтверждённый запуск: Проверка частичного результата' });
   await partial.getByRole('button', { name: 'Подготовить запуск', exact: true }).click();
   await partial.getByRole('button', { name: 'Выполнить действие 1' }).click();
   await expect(partial.getByRole('button', { name: 'Выполнить действие 2' })).toBeEnabled();
   await control('mode', { mode: 'fail' }); await partial.getByRole('button', { name: 'Выполнить действие 2' }).click();
   await expect(partial).toContainText('Запуск остановлен. Подтверждено: 1 из 2');
+  await page.getByRole('article', { name: 'Проверка неизвестного результата', exact: true }).getByText('Запуск и результат', { exact: true }).click();
   const unknown = page.getByRole('region', { name: 'Подтверждённый запуск: Проверка неизвестного результата' });
   await control('mode', { mode: 'drop' });
   await unknown.getByRole('button', { name: 'Подготовить запуск', exact: true }).click();
@@ -40,6 +44,8 @@ test('LIVE caller-driven scene runs require real applied ACK and state, preserve
   const count = posts.length;
   await unknown.getByRole('button', { name: 'Обновить результат' }).click();
   await expect(unknown.getByRole('button', { name: 'Обновить результат' })).toBeEnabled(); expect(posts).toHaveLength(count);
+  await page.getByRole('article', { name: 'Проверка успеха', exact: true }).getByText('Запуск и результат', { exact: true }).click();
+  await page.getByRole('article', { name: 'Проверка частичного результата', exact: true }).getByText('Запуск и результат', { exact: true }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('body')).not.toContainText('Все действия подтверждены. Подтверждено: 0');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -47,6 +53,7 @@ test('LIVE caller-driven scene runs require real applied ACK and state, preserve
   const id = await unknown.locator('code').first().textContent();
   await page.getByRole('link', { name: 'Комнаты', exact: true }).click();
   await page.getByRole('link', { name: 'Сценарии', exact: true }).click();
+  await page.getByRole('article', { name: 'Проверка неизвестного результата', exact: true }).getByText('Запуск и результат', { exact: true }).click();
   await unknown.getByText('Открыть сохранённый запуск по ID', { exact: true }).click();
   await unknown.getByLabel('ID запуска', { exact: true }).fill(id!);
   await unknown.getByRole('button', { name: 'Открыть результат', exact: true }).click();

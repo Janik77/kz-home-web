@@ -246,4 +246,5 @@
 .core-scene-run ol { padding-inline-start: 1.3rem; }
 .core-scene-run li { margin-block: .75rem; }
 .core-scene-run input { width: 100%; min-height: 44px; }
-.scene-card:has(.core-scene-run) { grid-column: 1 / -1; }
+.scene-card:has(.core-scene-shell[open]) { grid-column: 1 / -1; }
+.core-scene-shell > summary { cursor: pointer; min-height: 44px; padding-block: .65rem; }
