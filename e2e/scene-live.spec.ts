@@ -44,5 +44,16 @@ test('LIVE caller-driven scene runs require real applied ACK and state, preserve
   await expect(page.locator('body')).not.toContainText('Все действия подтверждены. Подтверждено: 0');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await unknown.scrollIntoViewIfNeeded(); await page.screenshot({ path: 'test-results/live-software-scene-unknown-mobile.png', fullPage: true });
+  const id = await unknown.locator('code').first().textContent();
+  await page.getByRole('link', { name: 'Комнаты', exact: true }).click();
+  await page.getByRole('link', { name: 'Сценарии', exact: true }).click();
+  await unknown.getByText('Открыть сохранённый запуск по ID', { exact: true }).click();
+  await unknown.getByLabel('ID запуска', { exact: true }).fill(id!);
+  await unknown.getByRole('button', { name: 'Открыть результат', exact: true }).click();
+  await expect(unknown).toContainText('Срок ожидания истёк, результат неизвестен');
+  expect(posts).toHaveLength(count);
+  await page.getByRole('button', { name: 'Включить тёмную тему', exact: true }).click();
+  await unknown.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: 'test-results/live-software-scene-recovered-dark-mobile.png', fullPage: true });
   expect((await control('evidence')).received).toHaveLength(23);
 });
