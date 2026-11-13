@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      CORE_BASE_SHA: a2bc83aa2451590f71ac34f9aad1c7c328bccb19
+      CORE_BASE_SHA: f946a07f67f9ccb1e8f62c99860a0842bf3a062b
       PYTHONDONTWRITEBYTECODE: '1'
       LIVE_CORE_SOURCE: ${{ github.workspace }}/core
     steps:
@@ -62,6 +62,7 @@ jobs:
           name: live-software-evidence
           path: |
             web/test-results/confirmed-live-evidence.json
+            web/test-results/scene-live-evidence.json
             web/test-results/confirmed-live-preservation.json
             web/test-results/live-software-*.png
           if-no-files-found: error

@@ -178,6 +178,14 @@ async def acceptance(values):
                     assert stale.status_code == 409
                     assert stale.json()["code"] == "definition_revision_conflict"
                     result = {"revision": restored["revision"], "stale_status": stale.status_code}
+                elif action == "/seed-run-scenes":
+                    for identifier, name, states in [
+                        ("run_success", "Проверка успеха", [True, False]),
+                        ("run_partial", "Проверка частичного результата", [True, False]),
+                        ("run_unknown", "Проверка неизвестного результата", [False]),
+                    ]:
+                        await api.request("POST", "/scenes", {"id": identifier, "house_id": "fixture_house", "name": name,
+                            "actions": [{"type": "device_state", "device_id": "fixture_relay", "state": {"on": on}} for on in states]})
                 elif action == "/definition-evidence":
                     result = {"scenes": await api.request("GET", "/scenes"),
                               "rules": await api.request("GET", "/automations"), "mqtt_commands": len(received)}
@@ -246,6 +254,24 @@ async def acceptance(values):
             evidence["verification"] = verify(evidence)
             (WEB / "test-results" / "confirmed-live-evidence.json").write_text(json.dumps(evidence, indent=2), encoding="utf-8")
             print("PASS automated full-run verification: 18 commands, exact SET/ACK/state/SQL identities, outcomes and QoS/retain", flush=True)
+            scene_result = await asyncio.to_thread(subprocess.run,
+                ["npx", "playwright", "test", "--config", "playwright.scene-live.config.ts"],
+                cwd=WEB, env=env, timeout=180)
+            scene_evidence = {"received": received, "published": published, "database": await asyncio.to_thread(database),
+                              "forwarded": forwarded, "browser_exit": scene_result.returncode,
+                              "core_base_sha": os.environ.get("CORE_BASE_SHA"), "physical_devices": sql("SELECT count(*) FROM physical_devices")}
+            scene_evidence["verification"] = verify(scene_evidence, {"applied": 19, "failed": 2, "timed_out": 2})
+            links = json.loads(sql("SELECT coalesce(json_agg(t),'[]'::json) FROM (SELECT r.scene_id,a.position,a.device_id,a.requested_on,a.claimed,c.command_id,c.correlation_id,c.status FROM scene_runs r JOIN scene_run_actions a ON a.run_id=r.id JOIN scene_run_receipts l ON l.run_id=a.run_id AND l.position=a.position JOIN device_commands c ON c.command_id=l.command_id ORDER BY r.scene_id,a.position) t"))
+            assert len(links) == 5 and len({row["command_id"] for row in links}) == 5
+            expected_scenes = {"run_success": [(True, "applied"), (False, "applied")], "run_partial": [(True, "applied"), (False, "failed")], "run_unknown": [(False, "timed_out")]}
+            for scene_id, actions in expected_scenes.items():
+                records = [row for row in links if row["scene_id"] == scene_id]
+                assert [(row["requested_on"], row["status"]) for row in records] == actions
+                assert [row["position"] for row in records] == list(range(len(actions)))
+                assert all(row["claimed"] and row["device_id"] == "fixture_relay" for row in records)
+            scene_evidence["scene_receipt_links"] = links
+            (WEB / "test-results" / "scene-live-evidence.json").write_text(json.dumps(scene_evidence, indent=2), encoding="utf-8")
+            print("PASS scene browser: explicit sequential success, partial failure, timeout; all 23 commands verified against SET/ACK/state/SQL", flush=True)
             assert not receiver.done(), "Software relay receiver stopped unexpectedly"
         finally:
             delay["gate"].set()

@@ -10,19 +10,21 @@ def require(condition, message):
         raise AssertionError(message)
 
 
-def verify(evidence):
+def verify(evidence, expected=None):
+    expected = EXPECTED if expected is None else expected
+    total = sum(expected.values())
     require(evidence["browser_exit"] == 0, "Live browser acceptance failed")
     require(evidence["physical_devices"] == "0", "Unexpected physical identity")
     database = evidence["database"]
     commands, received, published = database["commands"], evidence["received"], evidence["published"]
-    require(len(commands) == len(received) == 18, "Expected exactly 18 SQL and MQTT commands")
-    require(Counter(row["status"] for row in commands) == EXPECTED, "Unexpected SQL outcomes")
-    require(database["counts"] == ["applied|16", "failed|1", "timed_out|1"], "SQL aggregate mismatch")
+    require(len(commands) == len(received) == total, "Unexpected SQL/MQTT command count")
+    require(Counter(row["status"] for row in commands) == expected, "Unexpected SQL outcomes")
+    require(database["counts"] == [f"{status}|{count}" for status, count in sorted(expected.items())], "SQL aggregate mismatch")
     require(database["invalid_applied"] == "0", "SQL reports invalid applied receipt")
     rows = {row["command_id"]: row for row in commands}
     correlations = {row["correlation_id"]: row for row in commands}
     wire = {row["command_id"]: row for row in received}
-    require(len(rows) == len(correlations) == len(wire) == 18, "Duplicate command/correlation identity")
+    require(len(rows) == len(correlations) == len(wire) == total, "Duplicate command/correlation identity")
     require(set(rows) == set(wire), "MQTT and SQL command identities differ")
     acks, states = {}, {}
     initial = 0
@@ -72,5 +74,5 @@ def verify(evidence):
             require(ack is None and state is None, "Timed-out command unexpectedly has ACK/state")
             require(row["ack_status"] is None and row["failure_code"] == "deadline_exceeded", "Timeout SQL status mismatch")
             require(all(row[key] is None for key in ("ack_received_at", "state_received_at", "reported_on")), "Timeout has SQL response evidence")
-    return {"commands_verified": 18, "applied": 16, "failed": 1, "timed_out": 1,
+    return {"commands_verified": total, **expected,
             "ack_state_and_sql_consistent": True}

@@ -1,3 +1,7 @@
+> Historical Core #37 / legacy-route analysis. The separate Core #39 durable API is
+> now integrated by the [caller-driven Web lifecycle](DURABLE_SCENE_RUNS_WEB.md).
+> The legacy route below remains unused; its lack of receipt evidence is unchanged.
+
 # Запуск сцен: подтверждённый предел Core #36
 
 Проверен точный Core 6783ce0347004d101ec2ffa5eb60c48946901786, app/api/routes.py, app/services/scene_service.py и app/services/device_service.py.

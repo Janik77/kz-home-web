@@ -1,0 +1,66 @@
+import { expect, test } from '@playwright/test';
+
+test('LIVE caller-driven scene runs require real applied ACK and state, preserve partial and unknown', async ({ page }) => {
+  async function control(action: string, data = {}) {
+    const response = await fetch(`${process.env.RELAY_CONTROL_URL}/${action}`, { method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.RELAY_CONTROL_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    expect(response.status).toBe(200); return response.json();
+  }
+  await control('seed-run-scenes'); await control('online'); await control('mode', { mode: 'hold' });
+  await page.goto('/'); await page.getByLabel('Электронная почта', { exact: true }).fill('owner@example.test');
+  await page.getByLabel('Пароль', { exact: true }).fill(process.env.RELAY_OWNER_PASSWORD!); await page.getByLabel('Пароль', { exact: true }).press('Enter');
+  await page.getByRole('button', { name: 'Fixture', exact: true }).click();
+  await page.getByRole('link', { name: 'Сценарии', exact: true }).click();
+  const posts: string[] = []; page.on('request', r => { if (r.method() === 'POST' && r.url().includes('/scene-runs')) posts.push(r.url()); });
+  await page.screenshot({ path: 'test-results/live-software-scene-list-desktop.png', fullPage: true });
+  await page.getByRole('article', { name: 'Проверка успеха', exact: true }).getByText('Запуск и результат', { exact: true }).press('Enter');
+  const success = page.getByRole('region', { name: 'Подтверждённый запуск: Проверка успеха' });
+  await success.getByRole('button', { name: 'Подготовить запуск', exact: true }).click();
+  await expect(success).toContainText('команды ещё не отправлены'); expect(posts).toHaveLength(1);
+  expect((await control('evidence')).received).toHaveLength(18);
+  await success.getByRole('button', { name: 'Выполнить действие 1' }).click();
+  await expect(success).toContainText('Отправлено, ожидаем ACK и состояние');
+  await expect(success).toContainText('Подтверждено: 0 из 2');
+  await expect(success.getByRole('button', { name: 'Выполнить действие 2' })).toHaveCount(0);
+  await page.screenshot({ path: 'test-results/live-software-scene-waiting-desktop.png', fullPage: true });
+  await control('release'); await control('mode', { mode: 'apply' });
+  await expect(success.getByRole('button', { name: 'Выполнить действие 2' })).toBeEnabled();
+  expect(posts).toHaveLength(2); expect((await control('evidence')).received).toHaveLength(19);
+  await success.getByRole('button', { name: 'Выполнить действие 2' }).click();
+  await expect(success).toContainText('Все действия подтверждены'); expect(posts).toHaveLength(3);
+  await page.getByRole('article', { name: 'Проверка частичного результата', exact: true }).getByText('Запуск и результат', { exact: true }).click();
+  const partial = page.getByRole('region', { name: 'Подтверждённый запуск: Проверка частичного результата' });
+  await partial.getByRole('button', { name: 'Подготовить запуск', exact: true }).click();
+  await partial.getByRole('button', { name: 'Выполнить действие 1' }).click();
+  await expect(partial.getByRole('button', { name: 'Выполнить действие 2' })).toBeEnabled();
+  await control('mode', { mode: 'fail' }); await partial.getByRole('button', { name: 'Выполнить действие 2' }).click();
+  await expect(partial).toContainText('Запуск остановлен. Подтверждено: 1 из 2');
+  await page.getByRole('article', { name: 'Проверка неизвестного результата', exact: true }).getByText('Запуск и результат', { exact: true }).click();
+  const unknown = page.getByRole('region', { name: 'Подтверждённый запуск: Проверка неизвестного результата' });
+  await control('mode', { mode: 'drop' });
+  await unknown.getByRole('button', { name: 'Подготовить запуск', exact: true }).click();
+  await unknown.getByRole('button', { name: 'Выполнить действие 1' }).click();
+  await expect(unknown).toContainText('Срок ожидания истёк, результат неизвестен', { timeout: 40_000 });
+  const count = posts.length;
+  await unknown.getByRole('button', { name: 'Обновить результат' }).click();
+  await expect(unknown.getByRole('button', { name: 'Обновить результат' })).toBeEnabled(); expect(posts).toHaveLength(count);
+  await page.getByRole('article', { name: 'Проверка успеха', exact: true }).getByText('Запуск и результат', { exact: true }).click();
+  await page.getByRole('article', { name: 'Проверка частичного результата', exact: true }).getByText('Запуск и результат', { exact: true }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('body')).not.toContainText('Все действия подтверждены. Подтверждено: 0');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await unknown.scrollIntoViewIfNeeded(); await page.screenshot({ path: 'test-results/live-software-scene-unknown-mobile.png', fullPage: true });
+  const id = await unknown.locator('code').first().textContent();
+  await page.getByRole('link', { name: 'Комнаты', exact: true }).click();
+  await page.getByRole('link', { name: 'Сценарии', exact: true }).click();
+  await page.getByRole('article', { name: 'Проверка неизвестного результата', exact: true }).getByText('Запуск и результат', { exact: true }).click();
+  await unknown.getByText('Открыть сохранённый запуск по ID', { exact: true }).click();
+  await unknown.getByLabel('ID запуска', { exact: true }).fill(id!);
+  await unknown.getByRole('button', { name: 'Открыть результат', exact: true }).click();
+  await expect(unknown).toContainText('Срок ожидания истёк, результат неизвестен');
+  expect(posts).toHaveLength(count);
+  await page.getByRole('button', { name: 'Включить тёмную тему', exact: true }).click();
+  await unknown.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: 'test-results/live-software-scene-recovered-dark-mobile.png', fullPage: true });
+  expect((await control('evidence')).received).toHaveLength(23);
+});

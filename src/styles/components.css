@@ -241,3 +241,10 @@
 .draft-dialog h2 { margin-bottom: var(--space-4); }
 .draft-dialog p { margin-bottom: var(--space-4); }
 .draft-dialog .button { white-space: normal; }
+
+.core-scene-run { display: grid; gap: .75rem; min-width: 0; overflow-wrap: anywhere; }
+.core-scene-run ol { padding-inline-start: 1.3rem; }
+.core-scene-run li { margin-block: .75rem; }
+.core-scene-run input { width: 100%; min-height: 44px; }
+.scene-card:has(.core-scene-shell[open]) { grid-column: 1 / -1; }
+.core-scene-shell > summary { cursor: pointer; min-height: 44px; padding-block: .65rem; }

@@ -1,3 +1,4 @@
+import { createSceneRuns } from './scene-runs';
 import type { HomeRepository } from '../home-repository';
 import type { AccessibleHouse } from '../../domain/session';
 import { decodeDevice, decodeFloor, decodeHouse, decodeRoom, decodeScene, list } from './dtos';
@@ -16,6 +17,7 @@ export function createCoreHomeRepository(session: CoreSession, houseId: string):
   // Legacy/mock snapshot mutations remain disabled. v0.15 uses separate receipts.
   return {
     readOnly: true,
+    sceneRuns: createSceneRuns(session, houseId),
     definitions: createDefinitions(session, houseId),
     activity: createHomeActivity(session, houseId),
     relayControl: createRelayControl(session, houseId),
