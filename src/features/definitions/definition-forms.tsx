@@ -87,7 +87,7 @@ export function CreateScene({ home }: { home: HomeSnapshot }) {
   const clearDraft = () => { setOpen(false); setName(''); setActions([{ deviceId: '', on: false }]); setId(crypto.randomUUID()); };
   const devices = home.devices.filter(d => d.kind === 'relay' || d.kind === 'light');
   if (!editor.definitions) return null;
-  return <section className="settings-panel definition-editor" aria-label="Создание сценария">{editor.notice}
+  return <section className={`settings-panel definition-editor scene-create ${open ? 'scene-create--open' : 'scene-create--closed'}`} aria-label="Создание сценария">{editor.notice}
     {editor.allowed && (!open ? <Button onClick={() => setOpen(true)}>{dirty ? 'Продолжить черновик' : 'Создать сценарий'}</Button> : <form onSubmit={e => {
       e.preventDefault(); if (!validName(name) || actions.some(a => !a.deviceId)) return;
       void editor.save(signal => editor.definitions!.createScene({ id, name, actions }, signal), clearDraft);

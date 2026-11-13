@@ -1,3 +1,4 @@
+import { createRunHistory, type RunHistory } from './run-history';
 import { boolean, list, object, string } from './dtos';
 import { CoreError } from './errors';
 import { readHousePermissions } from './permissions';
@@ -41,6 +42,7 @@ export function checkRun(previous: SceneRun, next: SceneRun) {
   });
 }
 export interface SceneRuns {
+  readonly history?: RunHistory;
   permissions(signal: AbortSignal): Promise<string[]>;
   create(scene: string, revision: number, key: string, signal: AbortSignal): Promise<SceneRun>;
   read(id: string, signal: AbortSignal, previous?: SceneRun): Promise<SceneRun>;
@@ -54,7 +56,7 @@ export function createSceneRuns(session: CoreSession, house: string): SceneRuns 
     if (!['scene.read', 'scene.run', 'device.read', 'device.control'].every(p => grants.includes(p))) throw new CoreError('forbidden');
   };
   const decode = (value: unknown) => { const run = decodeSceneRun(value); if (run.house_id !== house) throw new CoreError('protocol'); return run; };
-  return { permissions,
+  return { permissions, history: createRunHistory(),
     async create(scene, revision, key, signal) {
       integer(revision, 1); await authorize(signal);
       const run = await session.command(path, { scene_id: scene, expected_revision: revision }, key, decode, signal, 201);

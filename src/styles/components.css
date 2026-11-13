@@ -248,3 +248,39 @@
 .core-scene-run input { width: 100%; min-height: 44px; }
 .scene-card:has(.core-scene-shell[open]) { grid-column: 1 / -1; }
 .core-scene-shell > summary { cursor: pointer; min-height: 44px; padding-block: .65rem; }
+
+.scene-create--closed { padding: 0; border: 0; background: none; margin: 0; }
+.scene-create--closed > .button { margin: 0; }
+.scene-grid--detailed .scene-card:has(.core-scene-shell) { gap: .55rem; }
+.scene-grid--detailed .scene-card:has(.core-scene-shell) > .definition-editor { margin: 0; }
+.core-scene-shell > summary { font-size: var(--text-sm); }
+.run-review { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1rem; }
+.run-acknowledgement { display: flex; align-items: start; gap: .6rem; }
+.run-acknowledgement input { width: 22px; height: 22px; min-height: 22px; flex-shrink: 0; }
+.run-history ul { padding: 0; list-style: none; }
+.run-history li { display: grid; margin-block: .5rem; }
+.run-history button { white-space: normal; overflow-wrap: anywhere; text-align: start; }
+@media (max-width: 599px) {
+  .scene-grid--detailed:has(.core-scene-shell) { grid-template-columns: minmax(0, 1fr); }
+  .scene-grid--detailed .scene-card:has(.core-scene-shell) { padding: .9rem; }
+  .scene-grid--detailed .scene-card:has(.core-scene-shell) .scene-card__top { float: none; }
+}
+@media (min-width: 600px) and (max-width: 1000px) {
+  .scene-grid--detailed:has(.core-scene-shell) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 599px) {
+  .scene-grid--detailed .scene-card:has(.core-scene-shell) { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: .35rem .5rem; }
+  .scene-grid--detailed .scene-card:has(.core-scene-shell) > .scene-card__name { grid-column: 1 / 3; grid-row: 1; margin: 0; align-self: center; }
+  .scene-grid--detailed .scene-card:has(.core-scene-shell) > .scene-card__top { grid-column: 3; grid-row: 1; margin: 0; }
+  .scene-grid--detailed .scene-card:has(.core-scene-shell) .scene-card__icon { display: none; }
+  .scene-grid--detailed .scene-card:has(.core-scene-shell) > .scene-details { grid-column: 1; grid-row: 2; margin: 0; }
+  .scene-grid--detailed .scene-card:has(.core-scene-shell) > .core-scene-shell { grid-column: 2; grid-row: 2; }
+  .scene-grid--detailed .scene-card:has(.core-scene-shell) > .definition-editor { grid-column: 3; grid-row: 2; }
+  .scene-grid--detailed .scene-card:has(.core-scene-shell) > .definition-editor > .button { padding-inline: .3rem; font-size: var(--text-xs); min-height: 44px; }
+  .scene-grid--detailed .scene-card:has(.core-scene-shell) > .scene-details[open],
+  .scene-grid--detailed .scene-card:has(.core-scene-shell) > .core-scene-shell[open],
+  .scene-grid--detailed .scene-card:has(.core-scene-shell) > .definition-editor:has(form),
+  .scene-grid--detailed .scene-card:has(.core-scene-shell) > .scene-unavailable,
+  .scene-grid--detailed .scene-card:has(.core-scene-shell) > .scene-card__feedback:not(:empty) { grid-column: 1 / -1; grid-row: auto; }
+}

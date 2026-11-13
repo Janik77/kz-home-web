@@ -57,3 +57,31 @@ Checkout that exact Core SHA first. The GitHub workflow pins service image diges
 pre-pulls them before the inventory baseline; use that workflow for the complete
 preservation check. The older Core launcher has a strict old-Web pin and is not claimed
 compatible with this new Web commit. CI status and exact Web SHA are recorded in the PR.
+
+## Follow-up: new intents and bounded navigation history
+
+A terminal/expired run or failed preparation now offers a separate new-preparation
+review. Its first step only reloads the actual scene through Core; it displays the
+fresh revision and actions. Confirming preparation creates a NEW key for that revision,
+without dispatching an action. A stale revision still returns 409; no automatic retry
+or revision substitution occurs. Explicit recovery of a lost create response retains
+its existing key. A new intent after unknown/timed-out evidence (or unread history)
+requires a separate acknowledgement and does not cancel or compensate any old run.
+Each subsequent dispatch still requires its own click.
+
+The repository retains at most 20 ID/scene-ID/creation-time references in memory across
+route navigation and Back. References contain no tokens, keys, action payloads or cached
+outcomes. They are scoped by the existing selected-house repository instance, which is
+recreated on house/account/Core context changes and lost on reload/logout. The UI filters
+by exact scene ID and verifies the fetched run's house/scene; opening history performs
+GET only. This is not a server history API or durable browser storage. Deleted/inaccessible
+scenes are not listed by this UI. A create response lost before an ID was received cannot
+be recovered from the ID list; its in-component key recovery lasts only until unmount.
+
+Follow-up live acceptance retains all 23 command verifications, adds explicit unknown
+new-intent acknowledgement, repeated-click protection, Back/history GET recovery and a
+real Core revision 409 followed by fresh preparation. These additional preparations send
+zero MQTT commands. Baseline Web #18 at `1a3226527e6b9501735b29e251a2982c7f5577f4` and the new
+Web are captured against the same real Core fixture at 390/768/1440, light/dark, both the
+closed list and a read-only recovered result. Baseline is a separate checkout for visual
+comparison only, not a launcher or runtime change.

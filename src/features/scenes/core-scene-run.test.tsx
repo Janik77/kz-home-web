@@ -5,6 +5,7 @@ import { CoreSceneRun } from './core-scene-run';
 import { renderHome } from '../../test/render-home';
 import { createMockHomeRepository } from '../../data/mock/mock-home-repository';
 import { initialHome } from '../../data/mock/fixtures';
+import { createRunHistory } from '../../data/core/run-history';
 import { CoreError } from '../../data/core/errors';
 import type { SceneRun, SceneRuns } from '../../data/core/scene-runs';
 const scene = { ...initialHome.scenes[0]!, revision: 1 };
@@ -14,10 +15,12 @@ function run(status: SceneRun['status'] = 'ready'): SceneRun {
     actions: [{ position: 0, device_id: 'relay', requested_on: true, status: status === 'unknown' ? 'dispatch_unknown' : 'ready', receipt: null, failure_code: null }] };
 }
 function harness(initial = run()) {
-  const service: SceneRuns = { permissions: vi.fn(async () => ['scene.read', 'scene.run', 'device.read', 'device.control']),
+  const service: SceneRuns = { history: createRunHistory(), permissions: vi.fn(async () => ['scene.read', 'scene.run', 'device.read', 'device.control']),
     create: vi.fn(async () => initial), read: vi.fn(async () => initial), dispatch: vi.fn(async () => initial) };
-  const view = renderHome({ ...createMockHomeRepository(initialHome, 0), sceneRuns: service }, home => <CoreSceneRun scene={scene} home={home} />);
-  return { service, ...view };
+  const repository = { ...createMockHomeRepository({ ...initialHome, scenes: [scene] }, 0), sceneRuns: service };
+  const mount = () => renderHome(repository, home => <CoreSceneRun scene={home.scenes[0]!} home={home} />);
+  const view = mount();
+  return { service, repository, mount, ...view };
 }
 it('prepares without dispatch and retains original key and revision after 409 for explicit retry', async () => {
   const h = harness(); vi.mocked(h.service.create).mockRejectedValueOnce(new CoreError('conflict'));
@@ -51,4 +54,45 @@ it('observes a durable unknown claim without offering dispatch or automatic reco
   expect(screen.getByText('Отправка неизвестна — повтора нет')).toBeVisible();
   expect(screen.queryByRole('button', { name: 'Выполнить действие 1' })).not.toBeInTheDocument();
   expect(h.service.dispatch).not.toHaveBeenCalled(); h.unmount();
+});
+
+it.each(['succeeded', 'expired', 'stopped'] as const)('starts a distinct %s follow-up only after fresh review and explicit confirmation', async status => {
+  const h = harness(run(status));
+  const first = await screen.findByRole('button', { name: 'Подготовить запуск' });
+  await waitFor(() => expect(first).toBeEnabled()); await userEvent.click(first);
+  await userEvent.click(await screen.findByRole('button', { name: 'Обновить сценарий для нового запуска' }));
+  expect(h.service.create).toHaveBeenCalledTimes(1); expect(h.service.dispatch).not.toHaveBeenCalled();
+  const next = screen.getByRole('button', { name: 'Подготовить новый запуск' });
+  let resolve!: (value: SceneRun) => void;
+  vi.mocked(h.service.create).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+  await userEvent.click(next); await userEvent.click(next);
+  expect(h.service.create).toHaveBeenCalledTimes(2);
+  const calls = vi.mocked(h.service.create).mock.calls;
+  expect(calls[0]![2]).not.toBe(calls[1]![2]); expect(calls[1]![1]).toBe(1);
+  await act(async () => resolve({ ...run(), id: 'new-run' })); expect(h.service.dispatch).not.toHaveBeenCalled();
+});
+it('recovers IDs after remount by GET only and warns before a separate intent with unread history', async () => {
+  const h = harness(run('expired'));
+  const button = await screen.findByRole('button', { name: 'Подготовить запуск' });
+  await waitFor(() => expect(button).toBeEnabled()); await userEvent.click(button);
+  h.unmount(); h.mount();
+  expect(screen.queryByRole('button', { name: 'Подготовить запуск' })).not.toBeInTheDocument();
+  await userEvent.click(await screen.findByRole('button', { name: 'Обновить сценарий для нового запуска' }));
+  expect(screen.getByRole('button', { name: 'Подготовить новый запуск' })).toBeDisabled();
+  await userEvent.click(screen.getByRole('button', { name: 'Отмена подготовки' }));
+  await userEvent.click(screen.getByText('Недавние запуски этой сцены'));
+  await userEvent.click(screen.getByRole('button', { name: 'Открыть запуск run' }));
+  expect(h.service.read).toHaveBeenCalledTimes(1); expect(h.service.create).toHaveBeenCalledTimes(1); expect(h.service.dispatch).not.toHaveBeenCalled();
+});
+it('uses a newly fetched revision after conflict, never silently resubmits the old intent', async () => {
+  const h = harness(); vi.mocked(h.service.create).mockRejectedValueOnce(new CoreError('conflict'));
+  const button = await screen.findByRole('button', { name: 'Подготовить запуск' });
+  await waitFor(() => expect(button).toBeEnabled()); await userEvent.click(button);
+  h.repository.getHome = vi.fn(async () => ({ ...initialHome, scenes: [{ ...scene, revision: 4, name: 'Изменённый сценарий' }] }));
+  await userEvent.click(screen.getByRole('button', { name: 'Обновить сценарий для нового запуска' }));
+  expect(await screen.findByText(/Актуальная версия: 4/)).toBeVisible(); expect(h.service.create).toHaveBeenCalledTimes(1);
+  vi.mocked(h.service.create).mockResolvedValueOnce({ ...run(), scene_revision: 4 });
+  await userEvent.click(screen.getByRole('button', { name: 'Подготовить новый запуск' }));
+  const calls = vi.mocked(h.service.create).mock.calls; expect(calls).toHaveLength(2); expect(calls[1]![1]).toBe(4); expect(calls[1]![2]).not.toBe(calls[0]![2]);
+  expect(h.service.dispatch).not.toHaveBeenCalled();
 });
