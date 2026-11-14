@@ -35,6 +35,7 @@ test('LIVE one-click server scene execution, navigation independence, partial fa
   await page.goBack();
   const shell = article('Проверка успеха').locator('.core-scene-shell');
   if (await shell.getAttribute('open') === null) await shell.getByText('Запуск и результат', { exact: true }).click();
+  await success.getByRole('button', { name: 'Проверить прежний запуск', exact: true }).click();
   await expect(success).toContainText('Все действия подтверждены'); expect(posts).toHaveLength(1);
   await page.screenshot({ path: 'test-results/live-software-scene-success-desktop.png', fullPage: true });
 

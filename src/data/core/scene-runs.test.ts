@@ -70,3 +70,8 @@ it('rejects execute response from manual mode and absent execution mode', async 
   await expect(h.service.create('scene', 3, 'one-intent-key-123', signal)).rejects.toMatchObject({kind:'protocol'});
   expect(() => decodeSceneRun({...ready(), execution_mode:undefined})).toThrow();
 });
+
+it('rejects inconsistent partial/refused aggregate evidence', () => {
+  expect(() => decodeSceneRun({...ready(), status:'partial'})).toThrow();
+  expect(() => decodeSceneRun({...ready(), status:'refused', actions:[{...ready().actions[0], status:'applied', receipt:receipt()}]})).toThrow();
+});

@@ -31,7 +31,9 @@ export function decodeSceneRun(value: unknown): SceneRun {
   });
   if (!actions.length || actions.length > 16 || actions.some((a, i) => a.position !== i) ||
     new Set(actions.flatMap(a => a.receipt ? [a.receipt.command_id] : [])).size !== actions.filter(a => a.receipt).length ||
-    (v.status === 'succeeded' && actions.some(a => a.status !== 'applied'))) throw new CoreError('protocol');
+    (v.status === 'succeeded' && actions.some(a => a.status !== 'applied')) ||
+    (v.status === 'partial' && (!actions.some(a => a.status === 'applied') || actions.every(a => a.status === 'applied'))) ||
+    (v.status === 'refused' && actions.some(a => a.status === 'applied'))) throw new CoreError('protocol');
   return { id: string(v.id), house_id: house, scene_id: string(v.scene_id), scene_revision: integer(v.scene_revision, 1), created_at: created, dispatch_deadline: deadline, status: v.status as SceneRun['status'], execution_mode: v.execution_mode, execution_error: v.execution_error === null ? null : string(v.execution_error), actions };
 }
 export function checkRun(previous: SceneRun, next: SceneRun) {

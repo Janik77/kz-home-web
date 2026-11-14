@@ -78,4 +78,5 @@ jobs:
             web/test-results/live-space-*.png
             web/test-results/live-favorites-*
             web/test-results/scene-visual-*.json
+            web/test-results/confirmed-live/**/*.webm
           if-no-files-found: error
