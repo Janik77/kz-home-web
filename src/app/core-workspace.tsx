@@ -1,3 +1,4 @@
+import { FavoritesProvider } from '../features/favorites/favorites-context';
 import { CreateHouse } from '../features/auth/create-house';
 import { ThemeToggle } from '../components/ui/theme-toggle';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
@@ -54,6 +55,6 @@ function SelectedHome({ services, user, houses, houseId, selectHouse, logout }: 
   const [repository] = useState(() => services.repositoryForHouse(houseId));
   useEffect(() => () => { void client.cancelQueries(); client.clear(); }, [client]);
   return <QueryClientProvider client={client}><RepositoryProvider value={repository}>
-    <RuntimeContext value={{ mode: 'core', user, houses, houseId, selectHouse, logout }}><App /></RuntimeContext>
+    <RuntimeContext value={{ mode: 'core', user, houses, houseId, selectHouse, logout }}><FavoritesProvider accountId={user.id} houseId={houseId}><App /></FavoritesProvider></RuntimeContext>
   </RepositoryProvider></QueryClientProvider>;
 }

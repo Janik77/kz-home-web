@@ -36,20 +36,16 @@ Web follow-up: forms capture revision, preserve drafts on 409, explicit comparis
 before adopting current version, no hidden retry. Until then these metadata
 fields are shown read-only; this is a concurrency gap, not an absent PATCH route.
 
-## Separate Core task B: per-user, per-house favorites
+## Favorites: implemented Core #43 / Web follow-up
 
-No favorites endpoint/schema exists. Do not repurpose device.metadata or browser
-localStorage: those cannot provide user+house isolation and authoritative persistence.
-Proposed independent contract (not an implemented endpoint): GET /v1/houses/{house}/me/favorites
-returns {house_id, revision, device_ids}; PUT at same path accepts
-{expected_revision, device_ids}. Atomic CAS; unique device IDs, explicit bounded
-maximum, only readable devices in that house; no user_id from client. Owner derived
-from authenticated session. GET cannot disclose another user's favorites. Clear
-stale inaccessible/deleted references on read or mark explicitly. Migration key:
-(user_id, house_id), plus device references; no new privileges required. Test two
-users/two homes, revoked access, deletion, concurrent changes and persistence.
-Web follow-up only after contract lands: real favorite control and Home grouping.
-Current Core Home says "Устройства дома"; only clearly marked demo uses favorite.
+Core #43 `5b87f4b71a7a2a99d4dd3d288c7f1ec76ab781f2`, migration 0011,
+implements GET `/v1/houses/{house}/me/device-favorites` -> `{device_ids}` and
+idempotent PUT/DELETE `/v1/houses/{house}/me/device-favorites/{device}` -> 204.
+This supersedes the earlier proposed whole-list CAS API; do not implement that
+proposal. Identity comes only from bearer. Web uses shared real favorite buttons,
+server readback and per-account/house in-memory query contexts. No localStorage
+favorite truth or optimistic success. A 404 is unavailable, not an empty list.
+See [SERVER_FAVORITES.md](SERVER_FAVORITES.md) for concurrency and compatibility.
 
 ## Separate Core task C: safe creation and complete history
 
@@ -66,9 +62,9 @@ A paginated, permission-scoped receipt/run-history API is a separate Core task.
 
 ## Dependency sequence / integration
 
-This Web PR stacks on accepted #21; Core #42 remains live-test pin. Core tasks A/B
-can be reviewed independently, then separate Web integration PRs implement editors
-and favorites against exact new Core SHAs. No Web change edits the persistent
+The favorites follow-up stacks on Web #22 (`2a094b76253d03abf8086b7708ad5be69fc6cef6`)
+and pins Core #43 above in live CI. Task A remains independent; favorites Task B
+is implemented by #43 and this Web integration. No Web change edits the persistent
 launcher/profile bindings/clean-checkout enforcement. The integration owner must
 produce and test a new agreed pair before updating a persistent stack. No manual
 binding changes, merge, production deploy or physical-device test is part of this PR.

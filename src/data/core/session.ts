@@ -124,7 +124,7 @@ export class CoreSession {
   }
 
   /** Mutations are sent once. A 401 expires the session; never replay a definition mutation. */
-  async definitionWrite<T>(path: string, method: 'POST' | 'PATCH', body: unknown, expectedStatus: 200 | 201, decode: (value: unknown) => T, signal: AbortSignal): Promise<T> {
+  async definitionWrite<T>(path: string, method: 'POST' | 'PATCH' | 'PUT' | 'DELETE', body: unknown, expectedStatus: 200 | 201 | 204, decode: (value: unknown) => T, signal: AbortSignal): Promise<T> {
     signal = AbortSignal.any([signal, this.lifetime.signal]);
     const revision = this.revision;
     if (this.snapshot.status !== 'authenticated' || !this.tokens) throw new CoreError('unauthorized');

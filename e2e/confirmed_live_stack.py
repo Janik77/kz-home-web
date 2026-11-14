@@ -250,7 +250,7 @@ async def stack(core):
         services.start()
         # Explicit owned PostgreSQL URL; Core tests create/drop only random schemas.
         await asyncio.to_thread(subprocess.run,
-            [sys.executable, "-m", "pytest", "-q", "tests/test_definition_postgresql.py", "tests/test_scene_runs_postgresql.py"],
+            [sys.executable, "-m", "pytest", "-q", "tests/test_definition_postgresql.py", "tests/test_scene_runs_postgresql.py", "tests/test_device_favorites_postgresql.py"],
             cwd=core, env={**os.environ, "TEST_POSTGRESQL_URL": services.url,
                 "DATABASE_URL": services.url, "APP_ENV": "test",
                 "MQTT_ENABLED": "false", "KZHOME_SIMULATOR_ENABLED": "false"},
