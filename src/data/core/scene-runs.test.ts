@@ -3,7 +3,7 @@ import { checkRun, createSceneRuns, decodeSceneRun } from './scene-runs';
 import { CoreSession } from './session';
 import { HttpClient } from './http-client';
 import { coreUser, tokenPair } from '../../test/core-fixtures';
-const ready = () => ({ id: 'run', house_id: 'house-a', scene_id: 'scene', scene_revision: 3,
+const ready = () => ({ id: 'run', house_id: 'house-a', scene_id: 'scene', scene_revision: 3, execution_mode: 'server' as const, execution_error: null,
   created_at: '2026-11-13T00:00:00Z', dispatch_deadline: '2026-11-13T00:05:00Z', status: 'ready',
   actions: [{ position: 0, device_id: 'relay', requested_on: true, status: 'ready', failure_code: null, receipt: null as unknown }] });
 const receipt = () => ({ command_id: 'command', correlation_id: 'correlation', house_id: 'house-a', device_id: 'relay', requested_on: true, status: 'applied', expires_at: '2026-11-13T00:00:30Z', failure_code: null });
@@ -54,4 +54,19 @@ it('fails closed for old Core and absent revision without legacy scene fallback'
   const h = await harness(), signal = new AbortController().signal;
   await expect(h.service.create('scene', undefined as unknown as number, 'key', signal)).rejects.toThrow(); expect(h.posts()).toHaveLength(0);
   h.set(ready(), 404); await expect(h.service.create('scene', 3, 'same-intent-key-123', signal)).rejects.toMatchObject({ kind: 'not-found' }); expect(h.posts()).toHaveLength(1);
+});
+
+it('uses only explicit server execution endpoint and reads lost intent without POST', async () => {
+  const h = await harness(), signal = new AbortController().signal;
+  await h.service.create('scene', 3, 'one-intent-key-123', signal);
+  expect(String(h.posts()[0]![0])).toContain('/scene-runs/execute');
+  await h.service.lookup('one-intent-key-123', signal);
+  expect(h.posts()).toHaveLength(1);
+  expect(h.fetcher.mock.calls.some(([url]) => String(url).endsWith('/scene-runs/by-key/one-intent-key-123'))).toBe(true);
+});
+it('rejects execute response from manual mode and absent execution mode', async () => {
+  const h = await harness(), signal = new AbortController().signal;
+  h.set({...ready(), execution_mode: 'manual'} as unknown as ReturnType<typeof ready>);
+  await expect(h.service.create('scene', 3, 'one-intent-key-123', signal)).rejects.toMatchObject({kind:'protocol'});
+  expect(() => decodeSceneRun({...ready(), execution_mode:undefined})).toThrow();
 });
