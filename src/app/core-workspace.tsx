@@ -17,7 +17,7 @@ export function CoreWorkspace({ services }: { services: Services }) {
   const snapshot = useSyncExternalStore(services.session.subscribe, services.session.getSnapshot);
   const client = useQueryClient();
   useEffect(() => { if (snapshot.status !== 'authenticated') { void client.cancelQueries(); client.clear(); } }, [snapshot.status, client]);
-  if (snapshot.status === 'signing-out') return <main className="session-page"><StatePanel kind="loading" title="Завершаем сеанс" description="Удаляем данные сеанса из памяти." /></main>;
+  if (snapshot.status === 'signing-out') return <main className="app-shell--everyday session-page"><StatePanel kind="loading" title="Завершаем сеанс" description="Удаляем данные сеанса из памяти." /></main>;
   if (!snapshot.user) return <LoginPage session={services.session} snapshot={snapshot} />;
   return <HouseWorkspace key={snapshot.user.id} services={services} user={snapshot.user} />;
 }
@@ -30,8 +30,8 @@ function HouseWorkspace({ services, user }: { services: Services; user: SessionU
   useEffect(() => { if (!houseId) { document.title = 'KZ Home · Ваши дома'; heading.current?.focus(); } }, [houseId]);
   const logout = () => { void services.session.logout(); };
   if (query.data && houseId && !query.isError) return <SelectedHome key={houseId} services={services} user={user} houses={query.data} houseId={houseId} selectHouse={setSelected} logout={logout} />;
-  return <main className="session-page"><div className="session-card">
-    <p className="eyebrow">Core · Данные устройств</p><h1 ref={heading} tabIndex={-1}>Ваши дома</h1>
+  return <main className="app-shell--everyday session-page"><div className="session-card">
+    <p className="eyebrow">ВАШЕ ПРОСТРАНСТВО</p><h1 ref={heading} tabIndex={-1}>Ваши дома</h1>
     {query.isPending ? <StatePanel kind="loading" title="Ищем ваши дома" description="Проверяем доступные вашей учётной записи дома." />
       : query.isError ? <StatePanel kind="error" title="Не удалось загрузить дома" description={coreErrorMessage(query.error)} onRetry={() => void query.refetch()} />
       : query.data.length === 0 ? <StatePanel kind="empty" title="Нет доступных домов" description="Попросите владельца дома предоставить доступ. Создание домов и управление участниками пока недоступны в Web." onRetry={() => void query.refetch()} />

@@ -11,14 +11,14 @@ const groups: { kind: Device['kind']; label: string }[] = [
 
 export function DeviceGroups({ devices, rooms }: { devices: Device[]; rooms: Room[] }) {
   const id = useId();
-  if (!devices.length) return <DeviceGrid devices={devices} rooms={rooms} />;
+  if (!devices.length) return <DeviceGrid devices={devices} rooms={rooms} everyday details />;
   return <div className="device-groups">{groups.map(({ kind, label }) => {
     const items = devices.filter((device) => device.kind === kind);
     if (!items.length) return null;
     const headingId = `${id}-${kind}`;
     return <section key={kind} aria-labelledby={headingId}><SectionHeading id={headingId} title={label}
       action={<span className="section-count">{items.length}</span>} />
-      <DeviceGrid devices={items} rooms={rooms} />
+      <DeviceGrid devices={items} rooms={rooms} everyday details />
     </section>;
   })}</div>;
 }

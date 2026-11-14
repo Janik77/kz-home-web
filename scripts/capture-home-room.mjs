@@ -8,7 +8,7 @@ process.env.VITE_DATA_MODE = 'mock';
 const server = await createServer({ server: { host: '127.0.0.1', port: 5188, strictPort: true } }); await server.listen();
 const browser = await chromium.launch(); const manifest = [];
 try {
- for (const dataset of ['one', 'many', 'empty', 'offline']) for (const width of [390, 1440]) for (const theme of ['light', 'dark']) {
+ for (const dataset of ['one', 'many', 'empty', 'offline']) for (const width of [390, 1280, 1440, 1920]) for (const theme of ['light', 'dark']) {
   const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 1000 } });
   const errors=[];page.on('pageerror', e=>errors.push(e.message));
   for (const route of ['/', '/rooms/living']) {

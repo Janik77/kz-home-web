@@ -167,3 +167,75 @@
  .everyday-room-heading .everyday-heading h1 { margin: 4px 0; }
  .everyday-room-heading .everyday-connection { grid-column: 2; grid-row: 2; }
 }
+
+/* Accepted everyday language across the existing application. */
+.app-shell--everyday .page-heading h1 { font-size: 32px; line-height: 1.2; letter-spacing: -.035em; }
+.app-shell--everyday .page-heading p { font-size: 14px; max-width: 68ch; line-height: 1.6; }
+.app-shell--everyday .eyebrow, .app-shell--everyday .quiet-note { font-size: 13px; line-height: 1.6; }
+.app-shell--everyday .page { gap: 24px; }
+.app-shell--everyday .button, .app-shell--everyday .filter-bar button { min-height: 44px; font-size: 14px; }
+.app-shell--everyday input:not([type=checkbox]):not([type=radio]), .app-shell--everyday select { min-height: 44px; font-size: 16px; }
+.app-shell--everyday .settings-panel, .app-shell--everyday .scene-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 18px; padding: 24px; }
+.app-shell--everyday .settings-panel h2, .app-shell--everyday .scene-card__name { font-size: 20px; line-height: 1.4; }
+.app-shell--everyday .settings-panel p, .app-shell--everyday .settings-panel dl { font-size: 14px; line-height: 1.6; }
+.app-shell--everyday .diagnostics summary { min-height: 44px; padding-block: 12px; font-size: 14px; cursor: pointer; }
+.app-shell--everyday .room-grid { grid-template-columns: repeat(auto-fit,minmax(min(100%,280px),1fr)); gap: 16px; }
+.app-shell--everyday .room-card--everyday { display: flex; align-items: start; gap: 16px; padding: 24px; border-radius: 18px; background: var(--color-surface); border: 1px solid var(--color-border); }
+.room-card--everyday > div { flex: 1; min-width: 0; }
+.room-card--everyday h2, .room-card--everyday h3 { font-size: 20px; margin: 4px 0 12px; }
+.room-card--everyday p { font-size: 14px; line-height: 1.6; }
+.room-card--everyday > svg { color: var(--color-muted); flex-shrink: 0; }
+.room-offline { color: var(--color-warning); }
+.everyday-page .device-groups { grid-template-columns: 1fr; gap: 28px; }
+.everyday-page .device-groups .device-grid { grid-template-columns: repeat(auto-fill,minmax(min(100%,260px),1fr)); }
+.device-details-link { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; color: var(--color-accent); }
+.app-shell--everyday .device-card { position: relative; }
+.command-success { position: fixed; bottom: 96px; right: 20px; z-index: 60; max-width: min(400px,calc(100vw - 40px)); padding: 12px 16px; border-radius: 12px; background: var(--color-surface); border: 1px solid var(--color-active-border); box-shadow: 0 4px 20px #0002; pointer-events: none; }
+.everyday-page .device-card__feedback:has(.feedback--success) { position: absolute; right: 12px; bottom: 4px; margin: 0; pointer-events: none; }
+.everyday-page .device-card__feedback .feedback--success { padding: 2px 8px; border: 0; background: var(--color-surface); font-size: 13px; }
+.app-shell--everyday .scene-grid--detailed { grid-template-columns: repeat(auto-fit,minmax(min(100%,360px),1fr)); gap: 16px; }
+.app-shell--everyday .scene-card__description, .app-shell--everyday .scene-card__rooms, .app-shell--everyday .scene-card__scope, .app-shell--everyday .scene-details { font-size: 14px; }
+.app-shell--everyday .automation-grid { grid-template-columns: repeat(auto-fit,minmax(min(100%,360px),1fr)); gap: 16px; }
+.app-shell--everyday .resource-toolbar { font-size: 13px; gap: 12px; }
+.app-shell--everyday .event-list { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 18px; padding: 0 24px; }
+.app-shell--everyday .event-list li { padding: 20px 0; font-size: 15px; }
+.app-shell--everyday .event-list time { font-size: 13px; }
+.app-shell--everyday .theme-options { gap: 12px; }
+.app-shell--everyday .theme-option { background: var(--color-surface); border-color: var(--color-border); font-size: 14px; }
+.app-shell--everyday .theme-preview--dark { background: #17191d; border-color:#3a414a; }
+.app-shell--everyday .theme-preview--dark i { background:#24282e; }
+.app-shell--everyday .theme-preview--dark i:last-child { background:#426d5d; }
+.app-shell--everyday.session-page { font-size: 16px; }
+.app-shell--everyday.session-page--login { max-width: none; grid-template-columns: 1fr; }
+.app-shell--everyday .session-intro { display:none; }
+.app-shell--everyday .session-card { box-shadow: none; border-radius: 20px; }
+.app-shell--everyday .session-security .quiet-note { font-size: 13px; }
+@media (min-width: 1200px) {
+ .everyday-home .everyday-home-grid { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 20px; }
+ .everyday-home .everyday-devices { grid-column: span 3; }
+ .everyday-home .everyday-overview { display: grid; grid-template-columns: 1fr; gap: 24px; }
+ .everyday-home .device-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap:20px; align-items:stretch; }
+ .everyday-home .device-card { display:flex; flex-direction:column; }
+ .everyday-home .device-card > [lang] { margin-top:auto; }
+ .everyday-home--sparse .everyday-devices { grid-column: span 1; }
+ .everyday-home--sparse .everyday-overview { grid-column:span 3; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; }
+ .everyday-home--sparse .everyday-events { grid-column:span 2; }
+ .everyday-home--sparse .device-grid { grid-template-columns:1fr; }
+ .everyday-home { gap:20px; }
+ .everyday-home .everyday-scene { min-height:60px; }
+}
+@media (max-width:650px) {
+ .app-shell--everyday .page-heading h1 { font-size:28px; }
+ .app-shell--everyday .settings-panel, .app-shell--everyday .scene-card { padding:18px; }
+ .app-shell--everyday .scene-grid--detailed .scene-card:has(.core-scene-shell) { display:flex; flex-direction:column; gap:12px; }
+ .app-shell--everyday .scene-grid--detailed .scene-card:has(.core-scene-shell) .scene-card__icon { display:grid; }
+ .app-shell--everyday .scene-grid--detailed .scene-card:has(.core-scene-shell) > .scene-card__name { order:-1; }
+ .app-shell--everyday .scene-grid--detailed .scene-card:has(.core-scene-shell) > .definition-editor > .button { font-size:14px; padding-inline:16px; }
+ .app-shell--everyday .event-list { padding-inline:18px; }
+ .app-shell--everyday .event-list li { display:grid; gap:8px; }
+ .app-shell--everyday .connection-bar { font-size:13px; margin-bottom:20px; }
+}
+
+.journal-search { display:grid; gap:8px; max-width:560px; font-size:14px; }
+.journal-search input { padding:12px; border:1px solid var(--color-border); border-radius:12px; background:var(--color-surface); color:var(--color-text); }
+.space-create form { max-width:640px; padding:20px; border:1px solid var(--color-border); background:var(--color-surface); border-radius:16px; }

@@ -73,5 +73,7 @@ jobs:
             web/test-results/confirmed-live-preservation.json
             web/test-results/live-software-*.png
             web/test-results/live-software-*.webm
+            web/test-results/live-space-*.webm
+            web/test-results/live-space-*.png
             web/test-results/scene-visual-*.json
           if-no-files-found: error

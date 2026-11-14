@@ -1,3 +1,4 @@
+import type { Structure } from './core/structure';
 import type { SceneRuns } from './core/scene-runs';
 import type { DeviceCommand, HomeSnapshot, SceneResult } from '../domain/home';
 import type { Definitions } from './core/definitions';
@@ -6,6 +7,7 @@ import type { RelayControl } from './core/relay-control';
 
 /** An application boundary, not an HTTP API. Core transport and mapping belong in an adapter. */
 export interface HomeRepository {
+  readonly structure?: Structure;
   readonly sceneRuns?: SceneRuns;
   readonly definitions?: Definitions;
   readonly activity?: HomeActivity;

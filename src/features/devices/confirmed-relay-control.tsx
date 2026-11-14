@@ -70,7 +70,7 @@ export function ConfirmedRelayControl({ device, everyday = false }: { device: De
     {!everyday && <p className="device-card__footnote">Core · Подтверждаемое управление реле</p>}
     {everyday && (device.kind === 'relay' || device.kind === 'light') ? <Button className="everyday-power" disabled={!allowed || busy} onClick={() => void run(!device.on)}>{busy ? 'Команда выполняется' : device.on ? 'Выключить' : 'Включить'}</Button> : <><Button variant="quiet" disabled={!allowed || busy} onClick={() => void run(true)}>Включить</Button><Button variant="quiet" disabled={!allowed || busy} onClick={() => void run(false)}>Выключить</Button></>}
     {!allowed && <p className="device-card__footnote">{device.connection === 'offline' ? 'Устройство не в сети' : eligibility.isFetching ? 'Проверяем права на управление' : everyday ? 'Управление недоступно. Проверьте доступ и связь в настройках.' : 'Управление недоступно: нужны поддерживаемое реле в сети и подтверждённые права на управление и чтение результата.'}</p>}
-    {status && <p role="status">{status}</p>}
+    {status && <p role="status" className={busy || status === 'Выполнено' || status.startsWith('Выполнено · состояние обновлено') || status === 'Выполнено · данные Core обновлены' ? 'command-success' : undefined}>{status}</p>}
     {status.startsWith('Нет подтверждения') && <p className="device-card__footnote">Команда могла выполниться. Повторное нажатие создаст новую команду; автоматической отправки нет.</p>}
   </div>;
 }

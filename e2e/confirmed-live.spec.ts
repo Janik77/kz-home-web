@@ -261,6 +261,24 @@ test('LIVE create scene and rename definitions without running devices', async (
   await page.getByRole('button', { name: 'Сохранить название' }).click();
   await expect(page.getByRole('heading', { name: 'Название без изменения логики' })).toBeVisible();
   await page.screenshot({ path: 'test-results/live-software-rule-mobile.png', fullPage: true });
+  await page.getByRole('link', { name: 'Комнаты', exact: true }).click();
+  await page.screencast.start({ path: 'test-results/live-space-create.webm' });
+  await page.getByRole('button', { name: 'Добавить комнату или этаж' }).click();
+  await page.getByLabel('Что добавить').selectOption('floor');
+  await page.getByLabel('Название', { exact: true }).fill('Тестовый этаж');
+  await page.getByRole('button', { name: 'Создать', exact: true }).dblclick();
+  await expect(page.getByRole('status').filter({ hasText:'Сохранено и проверено.' })).toBeVisible();
+  await page.getByRole('button', { name: 'Добавить комнату или этаж' }).click();
+  await page.getByLabel('Что добавить').selectOption('room');
+  await page.getByLabel('Название', { exact: true }).fill('Тестовая комната');
+  await page.getByLabel('Этаж', { exact: true }).selectOption({ label:'Тестовый этаж' });
+  await page.getByRole('link', { name: 'Сценарии', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name:'Остаться', exact:true }).click();
+  await expect(page.getByLabel('Название', {exact:true})).toHaveValue('Тестовая комната');
+  await page.getByRole('button', { name: 'Создать', exact: true }).click();
+  await expect(page.getByRole('heading', {name:'Тестовая комната',exact:true})).toBeVisible();
+  await page.screencast.stop();
+  await page.screenshot({path:'test-results/live-space-created-mobile.png',fullPage:true});
   const after = await control('definition-evidence');
   expect(after.scenes).toHaveLength(1);
   expect(after.scenes[0]).toMatchObject({ name: 'Вечер с семьёй', house_id: 'fixture_house',
