@@ -1,10 +1,10 @@
 import { Star } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { useFavorites } from './favorites-context';
-export function FavoriteButton({id,name}:{id:string;name:string}){
+export function FavoriteButton({id,name,className=""}:{id:string;name:string;className?:string}){
  const favorites=useFavorites();if(!favorites)return null;
  const selected=favorites.known&&favorites.ids.includes(id);
- return <Button variant="quiet" className="favorite-button" aria-pressed={favorites.known?selected:undefined} aria-busy={favorites.busy} aria-label={`${selected?'Убрать из избранного':'Добавить в избранное'}: ${name}`} disabled={!favorites.ready||favorites.busy} onClick={()=>favorites.set(id,!selected)}><Star size={18} aria-hidden="true" fill={selected?'currentColor':'none'} /><span>{selected?'В избранном':favorites.ready?'В избранное':favorites.error?'Недоступно':'Проверяем…'}</span></Button>;
+ return <Button variant="quiet" className={`favorite-button ${className}`} aria-pressed={favorites.known?selected:undefined} aria-busy={favorites.busy} aria-label={`${selected?'Убрать из избранного':'Добавить в избранное'}: ${name}`} disabled={!favorites.ready||favorites.busy} onClick={()=>favorites.set(id,!selected)}><Star size={18} aria-hidden="true" fill={selected?'currentColor':'none'} /><span>{selected?'В избранном':favorites.ready?'В избранное':favorites.error?'Недоступно':'Проверяем…'}</span></Button>;
 }
 export function FavoritesNotice(){
  const favorites=useFavorites();if(!favorites)return null;
