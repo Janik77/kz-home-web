@@ -12,9 +12,9 @@ async function interceptCore(page: Page, overrides: Record<string, unknown> = {}
     const path = url.pathname.replace('/core-api', '') + url.search;
     requests.push({ path, method: request.method() });
     if (path.endsWith('/me/permissions')) return route.fulfill({ json: {house_id: path.split('/')[3], permissions: []} });
-    if (path.startsWith('/events?')) return route.fulfill({ json: [] });
     if (path === '/auth/logout') return route.fulfill({ status: 204 });
     const responses = { ...coreResponses, ...overrides };
+    if (path.startsWith('/events?') && !(path in responses)) return route.fulfill({ json: [] });
     if (!(path in responses)) throw new Error(`Unexpected frontend HTTP path: ${path}`);
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(responses[path]) });
   });
