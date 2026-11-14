@@ -27,7 +27,7 @@ function errorMessage(error: unknown) {
     default: return 'Нет подтверждения — состояние неизвестно';
   }
 }
-export function ConfirmedRelayControl({ device }: { device: Device }) {
+export function ConfirmedRelayControl({ device, everyday = false }: { device: Device; everyday?: boolean }) {
   const repository = useRepository();
   const control = repository.relayControl;
   const client = useQueryClient();
@@ -53,7 +53,7 @@ export function ConfirmedRelayControl({ device }: { device: Device }) {
           await client.cancelQueries({ queryKey: refreshKey });
           const home = await client.fetchQuery({ queryKey: refreshKey, staleTime: 0,
             queryFn: ({ signal }) => repository.getHome(AbortSignal.any([signal, controller.signal])) });
-          if (!controller.signal.aborted) { client.setQueryData(homeKey, home); setStatus('Выполнено · данные Core обновлены'); }
+          if (!controller.signal.aborted) { client.setQueryData(homeKey, home); setStatus(everyday ? 'Выполнено · состояние обновлено' : 'Выполнено · данные Core обновлены'); }
         } catch { if (!controller.signal.aborted) setStatus('Выполнено · состояние не обновлено, показаны последние известные данные'); }
       }
     } catch (error) {
@@ -67,10 +67,9 @@ export function ConfirmedRelayControl({ device }: { device: Device }) {
     }
   };
   return <div lang="ru">
-    <p className="device-card__footnote">Core · Подтверждаемое управление реле</p>
-    <Button variant="quiet" disabled={!allowed || busy} onClick={() => void run(true)}>Включить</Button>
-    <Button variant="quiet" disabled={!allowed || busy} onClick={() => void run(false)}>Выключить</Button>
-    {!allowed && <p className="device-card__footnote">{device.connection === 'offline' ? 'Устройство не в сети' : eligibility.isFetching ? 'Проверяем права на управление' : 'Управление недоступно: нужны поддерживаемое реле в сети и подтверждённые права на управление и чтение результата.'}</p>}
+    {!everyday && <p className="device-card__footnote">Core · Подтверждаемое управление реле</p>}
+    {everyday && (device.kind === 'relay' || device.kind === 'light') ? <Button className="everyday-power" disabled={!allowed || busy} onClick={() => void run(!device.on)}>{busy ? 'Команда выполняется' : device.on ? 'Выключить' : 'Включить'}</Button> : <><Button variant="quiet" disabled={!allowed || busy} onClick={() => void run(true)}>Включить</Button><Button variant="quiet" disabled={!allowed || busy} onClick={() => void run(false)}>Выключить</Button></>}
+    {!allowed && <p className="device-card__footnote">{device.connection === 'offline' ? 'Устройство не в сети' : eligibility.isFetching ? 'Проверяем права на управление' : everyday ? 'Управление недоступно. Проверьте доступ и связь в настройках.' : 'Управление недоступно: нужны поддерживаемое реле в сети и подтверждённые права на управление и чтение результата.'}</p>}
     {status && <p role="status">{status}</p>}
     {status.startsWith('Нет подтверждения') && <p className="device-card__footnote">Команда могла выполниться. Повторное нажатие создаст новую команду; автоматической отправки нет.</p>}
   </div>;

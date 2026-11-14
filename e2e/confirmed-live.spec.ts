@@ -1,3 +1,5 @@
+import { mkdir } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 import { expect, test } from '@playwright/test';
 
 // Real browser traffic only. The control endpoint drives an owned software relay,
@@ -24,6 +26,7 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
     const response = page.waitForResponse(r => r.url().endsWith('/auth/login'));
     await page.getByLabel('Пароль', { exact: true }).press('Enter');
     const result = await response; expect(result.status()).toBe(200);
+    if (['resident', 'installer', 'technician'].includes(role)) await page.getByRole('link', { name: 'Устройства', exact: true }).click();
     return (await result.json()).access_token as string;
   }
   async function logout() {
@@ -37,7 +40,7 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
   const status = card.getByRole('status');
   const on = card.getByRole('button', { name: 'Включить', exact: true });
   const off = card.getByRole('button', { name: 'Выключить', exact: true });
-  await expect(off).toBeEnabled(); await expect(state).toHaveText('Выключено');
+  await expect(on).toBeEnabled(); await expect(state).toHaveText('Выключено');
   async function intent(value: boolean) {
     const response = page.waitForResponse(r => r.url().endsWith('/v1/devices/fixture_relay/commands') && r.request().method() === 'POST');
     await (value ? on : off).click();
@@ -47,15 +50,31 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
     expect(receipt.house_id).toBe('fixture_house'); expect(receipt.requested_on).toBe(value);
     receipts.push(receipt); return receipt;
   }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mkdir('test-results/software-control-frames', { recursive: true });
+  let recording = true, frame = 0;
+  // Start AFTER sign-in. Only actual screen frames of software-device control, no credentials.
+  const capture = (async () => { while (recording) {
+    await page.screenshot({ path: `test-results/software-control-frames/${String(frame++).padStart(5, '0')}.png` });
+    await new Promise(resolve => setTimeout(resolve, 200));
+  } })();
+  await new Promise(resolve => setTimeout(resolve, 800));
   await control('mode', { mode: 'hold' });
   await intent(true);
   await expect(status).toHaveText('Ожидаем подтверждение'); await expect(state).toHaveText('Выключено');
-  await expect(on).toBeDisabled(); await expect(off).toBeDisabled();
-  await on.evaluate(element => { (element as HTMLButtonElement).click(); (element as HTMLButtonElement).click(); });
+  await expect(card.getByRole('button', { name: 'Команда выполняется' })).toBeDisabled();
+  await card.getByRole('button', { name: 'Команда выполняется' }).evaluate(element => { (element as HTMLButtonElement).click(); (element as HTMLButtonElement).click(); });
   await expect.poll(() => gets.length).toBeGreaterThan(1);
   expect(posts).toHaveLength(1);
+  await new Promise(resolve => setTimeout(resolve, 2000));
   await control('release');
-  await expect(status).toHaveText('Выполнено · данные Core обновлены'); await expect(state).toHaveText('Включено');
+  await expect(status).toHaveText('Выполнено · состояние обновлено'); await expect(state).toHaveText('Включено');
+  await new Promise(resolve => setTimeout(resolve, 1200)); recording = false; await capture;
+  execFileSync('ffmpeg', ['-y', '-framerate', '4', '-i', 'test-results/software-control-frames/%05d.png', '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuv420p', 'test-results/live-software-home-control.webm'], { stdio: 'pipe' });
+  await page.getByRole('link', { name: /Room.*Устройств/ }).click();
+  await page.screenshot({ path: 'test-results/live-software-room-composition.png', fullPage: true });
+  await page.goto('/devices');
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await control('mode', { mode: 'apply' });
   await intent(false); await expect(status).toHaveText('Выполнено · данные Core обновлены'); await expect(state).toHaveText('Выключено');
   await intent(false); await expect(status).toHaveText('Выполнено · данные Core обновлены'); await expect(state).toHaveText('Выключено');
@@ -132,6 +151,7 @@ test('LIVE delayed Core responses across houses, logout and inactive session', a
     await page.getByLabel('Пароль', { exact: true }).fill(process.env.RELAY_OWNER_PASSWORD!);
     await page.getByLabel('Пароль', { exact: true }).press('Enter');
     await page.getByRole('button', { name: 'Fixture', exact: true }).click();
+    await page.goto('/devices');
     await expect(page.getByRole('button', { name: 'Включить', exact: true })).toBeEnabled();
   }
   async function selectHouse(id: string) {
@@ -157,6 +177,7 @@ test('LIVE delayed Core responses across houses, logout and inactive session', a
     await expect(card).toHaveCount(0); await expect(page.getByText(/Выполнено|команда отменена/i)).toHaveCount(0);
     expect(posts.length - before).toBe(stage === 'permissions' ? 0 : 1);
     await selectHouse('fixture_house');
+    await page.goto('/devices');
     await expect(card.getByRole('button', { name: 'Включить', exact: true })).toBeEnabled();
   }
   console.log('PASS LIVE real delayed permission, POST, poll and state responses isolated across houses');
@@ -199,7 +220,7 @@ test('LIVE mobile software relay ON/OFF with persisted MQTT receipts', async ({ 
     const response = page.waitForResponse(r => r.url().endsWith('/v1/devices/fixture_relay/commands') && r.request().method() === 'POST');
     await card.getByRole('button', { name: value ? 'Включить' : 'Выключить', exact: true }).click();
     expect((await response).status()).toBe(202);
-    await expect(card.getByRole('status')).toHaveText('Выполнено · данные Core обновлены');
+    await expect(card.getByRole('status')).toHaveText('Выполнено · состояние обновлено');
     await expect(card.locator('.device-card__state')).toHaveText(value ? 'Включено' : 'Выключено');
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
