@@ -392,7 +392,8 @@ test('LIVE server favorites: two accounts, two houses, idempotency, reload and n
  const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage();
  let bearer='';let mutations=0;
  page.on('request',r=>{if(r.url().includes('/me/device-favorites')){bearer=r.headers().authorization||bearer;if(r.method()!=='GET')mutations++;}});
- async function loginAs(who:string){await page.getByLabel('Электронная почта',{exact:true}).fill(`${who}@example.test`);await page.getByLabel('Пароль',{exact:true}).fill(process.env.RELAY_OWNER_PASSWORD!);await page.getByLabel('Пароль',{exact:true}).press('Enter');await page.getByRole('button',{name:'Fixture',exact:true}).click();}
+ async function loginAs(who:string){await page.getByLabel('Электронная почта',{exact:true}).fill(`${who}@example.test`);await page.getByLabel('Пароль',{exact:true}).fill(process.env.RELAY_OWNER_PASSWORD!);await page.getByLabel('Пароль',{exact:true}).press('Enter');await page.getByRole('button',{name:'Fixture',exact:true}).click();await page.getByRole('link',{name:'Главная',exact:true}).click();}
+ async function devices(){if(await page.locator('.mobile-more summary').isVisible())await page.locator('.mobile-more summary').click();await page.getByRole('link',{name:'Устройства',exact:true}).click();}
  async function account(){await page.getByRole('link',{name:'Аккаунт и дома'}).click();}
  async function logout(){await account();await page.getByRole('button',{name:'Выйти',exact:true}).click();}
  const add=()=>page.getByRole('button',{name:'Добавить в избранное: Software relay'}),saved=()=>page.getByRole('button',{name:'Убрать из избранного: Software relay'});
@@ -400,16 +401,23 @@ test('LIVE server favorites: two accounts, two houses, idempotency, reload and n
   await page.goto('/');await loginAs('owner');await expect(add()).toBeEnabled();
   await page.screencast.start({path:'test-results/live-favorites-save-mobile.webm',size:{width:390,height:844}});
   await add().dblclick();await expect(saved()).toBeEnabled();expect(mutations).toBe(1);
-  await page.getByRole('link',{name:'Устройства',exact:true}).click();await expect(saved()).toBeEnabled();
+  await devices();await expect(saved()).toBeEnabled();
   await page.screencast.stop();
   // Replay explicit idempotent set against real Core; never a command endpoint.
   for(let i=0;i<2;i++){const r=await page.request.put('/core-api/v1/houses/fixture_house/me/device-favorites/fixture_relay',{headers:{Authorization:bearer}});expect(r.status()).toBe(204);}
   await page.reload();await loginAs('owner');await expect(saved()).toBeEnabled();
   await logout();await loginAs('owner');await expect(saved()).toBeEnabled();
   await page.screencast.start({path:'test-results/live-favorites-restored-mobile.webm',size:{width:390,height:844}});
-  await page.getByRole('link',{name:'Устройства',exact:true}).click();await expect(saved()).toHaveAttribute('aria-pressed','true');
+  await devices();await expect(saved()).toHaveAttribute('aria-pressed','true');
   await page.screencast.stop();
   for(const width of [390,1440])for(const theme of ['light','dark']){await page.setViewportSize({width,height:width===390?844:1000});await page.evaluate(value=>{document.documentElement.dataset.theme=value;},theme);await page.screenshot({path:`test-results/live-favorites-restored-${width}-${theme}.png`,fullPage:true});}
+  for(const screen of ['home','room','detail']){
+   if(screen==='home')await page.getByRole('link',{name:'Главная',exact:true}).click();
+   if(screen==='room')await page.locator('a[href="/rooms/fixture_room"]').first().click();
+   if(screen==='detail'){await devices();await page.locator('a[href="/devices/fixture_relay"]').click();}
+   await expect(saved()).toBeEnabled();
+   for(const width of [390,1440])for(const theme of ['light','dark']){await page.setViewportSize({width,height:width===390?844:1000});await page.evaluate(value=>{document.documentElement.dataset.theme=value;},theme);await page.screenshot({path:`test-results/live-favorites-${screen}-${width}-${theme}.png`,fullPage:true});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
+  }
   await account();await page.getByRole('combobox',{name:'Дом',exact:true}).selectOption('race_house');
   const second=page.getByRole('button',{name:'Добавить в избранное: Вторая лампа'});await expect(second).toBeEnabled();await second.click();await expect(page.getByRole('button',{name:'Убрать из избранного: Вторая лампа'})).toBeEnabled();
   await logout();await loginAs('resident');await expect(add()).toBeEnabled();await expect(add()).toHaveAttribute('aria-pressed','false');await add().click();await expect(saved()).toBeEnabled();

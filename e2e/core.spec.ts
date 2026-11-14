@@ -485,6 +485,7 @@ test('server favorites survive navigation and login; server errors are not empty
  const star=page.getByRole('button',{name:`Добавить в избранное: ${coreDevice.name}`});await expect(star).toBeEnabled();
  await star.dblclick();await expect.poll(()=>writes).toBe(1);await expect(star).toHaveAttribute('aria-pressed','false');await expect(star).toBeDisabled();release!();
  const saved=page.getByRole('button',{name:`Убрать из избранного: ${coreDevice.name}`});await expect(saved).toHaveAttribute('aria-pressed','true');
+ if(await page.locator('.mobile-more summary').isVisible())await page.locator('.mobile-more summary').click();
  await page.getByRole('link',{name:'Устройства',exact:true}).click();await expect(saved).toBeEnabled();
  await page.reload();await login(page);await expect(saved).toBeEnabled();expect(writes).toBe(1);
  fail=true;await saved.click();await expect.poll(()=>writes).toBe(2);release!();await expect(page.getByRole('alert')).toContainText('Изменение могло сохраниться');
