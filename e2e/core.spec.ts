@@ -11,6 +11,7 @@ async function interceptCore(page: Page, overrides: Record<string, unknown> = {}
     const url = new URL(request.url());
     const path = url.pathname.replace('/core-api', '') + url.search;
     requests.push({ path, method: request.method() });
+    if (path.includes('/me/device-favorites')) return route.fulfill({json:{device_ids:[]}});
     if (path.endsWith('/me/permissions')) return route.fulfill({ json: {house_id: path.split('/')[3], permissions: []} });
     if (path === '/auth/logout') return route.fulfill({ status: 204 });
     const responses = { ...coreResponses, ...overrides };
@@ -318,6 +319,7 @@ test('definition editor preserves draft on errors and stores names without execu
   await interceptCore(page);
   await page.route('**/core-api/**', async route => {
     const path = new URL(route.request().url()).pathname.replace('/core-api', '');
+    if (path.includes('/me/device-favorites')) return route.fulfill({json:{device_ids:[]}});
     if (path.endsWith('/me/permissions')) return route.fulfill({ json: { house_id: 'house-a', permissions: ['scene.read', 'scene.manage'] } });
     if (path === '/scenes' && route.request().method() === 'GET') return route.fulfill({ json: [stored] });
     if (path === '/scenes/scene-a') {
@@ -402,6 +404,7 @@ test('409 and retry retain guarded rename; verified save releases navigation', a
   await interceptCore(page);
   await page.route('**/core-api/**', async route => {
     const path = new URL(route.request().url()).pathname.replace('/core-api', '');
+    if (path.includes('/me/device-favorites')) return route.fulfill({json:{device_ids:[]}});
     if (path.endsWith('/me/permissions')) return route.fulfill({ json: { house_id: 'house-a', permissions: ['scene.read', 'scene.manage'] } });
     if (path === '/scenes') return route.fulfill({ json: [stored] });
     if (path === '/scenes/scene-a') {
@@ -465,4 +468,71 @@ test('house chooser uses the everyday system in both themes', async ({page},info
   if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:theme==='dark'?'Включить тёмную тему':'Включить светлую тему'}).click();
   await accessible(page);await page.screenshot({path:`test-results/house-chooser-${info.project.name}-${theme}.png`,fullPage:true,animations:'disabled'});
  }
+});
+
+test('server favorites survive navigation and login; server errors are not empty or optimistic success', async({page})=>{
+ await interceptCore(page);
+ let selected=false,writes=0,fail=false;let release:(()=>void)|undefined;
+ await page.route('**/core-api/v1/houses/*/me/device-favorites**',async route=>{
+  const method=route.request().method();
+  if(method==='GET')return route.fulfill({json:{device_ids:selected?[coreDevice.id]:[]}});
+  writes++;expect(route.request().postData()).toBeNull();
+  await new Promise<void>(r=>{release=r;});
+  if(fail)return route.fulfill({status:503});
+  selected=method==='PUT';return route.fulfill({status:204});
+ });
+ await page.goto('/');await login(page);
+ const star=page.getByRole('button',{name:`Добавить в избранное: ${coreDevice.name}`});await expect(star).toBeEnabled();
+ await star.dblclick();await expect.poll(()=>writes).toBe(1);await expect(star).toHaveAttribute('aria-pressed','false');await expect(star).toBeDisabled();release!();
+ const saved=page.getByRole('button',{name:`Убрать из избранного: ${coreDevice.name}`});await expect(saved).toHaveAttribute('aria-pressed','true');
+ if(await page.locator('.mobile-more summary').isVisible())await page.locator('.mobile-more summary').click();
+ await page.getByRole('link',{name:'Устройства',exact:true}).click();await expect(saved).toBeEnabled();
+ await page.reload();await login(page);await expect(saved).toBeEnabled();expect(writes).toBe(1);
+ fail=true;await saved.click();await expect.poll(()=>writes).toBe(2);release!();await expect(page.getByRole('alert')).toContainText('Изменение могло сохраниться');
+ await expect(page.getByRole('button',{name:`Добавить в избранное: ${coreDevice.name}`})).toBeDisabled();
+ await page.getByRole('button',{name:'Обновить избранное'}).click();await expect(saved).toBeEnabled();expect(writes).toBe(2);
+ for(const theme of ['light','dark']){await page.evaluate(value=>{document.documentElement.dataset.theme=value;},theme);await page.screenshot({path:`test-results/favorites-${test.info().project.name}-${theme}.png`,fullPage:true});}
+ await accessible(page);
+});
+
+test('two relay notices remain inside their own stable cards; success clears without hiding pending or unknown',async({page})=>{
+ const relays=['Первая лампа','Вторая лампа'].map((name,i)=>({...coreDevice,id:`relay-${i}`,name,type:'relay',capabilities:['on_off'],state:{on:false}}));
+ await interceptCore(page,{'/devices?house_id=house-a':relays});
+ let secondStatus='dispatched',posts=0;const expires=new Date(Date.now()+30000).toISOString();
+ await page.route('**/core-api/v1/**',async route=>{
+  const path=new URL(route.request().url()).pathname;
+  if(path.endsWith('/me/permissions'))return route.fulfill({json:{house_id:'house-a',permissions:['device.read','device.control']}});
+  if(!path.includes('/commands'))return route.fallback();
+  const second=path.includes('relay-1')||path.endsWith('/two'),post=route.request().method()==='POST';if(post)posts++;
+  if(!second)relays[0]!.state.on=true;
+  return route.fulfill({status:post?202:200,json:{command_id:second?'two':'one',correlation_id:second?'corr2':'corr1',house_id:'house-a',device_id:second?'relay-1':'relay-0',requested_on:true,status:second?secondStatus:'applied',failure_code:null,expires_at:expires}});
+ });
+ await page.goto('/');await login(page);
+ const first=page.getByRole('article',{name:'Первая лампа · Living room'}),second=page.getByRole('article',{name:'Вторая лампа · Living room'});
+ await expect(first.getByRole('button',{name:'Включить',exact:true})).toBeEnabled();const height=(await first.boundingBox())!.height;
+ await first.getByRole('button',{name:'Включить',exact:true}).click();await expect(first.getByRole('status')).toContainText('состояние обновлено');
+ expect(Math.abs((await first.boundingBox())!.height-height)).toBeLessThanOrEqual(1);
+ await second.getByRole('button',{name:'Включить',exact:true}).click();await expect(second.getByRole('status')).toContainText('Ожидаем подтверждение');
+ const a=await first.getByRole('status').boundingBox(),b=await second.getByRole('status').boundingBox();expect(a&&b&&(a.x+a.width<=b.x||b.x+b.width<=a.x||a.y+a.height<=b.y||b.y+b.height<=a.y)).toBeTruthy();
+ await page.screenshot({path:`test-results/two-relay-notices-${test.info().project.name}.png`,fullPage:true});
+ await expect(first.getByRole('status')).toHaveCount(0,{timeout:6000});await expect(second.getByRole('status')).toContainText('Ожидаем подтверждение');
+ expect(Math.abs((await first.boundingBox())!.height-height)).toBeLessThanOrEqual(1);
+ secondStatus='timed_out';await expect(second.getByRole('status')).toContainText('состояние неизвестно');expect(posts).toBe(2);
+});
+
+for(const method of ['GET','PUT'])test(`favorites discards late ${method} across house change`,async({page},info)=>{
+ test.skip(info.project.name!=='desktop','Context race is viewport-independent.');
+ await interceptCore(page,{'/houses':[coreHouse,{...coreHouse,id:'house-b',name:'Second home'}],'/houses/house-b':{...coreHouse,id:'house-b',name:'Second home'},'/devices?house_id=house-b':[]});
+ let release!:()=>void,entered=false,writes=0,armed=method==='GET';
+ await page.route('**/core-api/v1/houses/*/me/device-favorites**',async route=>{
+  const a=route.request().url().includes('/house-a/'),verb=route.request().method();if(verb==='PUT')writes++;
+  if(a&&armed&&verb===method){entered=true;await new Promise<void>(r=>{release=r;});}
+  return route.fulfill(verb==='GET'?{json:{device_ids:a&&method==='GET'?[coreDevice.id]:[]}}:{status:204}).catch(()=>undefined);
+ });
+ await page.goto('/');await login(page);await page.getByRole('button',{name:'Family home',exact:true}).click();
+ if(method==='PUT'){armed=true;await page.getByRole('button',{name:`Добавить в избранное: ${coreDevice.name}`}).click();}
+ await expect.poll(()=>entered).toBe(true);
+ await page.getByRole('link',{name:'Аккаунт и дома'}).click();await page.getByRole('combobox',{name:'Дом',exact:true}).selectOption('house-b');
+ await expect(page.getByText('Устройств пока нет.',{exact:true})).toBeVisible();release();
+ await expect(page.getByText('Избранное сохранено.',{exact:true})).toHaveCount(0);expect(writes).toBe(method==='PUT'?1:0);
 });

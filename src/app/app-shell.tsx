@@ -1,3 +1,4 @@
+import { FavoritesNotice } from '../features/favorites/favorite-button';
 import { useEffect, useRef } from 'react';
 import { House, LayoutGrid, Settings2, Layers3, Plug, Workflow, ListChecks, Ellipsis } from 'lucide-react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
@@ -72,6 +73,7 @@ export function AppShell() {
         <main id="main-content" className="main-content" tabIndex={-1}>
           {!signature && core && <div className="connection-bar"><span>Данные дома получены</span><div><Button variant="quiet" aria-disabled={home.isFetching} onClick={() => { if (!home.isFetching) void home.refetch(); }}>{home.isFetching ? 'Обновляем…' : 'Обновить данные'}</Button><Link className="text-link" to="/settings">Аккаунт и дома</Link></div></div>
           }
+          <FavoritesNotice />
           <Outlet />
         </main>
         <footer className="app-footer"><span>KZ Home Web</span><span>{core ? 'Показаны последние полученные данные' : 'Изменения сбрасываются при перезагрузке'}</span></footer>

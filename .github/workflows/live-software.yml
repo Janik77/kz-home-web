@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      CORE_BASE_SHA: 82653a849d2b61479de1c3bb4d74e7f388523667
+      CORE_BASE_SHA: 5b87f4b71a7a2a99d4dd3d288c7f1ec76ab781f2
       BASELINE_WEB_SOURCE: ${{ github.workspace }}/web-before
       PYTHONDONTWRITEBYTECODE: '1'
       LIVE_CORE_SOURCE: ${{ github.workspace }}/core
@@ -76,5 +76,6 @@ jobs:
             web/test-results/live-software-*.webm
             web/test-results/live-space-*.webm
             web/test-results/live-space-*.png
+            web/test-results/live-favorites-*
             web/test-results/scene-visual-*.json
           if-no-files-found: error

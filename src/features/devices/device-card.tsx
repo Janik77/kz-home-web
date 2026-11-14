@@ -1,3 +1,4 @@
+import { FavoriteButton } from '../favorites/favorite-button';
 import { Link } from 'react-router';
 import { Blinds, Lightbulb, Plug, Thermometer, Radio } from 'lucide-react';
 import type { Device, DeviceCommand } from '../../domain/home';
@@ -49,6 +50,7 @@ export function DeviceCard({ everyday = false, details = false, device, roomName
 
     {device.kind === 'sensor' && !offline && <p className="device-card__footnote">Измерено · {new Date(device.measuredAt).toLocaleString('ru-RU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>}
     {offline && <p className="device-card__footnote">Последнее состояние: {describeDevice({ ...device, connection: 'online' })}.{!readOnly && ' Управление станет доступно после восстановления связи.'}</p>}
+    {readOnly && <FavoriteButton id={device.id} name={device.name} />}
     {details && <Link className="device-details-link" to={`/devices/${device.id}`}>Подробнее</Link>}
     <div className="device-card__feedback">
       {!readOnly && operation === 'pending' && <Feedback tone="pending" message="Обновляем симуляцию…" />}

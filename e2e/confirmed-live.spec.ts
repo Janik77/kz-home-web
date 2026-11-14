@@ -264,7 +264,7 @@ test('LIVE create scene and rename definitions without running devices', async (
   await expect(page.getByRole('heading', { name: 'Название без изменения логики' })).toBeVisible();
   await page.screenshot({ path: 'test-results/live-software-rule-mobile.png', fullPage: true });
   await page.getByRole('link', { name: 'Комнаты', exact: true }).click();
-  await page.screencast.start({ path: 'test-results/live-space-create.webm' });
+  await page.screencast.start({ path: 'test-results/live-space-create.webm', size:{width:390,height:844} });
   await page.getByRole('button', { name: 'Добавить комнату или этаж' }).click();
   await page.getByLabel('Что добавить').selectOption('floor');
   await page.getByLabel('Название', { exact: true }).fill('Тестовый этаж');
@@ -384,4 +384,53 @@ test('LIVE independent editors, atomic 409 and legacy ABA preserve drafts withou
   expect(after.scenes[0].actions).toEqual(baseline.scenes[0].actions);
   for (const field of ['trigger', 'conditions', 'actions', 'enabled']) expect(after.rules[0][field]).toEqual(baseline.rules[0][field]);
   console.log('PASS LIVE revisions: two independent browser clients per kind; actual PostgreSQL/Core 200+409; explicit reconciliation; legacy ABA rejected; zero extra MQTT');
+});
+
+test('LIVE server favorites: two accounts, two houses, idempotency, reload and new login without device commands',async({browser})=>{
+ async function control(action:string){const r=await fetch(`${process.env.RELAY_CONTROL_URL}/${action}`,{method:'POST',headers:{Authorization:`Bearer ${process.env.RELAY_CONTROL_KEY}`,'Content-Type':'application/json'},body:'{}'});expect(r.status).toBe(200);return r.json();}
+ await control('favorites-seed');const before=await control('favorites-evidence');
+ const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage();
+ let bearer='';let mutations=0;
+ page.on('request',r=>{if(r.url().includes('/me/device-favorites')){bearer=r.headers().authorization||bearer;if(r.method()!=='GET')mutations++;}});
+ async function loginAs(who:string){await page.getByLabel('Электронная почта',{exact:true}).fill(`${who}@example.test`);await page.getByLabel('Пароль',{exact:true}).fill(process.env.RELAY_OWNER_PASSWORD!);await page.getByLabel('Пароль',{exact:true}).press('Enter');await page.getByRole('button',{name:'Fixture',exact:true}).click();await page.getByRole('link',{name:'Главная',exact:true}).click();await expect(page.locator('h1')).toHaveText('Fixture');}
+ async function devices(){if(await page.locator('.mobile-more summary').isVisible())await page.locator('.mobile-more summary').click();await page.getByRole('link',{name:'Устройства',exact:true}).click();await expect(page.locator('h1')).toHaveText('Устройства');}
+ async function themeAs(theme:string){if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:theme==='dark'?'Включить тёмную тему':'Включить светлую тему'}).click();await expect(page.locator('html')).toHaveAttribute('data-theme',theme);}
+ async function ready(){await expect(page.getByRole('article',{name:'Software relay · Room'}).getByRole('button',{name:'Включить',exact:true})).toBeEnabled();}
+ async function account(){await page.getByRole('link',{name:'Аккаунт и дома'}).click();}
+ async function logout(){await account();await page.getByRole('button',{name:'Выйти',exact:true}).click();}
+ const add=()=>page.getByRole('button',{name:'Добавить в избранное: Software relay'}),saved=()=>page.getByRole('button',{name:'Убрать из избранного: Software relay'});
+ try{
+  await page.goto('/');await loginAs('owner');await expect(add()).toBeEnabled();
+  await page.screencast.start({path:'test-results/live-favorites-save-mobile.webm',size:{width:390,height:844}});
+  await add().dblclick();await expect(saved()).toBeEnabled();expect(mutations).toBe(1);await saved().scrollIntoViewIfNeeded();await page.waitForTimeout(1000);
+  await devices();await expect(saved()).toBeEnabled();await saved().scrollIntoViewIfNeeded();await page.waitForTimeout(1000);
+  await page.screencast.stop();
+  // Replay explicit idempotent set against real Core; never a command endpoint.
+  for(let i=0;i<2;i++){const r=await page.request.put('/core-api/v1/houses/fixture_house/me/device-favorites/fixture_relay',{headers:{Authorization:bearer}});expect(r.status()).toBe(204);}
+  await page.reload();await loginAs('owner');await expect(saved()).toBeEnabled();
+  await logout();await loginAs('owner');await expect(saved()).toBeEnabled();
+  await page.screencast.start({path:'test-results/live-favorites-restored-mobile.webm',size:{width:390,height:844}});
+  await saved().scrollIntoViewIfNeeded();await page.waitForTimeout(800);
+  await devices();await expect(saved()).toHaveAttribute('aria-pressed','true');await saved().scrollIntoViewIfNeeded();await page.waitForTimeout(1000);
+  await page.screencast.stop();
+  for(const width of [390,1440])for(const theme of ['light','dark']){await page.setViewportSize({width,height:width===390?844:1000});await themeAs(theme);await ready();await page.screenshot({path:`test-results/live-favorites-restored-${width}-${theme}.png`,fullPage:true});}
+  for(const screen of ['home','room','detail']){
+   if(screen==='home')await page.getByRole('link',{name:'Главная',exact:true}).click();
+   if(screen==='room')await page.locator('a[href="/rooms/fixture_room"]').first().click();
+   if(screen==='detail'){await devices();await page.locator('a[href="/devices/fixture_relay"]').click();}
+   await expect(page.locator('h1')).toHaveText(screen==='home'?'Fixture':screen==='room'?'Room':'Software relay');
+   await expect(saved()).toBeEnabled();await ready();
+   for(const width of [390,1440])for(const theme of ['light','dark']){await page.setViewportSize({width,height:width===390?844:1000});await themeAs(theme);await ready();await page.screenshot({path:`test-results/live-favorites-${screen}-${width}-${theme}.png`,fullPage:true});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
+  }
+  await account();await page.getByRole('combobox',{name:'Дом',exact:true}).selectOption('race_house');
+  const second=page.getByRole('button',{name:'Добавить в избранное: Вторая лампа'});await expect(second).toBeEnabled();await second.click();await expect(page.getByRole('button',{name:'Убрать из избранного: Вторая лампа'})).toBeEnabled();
+  await logout();await loginAs('resident');await expect(add()).toBeEnabled();await expect(add()).toHaveAttribute('aria-pressed','false');await add().click();await expect(saved()).toBeEnabled();
+  await account();await page.getByRole('combobox',{name:'Дом',exact:true}).selectOption('race_house');await expect(second).toBeEnabled();await expect(second).toHaveAttribute('aria-pressed','false');
+  const evidence=await control('favorites-evidence');expect(evidence.rows).toEqual([
+   {email:'owner@example.test',house_id:'fixture_house',device_id:'fixture_relay'},
+   {email:'owner@example.test',house_id:'race_house',device_id:'favorite_relay'},
+   {email:'resident@example.test',house_id:'fixture_house',device_id:'fixture_relay'}]);
+  expect(evidence.mqtt_commands).toBe(before.mqtt_commands);expect(evidence.mqtt_commands).toBe(18);
+  console.log('PASS LIVE favorites: real PostgreSQL 3 isolated rows, two accounts/houses, repeated PUT204, reload and new login, no additional MQTT');
+ }finally{await context.close();}
 });

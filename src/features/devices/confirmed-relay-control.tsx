@@ -36,6 +36,7 @@ export function ConfirmedRelayControl({ device, everyday = false, explicitPower 
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   useEffect(() => () => { running.current?.abort(); }, [device.id, control]);
+  useEffect(()=>{if(status==='Выполнено · состояние обновлено'||status==='Выполнено · данные Core обновлены'){const timer=setTimeout(()=>setStatus(''),4000);return()=>clearTimeout(timer);}},[status]);
   if (!control) return null;
   if (everyday && device.kind !== 'relay' && device.kind !== 'light') return <p className="device-card__footnote">Для этого типа или неизвестного состояния нет поддержанного управления Web.</p>;
   const allowed = device.connection === 'online' && eligibility.data?.includes(device.id) === true && !eligibility.isError && !eligibility.isFetching;
@@ -71,7 +72,7 @@ export function ConfirmedRelayControl({ device, everyday = false, explicitPower 
     {!everyday && <p className="device-card__footnote">Core · Подтверждаемое управление реле</p>}
     {everyday && !explicitPower && (device.kind === 'relay' || device.kind === 'light') ? <Button className="everyday-power" disabled={!allowed || busy} onClick={() => void run(!device.on)}>{busy ? 'Команда выполняется' : device.on ? 'Выключить' : 'Включить'}</Button> : <><Button variant="quiet" disabled={!allowed || busy} onClick={() => void run(true)}>Включить</Button><Button variant="quiet" disabled={!allowed || busy} onClick={() => void run(false)}>Выключить</Button></>}
     {!allowed && <p className="device-card__footnote">{device.connection === 'offline' ? 'Устройство не в сети' : eligibility.isFetching ? 'Проверяем права на управление' : everyday ? 'Управление недоступно. Проверьте доступ и связь в настройках.' : 'Управление недоступно: нужны поддерживаемое реле в сети и подтверждённые права на управление и чтение результата.'}</p>}
-    {status && <p role="status" className={busy || status === 'Выполнено' || status.startsWith('Выполнено · состояние обновлено') || status === 'Выполнено · данные Core обновлены' ? 'command-success' : undefined}>{status}</p>}
+    <div className="relay-status-slot">{status && <p role="status" className={busy ? 'command-pending' : status === 'Выполнено' || status.startsWith('Выполнено · состояние обновлено') || status === 'Выполнено · данные Core обновлены' ? 'command-success' : undefined}>{status}</p>}</div>
     {status.startsWith('Нет подтверждения') && <p className="device-card__footnote">Команда могла выполниться. Повторное нажатие создаст новую команду; автоматической отправки нет.</p>}
   </div>;
 }

@@ -190,7 +190,9 @@
 .everyday-page .device-groups .device-grid { grid-template-columns: repeat(auto-fill,minmax(min(100%,260px),1fr)); }
 .device-details-link { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; color: var(--color-accent); }
 .app-shell--everyday .device-card { position: relative; }
-.command-success { position: fixed; bottom: 96px; right: 20px; z-index: 60; max-width: min(400px,calc(100vw - 40px)); padding: 12px 16px; border-radius: 12px; background: var(--color-surface); border: 1px solid var(--color-active-border); box-shadow: 0 4px 20px #0002; pointer-events: none; }
+.command-success { color:var(--color-accent); }
+.relay-status-slot { min-height:52px; padding-top:8px; }
+.everyday-page .relay-status-slot [role='status'] { margin:0; font-size:14px; line-height:1.5; }
 .everyday-page .device-card__feedback:has(.feedback--success) { position: absolute; right: 12px; bottom: 4px; margin: 0; pointer-events: none; }
 .everyday-page .device-card__feedback .feedback--success { padding: 2px 8px; border: 0; background: var(--color-surface); font-size: 13px; }
 .app-shell--everyday .scene-grid--detailed { grid-template-columns: repeat(auto-fit,minmax(min(100%,360px),1fr)); gap: 16px; }
@@ -268,3 +270,11 @@
  .everyday-home--sparse .everyday-overview { grid-column:span 2; grid-template-columns:repeat(2,minmax(0,1fr)); }
  .everyday-home--sparse .everyday-events { grid-column:span 1; }
 }
+
+.favorite-button { display:inline-flex; align-items:center; gap:8px; min-height:44px; margin-top:8px; }
+.favorite-button[aria-pressed=true] { color:var(--color-accent); }
+.favorites-notice:empty { display:none; }
+.favorites-notice { font-size:14px; line-height:1.5; margin-bottom:12px; }
+.favorites-notice p { margin:0; }
+
+.command-pending { color:var(--color-warning); }
