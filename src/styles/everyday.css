@@ -278,3 +278,23 @@
 .favorites-notice p { margin:0; }
 
 .command-pending { color:var(--color-warning); }
+
+/* Desktop follow-up: keep favorites next to state, reserve feedback after control.
+   Mobile keeps the accepted DOM/composition and its existing feedback slot. */
+@media (min-width:1200px) {
+ .everyday-home.everyday-home--pair .everyday-home-grid { grid-template-columns:minmax(0,2fr) minmax(280px,1fr); }
+ .everyday-home.everyday-home--pair .everyday-devices,
+ .everyday-home.everyday-home--pair .everyday-overview { grid-column:auto; }
+ .everyday-home.everyday-home--pair .device-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .everyday-page .device-card--core { display:flex; flex-direction:column; }
+ .everyday-page .device-card--core .device-card__top { order:0; }
+ .everyday-page .device-card--core .device-card__state { order:1; }
+ .everyday-page .device-card--core > .favorite-button { order:2; align-self:flex-start; margin:0 0 8px; }
+ .everyday-page .device-card--core > [lang] { order:3; }
+ .everyday-page .device-card--core > .device-card__footnote,
+ .everyday-page .device-card--core > .device-details-link,
+ .everyday-page .device-card--core > .device-card__feedback { order:4; }
+ .everyday-room-page .everyday-devices--single .device-card--core { display:grid; }
+ .everyday-room-page .everyday-devices--single .device-card--core > .favorite-button { grid-column:1; grid-row:3; justify-self:start; align-self:start; margin:0; }
+ .everyday-room-page .everyday-devices--single .device-card--core > [lang] { grid-column:2; grid-row:2 / span 2; }
+}

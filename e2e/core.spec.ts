@@ -495,7 +495,8 @@ test('server favorites survive navigation and login; server errors are not empty
  await accessible(page);
 });
 
-test('two relay notices remain inside their own stable cards; success clears without hiding pending or unknown',async({page})=>{
+for(const width of [null,1280,1920])test(`two relay notices remain inside their own stable cards; success clears without hiding pending or unknown ${width??'project'}`,async({page},info)=>{
+ if(width){test.skip(info.project.name!=='desktop','Additional desktop widths.');await page.setViewportSize({width,height:1000});}
  const relays=['Первая лампа','Вторая лампа'].map((name,i)=>({...coreDevice,id:`relay-${i}`,name,type:'relay',capabilities:['on_off'],state:{on:false}}));
  await interceptCore(page,{'/devices?house_id=house-a':relays});
  let secondStatus='dispatched',posts=0;const expires=new Date(Date.now()+30000).toISOString();
@@ -514,10 +515,25 @@ test('two relay notices remain inside their own stable cards; success clears wit
  expect(Math.abs((await first.boundingBox())!.height-height)).toBeLessThanOrEqual(1);
  await second.getByRole('button',{name:'Включить',exact:true}).click();await expect(second.getByRole('status')).toContainText('Ожидаем подтверждение');
  const a=await first.getByRole('status').boundingBox(),b=await second.getByRole('status').boundingBox();expect(a&&b&&(a.x+a.width<=b.x||b.x+b.width<=a.x||a.y+a.height<=b.y||b.y+b.height<=a.y)).toBeTruthy();
- await page.screenshot({path:`test-results/two-relay-notices-${test.info().project.name}.png`,fullPage:true});
+ if(info.project.name==='desktop'){
+  const ra=(await first.boundingBox())!,rb=(await second.boundingBox())!;expect(Math.abs(ra.y-rb.y)).toBeLessThanOrEqual(1);expect(rb.x).toBeGreaterThan(ra.x+ra.width);
+  const star=(await first.locator('.favorite-button').boundingBox())!,state=(await first.locator('.device-card__state').boundingBox())!;
+  expect(star.y-state.y-state.height).toBeLessThanOrEqual(16);
+ }
+ await page.locator('h1').focus();
+ for(const theme of ['light','dark']){if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:theme==='dark'?'Включить тёмную тему':'Включить светлую тему'}).click();await page.screenshot({path:`test-results/two-relay-notices-${width??test.info().project.name}-${theme}.png`,fullPage:true,animations:'disabled'});}
  await expect(first.getByRole('status')).toHaveCount(0,{timeout:6000});await expect(second.getByRole('status')).toContainText('Ожидаем подтверждение');
  expect(Math.abs((await first.boundingBox())!.height-height)).toBeLessThanOrEqual(1);
  secondStatus='timed_out';await expect(second.getByRole('status')).toContainText('состояние неизвестно');expect(posts).toBe(2);
+ if(info.project.name==='desktop'){
+  relays.pop();await page.getByRole('button',{name:'Обновить данные'}).click();await expect(page.getByRole('article')).toHaveCount(1);
+  await page.locator('a[href="/rooms/room-a"]').first().click();await expect(page.locator('h1')).toHaveText('Living room');
+  await expect(first.getByRole('button',{name:'Выключить',exact:true})).toBeEnabled();
+  const card=(await first.boundingBox())!,star=(await first.locator('.favorite-button').boundingBox())!,state=(await first.locator('.device-card__state').boundingBox())!;
+  expect(star.x-card.x).toBeLessThanOrEqual(24);expect(star.y-state.y-state.height).toBeLessThanOrEqual(24);
+  for(const theme of ['light','dark']){if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:theme==='dark'?'Включить тёмную тему':'Включить светлую тему'}).click();await page.screenshot({path:`test-results/single-room-favorite-${width??1440}-${theme}.png`,fullPage:true,animations:'disabled'});}
+ }
+
 });
 
 for(const method of ['GET','PUT'])test(`favorites discards late ${method} across house change`,async({page},info)=>{
