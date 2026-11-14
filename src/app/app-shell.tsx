@@ -57,7 +57,7 @@ export function AppShell() {
         <p className="sidebar__label">ВАШЕ ПРОСТРАНСТВО</p>
         <Navigation />
         <div className="sidebar__bottom">
-          <div className="sidebar__message"><House size={21} aria-hidden="true" /><p>{home.data?.house.name ?? 'Ваш дом'}<br /><span>{home.isError ? 'Данные дома недоступны' : summary ? `В сети: ${summary.online} из ${summary.total}` : 'Загружаем состояние…'}</span></p></div>
+          <div className="sidebar__message"><House size={21} aria-hidden="true" /><p>{home.data?.house.name ?? 'Ваш дом'}<br /><span>{home.isError ? 'Данные дома недоступны' : summary ? summary.total ? `В сети: ${summary.online} из ${summary.total}` : 'Пока без устройств' : 'Загружаем состояние…'}</span></p></div>
 
         </div>
       </aside>

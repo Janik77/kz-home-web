@@ -260,3 +260,5 @@
 }
 .app-shell--everyday .scene-card:has(details[open]) { grid-column:1 / -1; }
 .app-shell--everyday .scene-details li { gap:12px; flex-wrap:wrap; }
+
+.room-card--everyday > div > span { display:inline-flex; align-items:center; gap:6px; margin-top:6px; font-size:14px; }
