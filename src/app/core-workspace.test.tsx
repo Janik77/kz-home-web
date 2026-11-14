@@ -191,3 +191,17 @@ async function delayedControl(stage: typeof stages[number]) {
   return { services, fetcher, release: () => release(), signal: () => signal,
     posts: () => fetcher.mock.calls.filter(([url, o]) => o?.method === 'POST' && String(url).endsWith('/commands')).length };
 }
+
+
+it('preserves a house draft when refreshing the chooser leaves one accessible house', async () => {
+ let houses=[coreHouse,{...coreHouse,id:'second',name:'Second home'}];
+ const fetcher=vi.fn<typeof fetch>().mockImplementation(async url=>Response.json(String(url).endsWith('/houses')?houses:coreResponses[String(url).replace('/core-api','')]));
+ setup(fetcher);await signIn();
+ fireEvent.click(await screen.findByRole('button',{name:'Создать дом'}));
+ fireEvent.change(screen.getByLabelText('Название дома'),{target:{value:'Мой черновик'}});
+ houses=[coreHouse];fireEvent.click(screen.getByRole('button',{name:'Обновить список домов'}));
+ await waitFor(()=>expect(screen.queryByRole('button',{name:'Second home'})).toBeNull());
+ expect(screen.getByLabelText('Название дома')).toHaveValue('Мой черновик');
+ expect(screen.getByRole('heading',{name:'Ваши дома'})).toBeVisible();
+ expect(fetcher.mock.calls.filter(([,o])=>o?.method==='POST').map(([url])=>url)).toEqual(['/core-api/auth/login']);
+});

@@ -30,7 +30,7 @@ function HouseWorkspace({ services, user }: { services: Services; user: SessionU
   const [selected, setSelected] = useState<string | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const query = useQuery({ queryKey: ['core-houses', user.id], queryFn: ({ signal }) => readHouses(services.session, signal), retry: false });
-  const houseId = selected === '' ? null : query.data?.some((house) => house.id === selected) ? selected : query.data?.length === 1 ? query.data[0]!.id : null;
+  const houseId = selected === '' ? null : query.data?.some((house) => house.id === selected) ? selected : query.data?.length === 1 && !creationGuard.dirty && !creationGuard.busy ? query.data[0]!.id : null;
   useEffect(() => { if (!houseId) { document.title = 'KZ Home · Ваши дома'; heading.current?.focus(); } }, [houseId]);
   const logout = () => { void services.session.logout(); };
   if (query.data && houseId && !query.isError) return <SelectedHome key={houseId} services={services} user={user} houses={query.data} houseId={houseId} selectHouse={setSelected} logout={logout} />;
@@ -40,6 +40,7 @@ function HouseWorkspace({ services, user }: { services: Services; user: SessionU
       : query.isError ? <StatePanel kind="error" title="Не удалось загрузить дома" description={coreErrorMessage(query.error)} onRetry={() => void query.refetch()} />
       : query.data.length === 0 ? <StatePanel kind="empty" title="Нет доступных домов" description="Создайте свой дом или попросите владельца предоставить доступ." onRetry={() => void query.refetch()} />
       : <><p>Выберите дом, чтобы посмотреть его комнаты и устройства.</p><div className="house-options">{query.data.map((house) => <Button variant="secondary" key={house.id} onClick={() => leave(()=>setSelected(house.id))}>{house.name}</Button>)}</div></>}
+    <Button variant="quiet" disabled={query.isFetching || creationGuard.busy} onClick={()=>void query.refetch()}>Обновить список домов</Button>
     <CreateHouse session={services.session} onGuardChange={setCreationGuard} onCreated={()=>void query.refetch()} />
     <Button variant="quiet" onClick={()=>leave(logout)}>Выйти</Button>
   </div></main>;
