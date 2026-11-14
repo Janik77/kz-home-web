@@ -264,7 +264,7 @@ test('keeps Cyrillic last-known ON data offline and distinguishes restricted acc
   await login(page);
   await page.evaluate(() => { document.documentElement.lang = 'ru'; });
   const card = page.getByRole('article', { name: `${deviceName} · ${roomName}` });
-  await expect(card).toContainText('Core сообщает, что устройство не в сети.');
+  await expect(card).toContainText('Устройство не в сети');
   await expect(card).toContainText('Не в сети · последнее: Включён · 45%');
   await expect(card).not.toHaveClass(/device-card--active/);
   await expect(page.getByRole('switch')).toHaveCount(0);

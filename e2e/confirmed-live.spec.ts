@@ -66,8 +66,8 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
   await page.screencast.stop();
   await page.getByRole('link', { name: /Room.*Устройств/ }).click();
   await page.screenshot({ path: 'test-results/live-software-room-composition.png', fullPage: true });
-  await page.goto('/devices');
   await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole('link', { name: 'Устройства', exact: true }).click();
   await control('mode', { mode: 'apply' });
   await intent(false); await expect(status).toHaveText('Выполнено · данные Core обновлены'); await expect(state).toHaveText('Выключено');
   await intent(false); await expect(status).toHaveText('Выполнено · данные Core обновлены'); await expect(state).toHaveText('Выключено');
@@ -144,7 +144,7 @@ test('LIVE delayed Core responses across houses, logout and inactive session', a
     await page.getByLabel('Пароль', { exact: true }).fill(process.env.RELAY_OWNER_PASSWORD!);
     await page.getByLabel('Пароль', { exact: true }).press('Enter');
     await page.getByRole('button', { name: 'Fixture', exact: true }).click();
-    await page.goto('/devices');
+    await page.getByRole('link', { name: 'Устройства', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Включить', exact: true })).toBeEnabled();
   }
   async function selectHouse(id: string) {
@@ -170,7 +170,7 @@ test('LIVE delayed Core responses across houses, logout and inactive session', a
     await expect(card).toHaveCount(0); await expect(page.getByText(/Выполнено|команда отменена/i)).toHaveCount(0);
     expect(posts.length - before).toBe(stage === 'permissions' ? 0 : 1);
     await selectHouse('fixture_house');
-    await page.goto('/devices');
+    await page.getByRole('link', { name: 'Устройства', exact: true }).click();
     await expect(card.getByRole('button', { name: 'Включить', exact: true })).toBeEnabled();
   }
   console.log('PASS LIVE real delayed permission, POST, poll and state responses isolated across houses');

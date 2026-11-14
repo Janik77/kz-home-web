@@ -19,7 +19,7 @@ try {
    await page.locator('.everyday-events [role=status]').waitFor({state:'hidden'});
    if (!await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)) throw Error(`overflow ${dataset} ${width} ${route}`);
    const name=`${dataset}-${width}-${theme}-${route==='/'?'home':'room'}.png`;
-   await page.screenshot({path:resolve(dir,name),fullPage:true});
+   await page.screenshot({path:resolve(dir,name),fullPage:true,animations:'disabled'});
    manifest.push({name,dataset,width,theme,route,data:'explicit mock demo',height:await page.evaluate(()=>document.documentElement.scrollHeight)});
   }
   if(errors.length)throw Error(errors.join('\n'));
