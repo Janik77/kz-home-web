@@ -12,10 +12,9 @@ export function RoomPage() {
     const devices = home.devices.filter(d => d.roomId === room.id); const summary = getRoomSummary(devices);
     const ids = new Set(devices.map(d => d.id));
     const scenes = home.scenes.filter(s => (s.readActions ?? s.actions).some(a => ids.has(a.deviceId)));
-    return <div className="everyday-page everyday-room-page"><Link className="everyday-back" to="/rooms"><ArrowLeft size={18} aria-hidden="true" />Все комнаты</Link>
-      <EverydayHeader home={home} title={room.name} subtitle={home.floors.find(f => f.id === room.floorId)?.name ?? home.house.name} />
-      <div className="everyday-room-summary" aria-label="Состояние комнаты"><RoomConnection online={summary.online} total={summary.total} /><span><Power size={17} aria-hidden="true" />Активно: {summary.active}</span>{summary.temperature !== null && <span><Thermometer size={17} aria-hidden="true" />{summary.temperature.toFixed(1)} °C</span>}</div>
-      <section className="everyday-devices"><SectionTitle title="Устройства" />{devices.length ? <DeviceGrid devices={devices} rooms={home.rooms} everyday /> : <p className="everyday-empty">В этой комнате пока нет устройств.</p>}</section>
+    return <div className="everyday-page everyday-room-page"><div className="everyday-room-heading"><Link className="everyday-room-back" to="/rooms" aria-label="Все комнаты"><ArrowLeft size={20} aria-hidden="true" /></Link>
+      <EverydayHeader home={home} title={room.name} subtitle={home.floors.find(f => f.id === room.floorId)?.name ?? home.house.name} /></div>
+      <section className={`everyday-devices ${devices.length === 1 ? 'everyday-devices--single' : ''}`}><div className="everyday-room-device-heading"><SectionTitle title="Устройства" /><div className="everyday-room-summary" aria-label="Состояние комнаты">{summary.total > 0 ? <RoomConnection online={summary.online} total={summary.total} /> : <span>Пока не добавлены</span>}{summary.total > 0 && <span><Power size={17} aria-hidden="true" />Активно: {summary.active}</span>}{summary.temperature !== null && <span><Thermometer size={17} aria-hidden="true" />{summary.temperature.toFixed(1)} °C</span>}</div></div>{devices.length ? <DeviceGrid devices={devices} rooms={home.rooms} everyday /> : <p className="everyday-empty">В этой комнате пока нет устройств.</p>}</section>
       {scenes.length ? <QuickScenes home={{ ...home, scenes }} /> : <p className="everyday-empty">Для этой комнаты нет доступных сценариев. <Link to="/scenes">Все сценарии</Link></p>}
     </div>;
   }}</HomeDataBoundary>;

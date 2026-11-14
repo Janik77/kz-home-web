@@ -13,3 +13,12 @@ it('cannot turn a Core configuration into demo through a URL fixture selector', 
   try { expect(createServices({ mode: 'core', apiUrl: '/core-api' }).mode).toBe('core'); }
   finally { window.history.replaceState({}, '', '/'); }
 });
+
+it('separates an actually empty room from an offline device without scenes', () => {
+  const empty = designFixture('empty'), offline = designFixture('offline');
+  expect(empty.rooms.map(room => room.id)).toEqual(['living']);
+  expect(empty.devices).toEqual([]); expect(empty.scenes).toEqual([]);
+  expect(offline.rooms.map(room => room.id)).toEqual(['living']);
+  expect(offline.devices).toHaveLength(1); expect(offline.devices[0]!.connection).toBe('offline');
+  expect(offline.scenes).toEqual([]);
+});

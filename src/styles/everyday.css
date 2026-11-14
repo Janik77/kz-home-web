@@ -135,3 +135,28 @@
  .everyday-heading__actions .button { width: 44px; height: 44px; font-size: 0; min-height: 44px; }
  .everyday-heading__actions .button svg { display: block; }
 }
+
+/* Room control surface: a compact header and a full-width row for one device. */
+.everyday-room-page { gap: 16px; }
+.everyday-room-heading { display: flex; gap: 16px; align-items: center; }
+.everyday-room-heading .everyday-heading { flex: 1; min-width: 0; }
+.everyday-room-back { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); }
+.everyday-room-device-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.everyday-room-device-heading .everyday-section-title { margin: 0; }
+.everyday-room-summary { padding: 0; border: 0; gap: 16px; }
+.everyday-room-page .everyday-devices--single .device-grid { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 651px) {
+ .everyday-room-page .everyday-devices--single .device-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 320px); gap: 8px 32px; align-items: center; }
+ .everyday-room-page .everyday-devices--single .device-card__top { grid-column: 1 / -1; }
+ .everyday-room-page .everyday-devices--single .device-card__state { margin: 0; }
+ .everyday-room-page .everyday-devices--single .device-card > [lang] { grid-column: 2; grid-row: 2 / span 3; }
+ .everyday-room-page .everyday-devices--single .device-card__feedback:empty { display: none; }
+ .everyday-room-page .everyday-devices--single .device-card__footnote { margin: 0; }
+}
+@media (max-width: 650px) {
+ .everyday-room-heading { gap: 10px; align-items: start; }
+ .everyday-room-back { margin-top: 18px; }
+ .everyday-room-heading .everyday-heading h1 { font-size: 28px; }
+ .everyday-room-device-heading { align-items: start; flex-direction: column; gap: 8px; }
+ .everyday-room-summary { gap: 12px; }
+}
