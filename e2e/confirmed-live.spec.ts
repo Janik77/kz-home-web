@@ -408,8 +408,8 @@ test('LIVE server favorites: two accounts, two houses, idempotency, reload and n
   await logout();await loginAs('owner');await expect(saved()).toBeEnabled();
   await page.screencast.start({path:'test-results/live-favorites-restored-mobile.webm',size:{width:390,height:844}});
   await page.getByRole('link',{name:'Устройства',exact:true}).click();await expect(saved()).toHaveAttribute('aria-pressed','true');
-  for(const width of [390,1440])for(const theme of ['light','dark']){await page.setViewportSize({width,height:width===390?844:1000});await page.evaluate(value=>{document.documentElement.dataset.theme=value;},theme);await page.screenshot({path:`test-results/live-favorites-restored-${width}-${theme}.png`,fullPage:true});}
   await page.screencast.stop();
+  for(const width of [390,1440])for(const theme of ['light','dark']){await page.setViewportSize({width,height:width===390?844:1000});await page.evaluate(value=>{document.documentElement.dataset.theme=value;},theme);await page.screenshot({path:`test-results/live-favorites-restored-${width}-${theme}.png`,fullPage:true});}
   await account();await page.getByRole('combobox',{name:'Дом',exact:true}).selectOption('race_house');
   const second=page.getByRole('button',{name:'Добавить в избранное: Вторая лампа'});await expect(second).toBeEnabled();await second.click();await expect(page.getByRole('button',{name:'Убрать из избранного: Вторая лампа'})).toBeEnabled();
   await logout();await loginAs('resident');await expect(add()).toBeEnabled();await expect(add()).toHaveAttribute('aria-pressed','false');await add().click();await expect(saved()).toBeEnabled();

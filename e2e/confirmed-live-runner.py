@@ -162,7 +162,7 @@ async def acceptance(values):
                     await api.request("POST", "/rooms", {"id": "favorite_room", "floor_id": "favorite_floor", "name": "Вторая комната"})
                     await api.request("POST", "/devices", {"id": "favorite_relay", "room_id": "favorite_room", "name": "Вторая лампа", "type": "relay", "capabilities": ["on_off"], "state": {"on": False}, "online": False})
                 elif action == "/favorites-evidence":
-                    result = {"rows": sql("SELECT coalesce(json_agg(t),'[]'::json) FROM (SELECT u.email,f.house_id,f.device_id FROM device_favorites f JOIN users u ON u.id=f.user_id ORDER BY u.email,f.house_id,f.device_id) t"), "mqtt_commands": len(received)}
+                    result = {"rows": json.loads(sql("SELECT coalesce(json_agg(t),'[]'::json) FROM (SELECT u.email,f.house_id,f.device_id FROM device_favorites f JOIN users u ON u.id=f.user_id ORDER BY u.email,f.house_id,f.device_id) t")), "mqtt_commands": len(received)}
                 elif action == "/seed-definition":
                     await api.request("POST", "/automations", {
                         "id": "definition_rule", "house_id": "fixture_house", "name": "Правило для проверки", "enabled": False,
