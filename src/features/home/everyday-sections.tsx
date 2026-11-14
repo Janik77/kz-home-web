@@ -30,7 +30,7 @@ export function QuickScenes({ home }: { home: HomeSnapshot }) {
 export function EverydayRooms({ home }: { home: HomeSnapshot }) {
   return <section className="everyday-rooms"><SectionTitle title="Комнаты" to="/rooms" link="Все комнаты" />{home.rooms.length ? <div className="everyday-room-list">{home.rooms.map(room => {
     const summary = getRoomSummary(home.devices.filter(d => d.roomId === room.id));
-    return <Link className="everyday-room" key={room.id} to={`/rooms/${room.id}`}><span className="everyday-room__icon"><DoorOpen size={22} aria-hidden="true" /></span><span><strong>{room.name}</strong><small>Устройств: {summary.total}{summary.offline ? ` · нет связи: ${summary.offline}` : summary.active ? ` · активно: ${summary.active}` : ' · всё спокойно'}</small></span>{summary.temperature !== null && <b>{summary.temperature.toFixed(1)}°</b>}<ChevronRight size={17} aria-hidden="true" /></Link>;
+    return <Link className="everyday-room" key={room.id} to={`/rooms/${room.id}`}><span className="everyday-room__icon"><DoorOpen size={22} aria-hidden="true" /></span><span><strong>{room.name}</strong><small>Устройств: {summary.total}{summary.offline ? ` · нет связи: ${summary.offline}` : summary.active ? ` · активно: ${summary.active}` : ''}</small></span>{summary.temperature !== null && <b>{summary.temperature.toFixed(1)}°</b>}<ChevronRight size={17} aria-hidden="true" /></Link>;
   })}</div> : <p className="everyday-empty">Комнат пока нет.</p>}</section>;
 }
 export function RecentEvents({ home }: { home: HomeSnapshot }) {
