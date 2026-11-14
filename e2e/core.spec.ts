@@ -132,6 +132,7 @@ test('fails closed for online and offline relays and refreshes observed state wi
   const partial = page.getByRole('article', { name: 'Partial relay · Living room' });
   await partial.getByText('О состоянии и управлении').click();
   await expect(partial).toContainText('Для этих данных нет поддержанного управления Web.');
+  await expect(partial.getByRole('button',{name:'Включить',exact:true})).toHaveCount(0);
   await expect(page.getByRole('switch')).toHaveCount(0);
   await expect(page.getByRole('slider')).toHaveCount(0);
   await accessible(page);

@@ -26,6 +26,8 @@ export function createStructure(session: CoreSession, houseId: string): Structur
    await session.definitionWrite('/rooms', 'POST', {id:draft.id, name, floor_id:draft.floorId}, 201, decodeRoom, signal);
    const saved = await session.read(`/rooms/${encodeURIComponent(draft.id)}`, decodeRoom, signal);
    if (saved.id !== draft.id || saved.name !== name || saved.floor_id !== draft.floorId) throw new CoreError('conflict');
+   const parent = await session.read(`/floors/${encodeURIComponent(draft.floorId)}`, decodeFloor, signal);
+   if (parent.house_id !== houseId) throw new CoreError('conflict');
   }
  }};
 }

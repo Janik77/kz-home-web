@@ -9,7 +9,10 @@ house-scoped events. Device search is a client-side filter of this snapshot,
 not a server search or an exhaustive audit. Details use the same real snapshot.
 Room/floor creation: POST /rooms and /floors, house.read + house.manage, fresh
 permissions and target-floor ownership check; stable generated ID, one request,
-GET readback. No device state, metadata, binding or command mutations.
+GET readback, including a repeated parent-house check. Concurrent moves of the
+parent are not atomic with creation on this API; a mismatch is reported without
+claiming success or attempting rollback. Task A must also cover atomic expected
+parent/house checks for creation. No device state, metadata, binding or command mutations.
 Existing scene creation/name editing, automation name editing and explicit
 software-only scene steps remain supported. Definition edits use revision CAS.
 Confirmed relay commands remain exclusively on the eligibility/receipt contract.

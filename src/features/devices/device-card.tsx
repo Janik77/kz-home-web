@@ -39,8 +39,8 @@ export function DeviceCard({ everyday = false, details = false, device, roomName
     </div>
 
     <p className="device-card__state">{readOnly ? `${offline ? 'Не в сети · последнее: ' : ''}${stateRu(device)}` : device.kind === 'light' && !offline && device.brightness !== null ? (device.on ? 'Включено' : 'Выключено') : describeDevice(device)}</p>
-    {readOnly && !everyday && <CoreControlNotice device={device} locale="ru" />}
-    {readOnly && <ConfirmedRelayControl key={device.id} device={device} everyday={everyday && !details} />}
+    {readOnly && (!everyday || details) && <CoreControlNotice device={device} locale="ru" />}
+    {readOnly && <ConfirmedRelayControl key={device.id} device={device} everyday={everyday} explicitPower={details} />}
     {device.kind === 'light' && device.brightness !== null && !readOnly && !offline && <RangeControl label="Яркость" accessibleLabel={`${device.name} · яркость · ${roomName}`} value={device.brightness} disabled={busy} revision={revision}
       onCommit={(brightness) => onCommand({ type: 'set-brightness', deviceId: device.id, brightness })} />}
     {device.kind === 'curtain' && !readOnly && !offline && <div className="curtain-actions"><Button variant="quiet" aria-label={`Закрыть: ${device.name}`} aria-disabled={busy} onClick={() => { if (!busy) onCommand({ type: 'set-position', deviceId: device.id, position: 0 }); }}>Закрыть</Button><Button variant="quiet" aria-label={`Открыть: ${device.name}`} aria-disabled={busy} onClick={() => { if (!busy) onCommand({ type: 'set-position', deviceId: device.id, position: 100 }); }}>Открыть</Button></div>}
