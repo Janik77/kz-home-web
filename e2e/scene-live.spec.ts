@@ -18,6 +18,7 @@ test('LIVE one-click server scene execution, navigation independence, partial fa
   await page.screenshot({ path: 'test-results/live-software-scene-list-desktop.png', fullPage: true });
   await article('Проверка успеха').getByText('Запуск и результат', { exact: true }).click();
   const success = region('Проверка успеха');
+  await expect(success.getByRole('button', { name: 'Запустить сценарий', exact: true })).toBeEnabled();
   await success.getByRole('button', { name: 'Запустить сценарий', exact: true }).evaluate(button => {
     (button as HTMLButtonElement).click(); (button as HTMLButtonElement).click();
   });

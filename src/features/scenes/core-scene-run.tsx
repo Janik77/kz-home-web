@@ -81,7 +81,7 @@ export function CoreSceneRun({ scene, home }: { scene: Scene; home: HomeSnapshot
   return <section className="core-scene-run" aria-label={`Подтверждённый запуск: ${scene.name}`}>
     {!run && !review && <>
       {hasHistory && <p>Есть недавние запуски этой сцены. Откройте результат из списка ниже или отдельно подготовьте новый.</p>}
-      <p className="quiet-note">Только программные реле. Один запуск: Core проверяет все действия и выполняет их по порядку, ожидая подтверждения каждого.</p>
+      <p className="quiet-note">Только программные реле. Один запуск: Core проверяет все действия и выполняет их по порядку, ожидая подтверждения каждого. Если страница перезагружена после потери ответа, сначала откройте прежний запуск по ID: история сеанса не сохраняется.</p>
       {rights.isPending ? <p role="status">Проверяем права запуска…</p> : rights.isError ? <p role="alert">Не удалось проверить права. <Button variant="quiet" onClick={() => void rights.refetch()}>Проверить права запуска</Button></p> : !allowed ? <p>Нет прав на запуск и управление устройствами.</p> : null}
       {scene.revision === undefined && <p>Core не предоставляет revision. Запуск недоступен.</p>}
       {(!hasHistory || attempted) && <Button variant="secondary" disabled={busy || !allowed || scene.revision === undefined} onClick={() => {
