@@ -43,13 +43,14 @@ function Navigation({ mobile = false }: { mobile?: boolean }) {
 
 export function AppShell() {
   const runtime = useRuntime();
-  const signature = useLocation().pathname === '/';
+  const pathname = useLocation().pathname;
+  const signature = pathname === '/' || /^\/rooms\/[^/]+$/.test(pathname);
   const core = runtime.mode === 'core';
-  const modeLabel = core ? 'Core · Данные устройств' : 'Демо · без оборудования';
+  const modeLabel = core ? (signature ? 'Ваш дом' : 'Core · Данные устройств') : 'Демо · без оборудования';
   const home = useHome();
   const summary = home.data ? getHomeSummary(home.data) : null;
   return (
-    <div className={'app-shell'}>
+    <div className={`app-shell ${signature ? 'app-shell--everyday' : ''}`}>
       <a lang="ru" className="skip-link" href="#main-content">К содержимому</a>
       <aside className="sidebar">
         <Link to="/" className="brand-link" aria-label="KZ Home — главная"><Wordmark /></Link>
@@ -73,7 +74,7 @@ export function AppShell() {
           }
           <Outlet />
         </main>
-        <footer className="app-footer"><span>KZ Home Web</span><span>{core ? 'Данные Core · актуальность неизвестна' : 'Изменения сбрасываются при перезагрузке'}</span></footer>
+        <footer className="app-footer"><span>KZ Home Web</span><span>{core ? (signature ? 'Показаны последние полученные данные' : 'Данные Core · актуальность неизвестна') : 'Изменения сбрасываются при перезагрузке'}</span></footer>
       </div>
       <Navigation mobile />
       <NavigationEffects />

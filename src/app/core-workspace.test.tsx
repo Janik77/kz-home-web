@@ -37,7 +37,7 @@ it('renders login pending, then a read-only home in StrictMode with no real cont
   expect(screen.getByRole('button', { name: 'Входим…' })).toHaveAttribute('aria-disabled', 'true');
   expect(screen.getByLabelText('Пароль')).toHaveValue('');
   finish(Response.json(coreResponses['/auth/login']));
-  expect(await screen.findByRole('heading', { name: 'Добро пожаловать домой', level: 1 })).toBeVisible();
+  expect(await screen.findByRole('heading', { name: 'Family home', level: 1 })).toBeVisible();
   expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   expect(screen.queryByRole('slider')).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Activate Evening' })).not.toBeInTheDocument();
@@ -58,7 +58,7 @@ it('shows no accessible houses with a retry rather than a sample home', async ()
   await signIn();
   expect(await screen.findByRole('heading', { name: 'Нет доступных домов' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Повторить' })).toBeVisible();
-  expect(screen.queryByRole('heading', { name: 'Добро пожаловать домой', level: 1 })).toBeNull();
+  expect(screen.queryByRole('heading', { name: 'Family home', level: 1 })).toBeNull();
 });
 
 it('reports permission failures without substituting empty data', async () => {
@@ -69,13 +69,13 @@ it('reports permission failures without substituting empty data', async () => {
 
 it('returns to session-expired login when refresh is rejected and removes house data', async () => {
   const { services, fetcher } = setup(); await signIn();
-  await screen.findByRole('heading', { name: 'Добро пожаловать домой', level: 1 });
+  await screen.findByRole('heading', { name: 'Family home', level: 1 });
   fetcher.mockImplementation(async (url) => String(url).endsWith('/auth/refresh') || String(url).endsWith('/houses/house-a')
     ? new Response(null, { status: 401 }) : Response.json(coreResponses[String(url).replace('/core-api', '')]));
   fireEvent.click(screen.getByRole('button', { name: 'Обновить данные' }));
   expect(await screen.findByText('Сеанс истёк. Войдите снова.')).toBeVisible();
   await waitFor(() => expect(services.session.getSnapshot().status).toBe('anonymous'));
-  expect(screen.queryByRole('heading', { name: 'Добро пожаловать домой', level: 1 })).toBeNull();
+  expect(screen.queryByRole('heading', { name: 'Family home', level: 1 })).toBeNull();
 });
 
 it('aborts a previous house read and ignores its late state after switching homes', async () => {

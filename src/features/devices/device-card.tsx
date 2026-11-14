@@ -13,6 +13,7 @@ const icons = { light: Lightbulb, relay: Plug, curtain: Blinds, sensor: Thermome
 const labels = { light: 'Свет', relay: 'Питание', curtain: 'Шторы', sensor: 'Датчик', other: 'Устройство' };
 
 interface DeviceCardProps {
+  everyday?: boolean;
   device: Device;
   roomName: string;
   busy: boolean;
@@ -23,11 +24,11 @@ interface DeviceCardProps {
   onRetry: () => void;
 }
 
-export function DeviceCard({ device, roomName, busy, readOnly, operation, revision, onCommand, onRetry }: DeviceCardProps) {
+export function DeviceCard({ everyday = false, device, roomName, busy, readOnly, operation, revision, onCommand, onRetry }: DeviceCardProps) {
   const offline = device.connection === 'offline';
   const active = isActive(device);
   const Icon = icons[device.kind];
-  return <article id={`device-${device.id}`} className={`device-card ${active ? 'device-card--active' : ''} ${offline ? 'device-card--offline' : ''} ${operation === 'pending' ? 'device-card--pending' : ''} ${readOnly ? 'device-card--core' : ''}`}
+  return <article id={`device-${device.id}`} className={`device-card ${everyday ? 'device-card--everyday' : ''} ${active ? 'device-card--active' : ''} ${offline ? 'device-card--offline' : ''} ${operation === 'pending' ? 'device-card--pending' : ''} ${readOnly ? 'device-card--core' : ''}`}
     aria-label={`${device.name} · ${roomName}`} tabIndex={-1}>
     <div className="device-card__top"><span className="device-card__icon"><Icon size={23} aria-hidden="true" /></span><div className="device-card__identity"><h3>{device.name}</h3><p className="device-card__room">{roomName}{device.kind === 'other' && ` · ${device.typeLabel}`}</p></div>
       {!readOnly && (device.kind === 'light' || device.kind === 'relay') && <Switch checked={device.on} label={`${device.name} · ${roomName}`} disabled={offline} busy={busy}
@@ -36,8 +37,8 @@ export function DeviceCard({ device, roomName, busy, readOnly, operation, revisi
     </div>
 
     <p className="device-card__state">{readOnly ? `${offline ? 'Не в сети · последнее: ' : ''}${stateRu(device)}` : device.kind === 'light' && !offline && device.brightness !== null ? (device.on ? 'Включено' : 'Выключено') : describeDevice(device)}</p>
-    {readOnly && <CoreControlNotice device={device} locale="ru" />}
-    {readOnly && <ConfirmedRelayControl key={device.id} device={device} />}
+    {readOnly && !everyday && <CoreControlNotice device={device} locale="ru" />}
+    {readOnly && <ConfirmedRelayControl key={device.id} device={device} everyday={everyday} />}
     {device.kind === 'light' && device.brightness !== null && !readOnly && !offline && <RangeControl label="Яркость" accessibleLabel={`${device.name} · яркость · ${roomName}`} value={device.brightness} disabled={busy} revision={revision}
       onCommit={(brightness) => onCommand({ type: 'set-brightness', deviceId: device.id, brightness })} />}
     {device.kind === 'curtain' && !readOnly && !offline && <div className="curtain-actions"><Button variant="quiet" aria-label={`Закрыть: ${device.name}`} aria-disabled={busy} onClick={() => { if (!busy) onCommand({ type: 'set-position', deviceId: device.id, position: 0 }); }}>Закрыть</Button><Button variant="quiet" aria-label={`Открыть: ${device.name}`} aria-disabled={busy} onClick={() => { if (!busy) onCommand({ type: 'set-position', deviceId: device.id, position: 100 }); }}>Открыть</Button></div>}

@@ -74,3 +74,27 @@ it('aborts on unmount and ignores a late result even when the adapter ignores ca
   fireEvent.click(button); view.unmount(); expect(signal.aborted).toBe(true);
   await act(async () => finish(receipt)); expect(getHome).toHaveBeenCalledTimes(1);
 });
+
+it('everyday single action retains state while awaiting ACK and state, then changes intent only after refresh', async () => {
+  const base = createMockHomeRepository({ ...initialHome, devices: [device] }, 0);
+  let finish!: (r: Receipt) => void;
+  let report!: (r: Receipt) => void;
+  const run = vi.fn<RelayControl['run']>((_id, _on, callback) => { report = callback; return new Promise(resolve => { finish = resolve; }); });
+  const getHome = vi.fn(base.getHome);
+  renderHome({ ...base, getHome, relayControl: { eligible: async () => [device.id], run } }, home => <>
+    <p>Observed: {String(home.devices[0]!.kind === 'relay' && home.devices[0]!.on)}</p><ConfirmedRelayControl device={home.devices[0]!} everyday />
+  </>);
+  const on = await screen.findByRole('button', { name: 'Включить' });
+  await waitFor(() => expect(on).toBeEnabled());
+  expect(screen.queryByRole('button', { name: 'Выключить' })).toBeNull();
+  fireEvent.click(on); fireEvent.click(on); expect(run).toHaveBeenCalledTimes(1);
+  act(() => report({ ...receipt, status: 'dispatched' }));
+  expect(screen.getByRole('button', { name: 'Команда выполняется' })).toBeDisabled();
+  expect(screen.getByText('Observed: false')).toBeVisible();
+  getHome.mockResolvedValueOnce({ ...initialHome, devices: [{ ...device, on: true }] });
+  await act(async () => finish(receipt));
+  await waitFor(() => expect(screen.getByText('Observed: true')).toBeVisible());
+  expect(screen.getByRole('button', { name: 'Выключить' })).toBeEnabled();
+  expect(screen.getByRole('status')).toHaveTextContent('Выполнено · состояние обновлено');
+  expect(screen.queryByText(/Core/)).toBeNull();
+});

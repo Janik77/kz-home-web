@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
 import { initialHome } from '../../data/mock/fixtures';
@@ -38,33 +38,31 @@ it('keeps Core data read-only and photo-free without substituting sample rooms',
   const sendCommand = vi.fn();
   const activateScene = vi.fn();
   renderHome({ ...repository, readOnly: true, sendCommand, activateScene }, () => <HomePage />);
-  await screen.findByRole('heading', { name: 'Добро пожаловать домой' });
+  await screen.findByRole('heading', { name: 'Демонстрационный дом' });
   expect(screen.getByRole('link', { name: /Гостиная.*Устройств/ })).toBeVisible();
-  expect(document.querySelectorAll('.room-card .interior-photo--empty')).toHaveLength(4);
+  expect(document.querySelectorAll('.everyday-room')).toHaveLength(4);
   expect(document.querySelector('img')).toBeNull();
   expect(screen.queryByRole('switch')).toBeNull();
   expect(screen.queryByRole('slider')).toBeNull();
   expect(screen.queryByRole('button', { name: /Запустить сценарий/ })).toBeNull();
-  await userEvent.click(screen.getByRole('article', { name: 'Уютный вечер' }).querySelector('a')!);
+  await userEvent.click(screen.getByRole('link', { name: /Уютный вечер/ }));
   expect(sendCommand).not.toHaveBeenCalled();
   expect(activateScene).not.toHaveBeenCalled();
 });
 
-it('recovers gracefully from a broken room photograph', async () => {
+it('uses compact room links without decorative photo placeholders', async () => {
   renderHome(createMockHomeRepository(initialHome, 0), () => <HomePage />);
   const room = await screen.findByRole('link', { name: /Гостиная.*Устройств/ });
-  fireEvent.error(room.querySelector('img')!);
   expect(room.querySelector('img')).toBeNull();
-  expect(room.querySelector('.interior-photo--empty')).not.toBeNull();
   expect(room).toHaveAttribute('href', '/rooms/living');
 });
 
 it('renders an empty Core home without fabricated telemetry or favorites', async () => {
   const seed = { ...structuredClone(initialHome), rooms: [], devices: [], scenes: [] };
   renderHome({ ...createMockHomeRepository(seed, 0), readOnly: true }, () => <HomePage />);
-  await screen.findByRole('heading', { name: 'Добро пожаловать домой' });
-  expect(screen.getByText('Нет измерений')).toBeVisible();
-  expect(screen.getByText('0 из 0 в сети')).toBeVisible();
+  await screen.findByRole('heading', { name: 'Демонстрационный дом' });
+  expect(screen.queryByText('Нет измерений')).toBeNull();
+  expect(screen.queryByText('Быстрые сценарии')).toBeNull();
   expect(screen.getByText('Устройств пока нет.')).toBeVisible();
   expect(screen.getByText('Комнат пока нет.')).toBeVisible();
   expect(screen.queryByRole('article')).toBeNull();

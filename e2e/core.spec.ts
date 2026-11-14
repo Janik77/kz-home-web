@@ -14,6 +14,7 @@ async function interceptCore(page: Page, overrides: Record<string, unknown> = {}
     if (path.endsWith('/me/permissions')) return route.fulfill({ json: {house_id: path.split('/')[3], permissions: []} });
     if (path === '/auth/logout') return route.fulfill({ status: 204 });
     const responses = { ...coreResponses, ...overrides };
+    if (path.startsWith('/events?') && !(path in responses)) return route.fulfill({ json: [] });
     if (!(path in responses)) throw new Error(`Unexpected frontend HTTP path: ${path}`);
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(responses[path]) });
   });
@@ -103,10 +104,10 @@ test('owner submits relay intent once, waits for confirmation and refreshes repo
   await card.getByRole('button', { name: 'Включить', exact: true }).click();
   await expect(card.getByRole('status')).toHaveText('Ожидаем подтверждение');
   await expect(card.locator('.device-card__state')).toHaveText('Выключено');
-  await expect(card.getByRole('button', { name: 'Выключить', exact: true })).toBeDisabled();
+  await expect(card.getByRole('button', { name: 'Команда выполняется', exact: true })).toBeDisabled();
   expect(keys).toHaveLength(1); expect(keys[0]).toMatch(/^[a-f0-9-]{36}$/);
   relay.state.on = true; applied = true;
-  await expect(card.getByRole('status')).toHaveText('Выполнено · данные Core обновлены');
+  await expect(card.getByRole('status')).toHaveText('Выполнено · состояние обновлено');
   await expect(card.locator('.device-card__state')).toHaveText('Включено');
   await accessible(page); await page.getByRole('button', { name: 'Включить тёмную тему' }).click(); await accessible(page);
   expect(keys).toHaveLength(1);
@@ -117,7 +118,7 @@ test('fails closed for online and offline relays and refreshes observed state wi
   const requests = await interceptCore(page, {
     '/devices?house_id=house-a': [relay, { ...relay, id: 'offline-relay', name: 'Offline relay', online: false, state: { on: true } }, { ...relay, id: 'partial-relay', name: 'Partial relay', state: {} }],
   });
-  await page.goto('/'); await login(page);
+  await page.goto('/devices'); await login(page);
   const card = page.getByRole('article', { name: 'Core relay · Living room' });
   await expect(card).toContainText('Выключено');
   await card.getByText('О состоянии и управлении').click();
@@ -142,7 +143,8 @@ test('fails closed for online and offline relays and refreshes observed state wi
   await page.getByRole('button', { name: 'Обновить данные' }).click();
   await expect(card).toContainText('Включено');
   await expect(card).toContainText('их свежесть неизвестна');
-  await expect(page.getByRole('status')).toHaveCount(0);
+  await expect(card.getByRole('status')).toHaveCount(0);
+  await expect(page.getByText(/Выполнено ·/)).toHaveCount(0);
   expect(requests.filter((request) => request.method !== 'GET').map((request) => request.path)).toEqual(['/auth/login']);
   expect(requests.filter((request) => request.path === '/devices?house_id=house-a')).toHaveLength(readsBeforeRefresh + 1);
 });
@@ -165,7 +167,7 @@ test('signs in, reads a home without controls or mock images, switches homes, an
   await login(page);
   await expect(page.getByRole('heading', { name: 'Ваши дома', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Family home' }).click();
-  await expect(page.getByRole('heading', { name: 'Добро пожаловать домой', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Family home|Weekend home/, level: 1 })).toBeVisible();
   await expect(page.getByRole('article', { name: 'Reading light · Living room' })).toContainText('Включён · 45%');
   await expect(page.getByRole('switch')).toHaveCount(0);
   await expect(page.getByRole('slider')).toHaveCount(0);
@@ -190,10 +192,10 @@ test('signs in, reads a home without controls or mock images, switches homes, an
   await accessible(page);
   await page.getByRole('link', { name: 'Аккаунт и дома' }).click();
   await page.getByRole('combobox', { name: 'Дом', exact: true }).selectOption('house-b');
-  await expect(page.getByRole('heading', { name: 'Добро пожаловать домой', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Family home|Weekend home/, level: 1 })).toBeVisible();
   await expect(page.getByText('Устройств пока нет.', { exact: true })).toBeVisible();
   await expect(page.getByRole('article', { name: 'Reading light · Living room' })).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Study', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Study.*Устройств/ })).toBeVisible();
   await page.getByRole('link', { name: 'Аккаунт и дома' }).click();
   await accessible(page);
   await page.getByRole('button', { name: 'Выйти', exact: true }).click();
@@ -231,9 +233,9 @@ test('keeps partial device state visible and expires a rejected session', async 
     ], '/scenes': [coreScene],
   });
   await page.goto('/'); await login(page);
-  await expect(page.getByRole('heading', { name: 'Добро пожаловать домой', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Family home|Weekend home/, level: 1 })).toBeVisible();
   await expect(page.getByText('Нет данных о состоянии', { exact: true })).toBeVisible();
-  await expect(page.getByText('Не в сети: 1 устройство', { exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Living room.*нет связи: 1/ })).toBeVisible();
   await accessible(page);
   await page.getByRole('button', { name: 'Включить тёмную тему' }).click(); await accessible(page);
   await page.route('**/core-api/auth/refresh', (route) => route.fulfill({ status: 401 }));
@@ -263,7 +265,7 @@ test('keeps Cyrillic last-known ON data offline and distinguishes restricted acc
   await login(page);
   await page.evaluate(() => { document.documentElement.lang = 'ru'; });
   const card = page.getByRole('article', { name: `${deviceName} · ${roomName}` });
-  await expect(card).toContainText('Core сообщает, что устройство не в сети.');
+  await expect(card).toContainText('Устройство не в сети');
   await expect(card).toContainText('Не в сети · последнее: Включён · 45%');
   await expect(card).not.toHaveClass(/device-card--active/);
   await expect(page.getByRole('switch')).toHaveCount(0);
