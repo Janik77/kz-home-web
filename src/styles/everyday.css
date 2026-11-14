@@ -272,6 +272,7 @@
 }
 
 .favorite-button { display:inline-flex; align-items:center; gap:8px; min-height:44px; margin-top:8px; }
+.favorite-button--desktop { display:none; }
 .favorite-button[aria-pressed=true] { color:var(--color-accent); }
 .favorites-notice:empty { display:none; }
 .favorites-notice { font-size:14px; line-height:1.5; margin-bottom:12px; }
@@ -287,13 +288,9 @@
  .everyday-home.everyday-home--pair .everyday-overview { grid-column:auto; }
  .everyday-home.everyday-home--pair .device-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
  .everyday-page .device-card--core { display:flex; flex-direction:column; }
- .everyday-page .device-card--core .device-card__top { order:0; }
- .everyday-page .device-card--core .device-card__state { order:1; }
- .everyday-page .device-card--core > .favorite-button { order:2; align-self:flex-start; margin:0 0 8px; }
- .everyday-page .device-card--core > [lang] { order:3; }
- .everyday-page .device-card--core > .device-card__footnote,
- .everyday-page .device-card--core > .device-details-link,
- .everyday-page .device-card--core > .device-card__feedback { order:4; }
+ .everyday-page .device-card--core > .favorite-button { align-self:flex-start; margin:0 0 8px; }
+ .everyday-page .favorite-button--desktop { display:inline-flex; }
+ .everyday-page .favorite-button--default { display:none; }
  .everyday-room-page .everyday-devices--single .device-card--core { display:grid; }
  .everyday-room-page .everyday-devices--single .device-card--core > .favorite-button { grid-column:1; grid-row:3; justify-self:start; align-self:start; margin:0; }
  .everyday-room-page .everyday-devices--single .device-card--core > [lang] { grid-column:2; grid-row:2 / span 2; }

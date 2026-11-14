@@ -510,14 +510,27 @@ for(const width of [null,1280,1920])test(`two relay notices remain inside their 
  });
  await page.goto('/');await login(page);
  const first=page.getByRole('article',{name:'Первая лампа · Living room'}),second=page.getByRole('article',{name:'Вторая лампа · Living room'});
- await expect(first.getByRole('button',{name:'Включить',exact:true})).toBeEnabled();const height=(await first.boundingBox())!.height;
+ await expect(first.getByRole('button',{name:'Включить',exact:true})).toBeEnabled();
+ const favorite=first.getByRole('button',{name:'Добавить в избранное: Первая лампа'}),power=first.getByRole('button',{name:'Включить',exact:true});
+ await expect(favorite).toHaveCount(1);await expect(favorite).toBeEnabled();
+ const desktop=(page.viewportSize()?.width??0)>=1200;
+ await (desktop?favorite:power).focus();await page.keyboard.press('Tab');await expect(desktop?power:favorite).toBeFocused();
+ await page.keyboard.press('Shift+Tab');await expect(desktop?favorite:power).toBeFocused();
+ const height=(await first.boundingBox())!.height;
  await first.getByRole('button',{name:'Включить',exact:true}).click();await expect(first.getByRole('status')).toContainText('состояние обновлено');
  expect(Math.abs((await first.boundingBox())!.height-height)).toBeLessThanOrEqual(1);
  await second.getByRole('button',{name:'Включить',exact:true}).click();await expect(second.getByRole('status')).toContainText('Ожидаем подтверждение');
+ if(desktop){
+  const viewport=page.viewportSize()!;await page.setViewportSize({width:390,height:844});
+  await expect(favorite).toHaveCount(1);
+  const off=first.getByRole('button',{name:'Выключить',exact:true});await off.focus();await page.keyboard.press('Tab');await expect(favorite).toBeFocused();
+  await expect(second.getByRole('status')).toContainText('Ожидаем подтверждение');expect(posts).toBe(2);
+  await page.setViewportSize(viewport);await favorite.focus();await page.keyboard.press('Tab');await expect(off).toBeFocused();
+ }
  const a=await first.getByRole('status').boundingBox(),b=await second.getByRole('status').boundingBox();expect(a&&b&&(a.x+a.width<=b.x||b.x+b.width<=a.x||a.y+a.height<=b.y||b.y+b.height<=a.y)).toBeTruthy();
  if(info.project.name==='desktop'){
   const ra=(await first.boundingBox())!,rb=(await second.boundingBox())!;expect(Math.abs(ra.y-rb.y)).toBeLessThanOrEqual(1);expect(rb.x).toBeGreaterThan(ra.x+ra.width);
-  const star=(await first.locator('.favorite-button').boundingBox())!,state=(await first.locator('.device-card__state').boundingBox())!;
+  const star=(await first.locator('.favorite-button:visible').boundingBox())!,state=(await first.locator('.device-card__state').boundingBox())!;
   expect(star.y-state.y-state.height).toBeLessThanOrEqual(16);
  }
  await page.locator('h1').focus();
@@ -529,7 +542,9 @@ for(const width of [null,1280,1920])test(`two relay notices remain inside their 
   relays.pop();await page.getByRole('button',{name:'Обновить данные'}).click();await expect(page.getByRole('article')).toHaveCount(1);
   await page.locator('a[href="/rooms/room-a"]').first().click();await expect(page.locator('h1')).toHaveText('Living room');
   await expect(first.getByRole('button',{name:'Выключить',exact:true})).toBeEnabled();
-  const card=(await first.boundingBox())!,star=(await first.locator('.favorite-button').boundingBox())!,state=(await first.locator('.device-card__state').boundingBox())!;
+  await favorite.focus();await page.keyboard.press('Tab');await expect(first.getByRole('button',{name:'Выключить',exact:true})).toBeFocused();
+  await page.keyboard.press('Shift+Tab');await expect(favorite).toBeFocused();
+  const card=(await first.boundingBox())!,star=(await first.locator('.favorite-button:visible').boundingBox())!,state=(await first.locator('.device-card__state').boundingBox())!;
   expect(star.x-card.x).toBeLessThanOrEqual(24);expect(star.y-state.y-state.height).toBeLessThanOrEqual(24);
   for(const theme of ['light','dark']){if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:theme==='dark'?'Включить тёмную тему':'Включить светлую тему'}).click();await page.screenshot({path:`test-results/single-room-favorite-${width??1440}-${theme}.png`,fullPage:true,animations:'disabled'});}
  }

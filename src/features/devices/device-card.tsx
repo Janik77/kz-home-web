@@ -40,6 +40,8 @@ export function DeviceCard({ everyday = false, details = false, device, roomName
     </div>
 
     <p className="device-card__state">{readOnly ? `${offline ? 'Не в сети · последнее: ' : ''}${stateRu(device)}` : device.kind === 'light' && !offline && device.brightness !== null ? (device.on ? 'Включено' : 'Выключено') : describeDevice(device)}</p>
+    {/* CSS exposes exactly one favorite in its natural reading/tab order; relay stays mounted on resize. */}
+    {readOnly && <FavoriteButton className="favorite-button--desktop" id={device.id} name={device.name} />}
     {readOnly && (!everyday || details) && <CoreControlNotice device={device} locale="ru" />}
     {readOnly && <ConfirmedRelayControl key={device.id} device={device} everyday={everyday} explicitPower={details} />}
     {device.kind === 'light' && device.brightness !== null && !readOnly && !offline && <RangeControl label="Яркость" accessibleLabel={`${device.name} · яркость · ${roomName}`} value={device.brightness} disabled={busy} revision={revision}
@@ -50,7 +52,7 @@ export function DeviceCard({ everyday = false, details = false, device, roomName
 
     {device.kind === 'sensor' && !offline && <p className="device-card__footnote">Измерено · {new Date(device.measuredAt).toLocaleString('ru-RU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>}
     {offline && <p className="device-card__footnote">Последнее состояние: {describeDevice({ ...device, connection: 'online' })}.{!readOnly && ' Управление станет доступно после восстановления связи.'}</p>}
-    {readOnly && <FavoriteButton id={device.id} name={device.name} />}
+    {readOnly && <FavoriteButton className="favorite-button--default" id={device.id} name={device.name} />}
     {details && <Link className="device-details-link" to={`/devices/${device.id}`}>Подробнее</Link>}
     <div className="device-card__feedback">
       {!readOnly && operation === 'pending' && <Feedback tone="pending" message="Обновляем симуляцию…" />}
