@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      CORE_BASE_SHA: 5b87f4b71a7a2a99d4dd3d288c7f1ec76ab781f2
+      CORE_BASE_SHA: c5303b8aa5378ac1761e1fc9f24d375a9c69ff4d
       BASELINE_WEB_SOURCE: ${{ github.workspace }}/web-before
       PYTHONDONTWRITEBYTECODE: '1'
       LIVE_CORE_SOURCE: ${{ github.workspace }}/core
@@ -52,7 +52,9 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Evidence verifier negative regressions
         working-directory: web
-        run: python -m unittest discover -s e2e -p test_confirmed_live_evidence.py -v
+        run: |
+          python -m unittest discover -s e2e -p test_confirmed_live_evidence.py -v
+          python -m unittest discover -s e2e -p test_fixture_modes.py -v
       - name: Prepare disposable service images before inventory baseline
         run: |
           docker pull postgres:17-bookworm@sha256:665dc7b37ac52a17e298511414c21d23ffa4e6a6ef6225b3e5d59c7afb35e994
@@ -78,4 +80,7 @@ jobs:
             web/test-results/live-space-*.png
             web/test-results/live-favorites-*
             web/test-results/scene-visual-*.json
+            web/test-results/confirmed-live/**/*.webm
+            web/test-results/scene-live-current/
+            web/test-results/scene-live-before/
           if-no-files-found: error

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('LIVE caller-driven scene runs require real applied ACK and state, preserve partial and unknown', async ({ page }) => {
+test('LIVE one-click server scene execution, navigation independence, partial failure and unknown without replay', async ({ page }) => {
   async function control(action: string, data = {}) {
     const response = await fetch(`${process.env.RELAY_CONTROL_URL}/${action}`, { method: 'POST',
       headers: { Authorization: `Bearer ${process.env.RELAY_CONTROL_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
@@ -12,99 +12,72 @@ test('LIVE caller-driven scene runs require real applied ACK and state, preserve
   await page.getByRole('button', { name: 'Fixture', exact: true }).click();
   await page.getByRole('link', { name: 'Сценарии', exact: true }).click();
   const posts: string[] = []; page.on('request', r => { if (r.method() === 'POST' && r.url().includes('/scene-runs')) posts.push(r.url()); });
-  await expect(page.getByRole('article', { name: 'Проверка успеха', exact: true })).toBeVisible();
+  const article = (name: string) => page.getByRole('article', { name, exact: true });
+  const region = (name: string) => page.getByRole('region', { name: `Подтверждённый запуск: ${name}` });
+  await expect(article('Проверка успеха')).toBeVisible();
   await page.screenshot({ path: 'test-results/live-software-scene-list-desktop.png', fullPage: true });
-  await page.getByRole('article', { name: 'Проверка успеха', exact: true }).getByText('Запуск и результат', { exact: true }).press('Enter');
-  const success = page.getByRole('region', { name: 'Подтверждённый запуск: Проверка успеха' });
-  await success.getByRole('button', { name: 'Подготовить запуск', exact: true }).click();
-  await expect(success).toContainText('команды ещё не отправлены'); expect(posts).toHaveLength(1);
-  expect((await control('evidence')).received).toHaveLength(18);
-  await success.getByRole('button', { name: 'Выполнить действие 1' }).click();
+  await article('Проверка успеха').getByText('Запуск и результат', { exact: true }).click();
+  const success = region('Проверка успеха');
+  await expect(success.getByRole('button', { name: 'Запустить сценарий', exact: true })).toBeEnabled();
+  await success.getByRole('button', { name: 'Запустить сценарий', exact: true }).evaluate(button => {
+    (button as HTMLButtonElement).click(); (button as HTMLButtonElement).click();
+  });
   await expect(success).toContainText('Отправлено, ожидаем ACK и состояние');
   await expect(success).toContainText('Подтверждено: 0 из 2');
-  await expect(success.getByRole('button', { name: 'Выполнить действие 2' })).toHaveCount(0);
+  expect(posts).toHaveLength(1);
+  expect((await control('evidence')).received).toHaveLength(19);
+  await expect(success.getByRole('button', { name: /Выполнить действие/ })).toHaveCount(0);
   await page.screenshot({ path: 'test-results/live-software-scene-waiting-desktop.png', fullPage: true });
-  await control('release'); await control('mode', { mode: 'apply' });
-  await expect(success.getByRole('button', { name: 'Выполнить действие 2' })).toBeEnabled();
-  expect(posts).toHaveLength(2); expect((await control('evidence')).received).toHaveLength(19);
-  await success.getByRole('button', { name: 'Выполнить действие 2' }).click();
-  await expect(success).toContainText('Все действия подтверждены'); expect(posts).toHaveLength(3);
-  await page.getByRole('article', { name: 'Проверка частичного результата', exact: true }).getByText('Запуск и результат', { exact: true }).click();
-  const partial = page.getByRole('region', { name: 'Подтверждённый запуск: Проверка частичного результата' });
-  await partial.getByRole('button', { name: 'Подготовить запуск', exact: true }).click();
-  await partial.getByRole('button', { name: 'Выполнить действие 1' }).click();
-  await expect(partial.getByRole('button', { name: 'Выполнить действие 2' })).toBeEnabled();
-  await control('mode', { mode: 'fail' }); await partial.getByRole('button', { name: 'Выполнить действие 2' }).click();
-  await expect(partial).toContainText('Запуск остановлен. Подтверждено: 1 из 2');
-  await page.getByRole('article', { name: 'Проверка неизвестного результата', exact: true }).getByText('Запуск и результат', { exact: true }).click();
-  const unknown = page.getByRole('region', { name: 'Подтверждённый запуск: Проверка неизвестного результата' });
+  // Leaving the page must not cancel server execution or require another click.
+  await page.getByRole('link', { name: 'Комнаты', exact: true }).click();
+  await expect(page).toHaveURL(/\/rooms$/);
+  await control('mode', { mode: 'apply' }); await control('release');
+  await expect.poll(async () => (await control('evidence')).received.length).toBe(20);
+  await page.goBack();
+  const shell = article('Проверка успеха').locator('.core-scene-shell');
+  if (await shell.getAttribute('open') === null) await shell.getByText('Запуск и результат', { exact: true }).click();
+  await success.getByRole('button', { name: 'Проверить прежний запуск', exact: true }).click();
+  await expect(success).toContainText('Все действия подтверждены'); expect(posts).toHaveLength(1);
+  await page.screenshot({ path: 'test-results/live-software-scene-success-desktop.png', fullPage: true });
+
+  await article('Проверка частичного результата').getByText('Запуск и результат', { exact: true }).click();
+  const partial = region('Проверка частичного результата');
+  await control('mode-plan', { plan: ['apply', 'fail'] });
+  await partial.getByRole('button', { name: 'Запустить сценарий', exact: true }).click();
+  await expect(partial).toContainText('Выполнено частично. Подтверждено: 1 из 2');
+  expect(posts).toHaveLength(2);
+  await page.screenshot({ path: 'test-results/live-software-scene-partial-desktop.png', fullPage: true });
+
+  await article('Проверка неизвестного результата').getByText('Запуск и результат', { exact: true }).click();
+  const unknown = region('Проверка неизвестного результата');
   await control('mode', { mode: 'drop' });
-  await unknown.getByRole('button', { name: 'Подготовить запуск', exact: true }).click();
-  await unknown.getByRole('button', { name: 'Выполнить действие 1' }).click();
+  await unknown.getByRole('button', { name: 'Запустить сценарий', exact: true }).click();
   await expect(unknown).toContainText('Срок ожидания истёк, результат неизвестен', { timeout: 40_000 });
-  const count = posts.length;
-  await unknown.getByRole('button', { name: 'Обновить результат' }).click();
-  await expect(unknown.getByRole('button', { name: 'Обновить результат' })).toBeEnabled(); expect(posts).toHaveLength(count);
-  await page.getByRole('article', { name: 'Проверка успеха', exact: true }).getByText('Запуск и результат', { exact: true }).click();
-  await page.getByRole('article', { name: 'Проверка частичного результата', exact: true }).getByText('Запуск и результат', { exact: true }).click();
-  await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.locator('body')).not.toContainText('Все действия подтверждены. Подтверждено: 0');
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await unknown.scrollIntoViewIfNeeded(); await page.screenshot({ path: 'test-results/live-software-scene-unknown-mobile.png', fullPage: true });
-  const id = await unknown.locator('code').first().textContent();
-  await unknown.getByRole('button', { name: 'Обновить сценарий для нового запуска', exact: true }).click();
-  expect(posts).toHaveLength(count);
-  const prepareNew = unknown.getByRole('button', { name: 'Подготовить новый запуск', exact: true });
-  await expect(prepareNew).toBeDisabled();
+  expect(posts).toHaveLength(3);
+  await unknown.getByRole('button', { name: 'Обновить результат', exact: true }).click();
+  await expect(unknown.getByRole('button', { name: 'Обновить результат', exact: true })).toBeEnabled();
+  expect(posts).toHaveLength(3); expect((await control('evidence')).received).toHaveLength(23);
   for (const width of [390, 1440]) for (const theme of ['light', 'dark']) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
     const toggle = page.getByRole('button', { name: theme === 'dark' ? 'Включить тёмную тему' : 'Включить светлую тему', exact: true });
     if (await toggle.count()) await toggle.click();
-    for (const checked of [false, true]) {
-      await unknown.getByRole('checkbox').setChecked(checked);
-      if (checked) await expect(prepareNew).toBeEnabled(); else await expect(prepareNew).toBeDisabled();
-      await unknown.locator('.run-review').evaluate(element => element.scrollIntoView({ block: 'start' }));
-      await unknown.locator('.run-review').screenshot({ path: `test-results/live-software-new-preparation-${width}-${theme}-${checked ? 'checked' : 'unchecked'}.png` });
-      expect(posts).toHaveLength(count); expect((await control('evidence')).received).toHaveLength(23);
-    }
+    await unknown.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `test-results/live-software-scene-unknown-${width}-${theme}.png`, fullPage: true });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole('button', { name: 'Включить светлую тему', exact: true }).click();
-  await unknown.getByRole('checkbox').check();
-  await prepareNew.evaluate(button => { (button as HTMLButtonElement).click(); (button as HTMLButtonElement).click(); });
-  await expect(unknown).toContainText('команды ещё не отправлены'); expect(posts).toHaveLength(count + 1);
-  expect(await unknown.locator('code').first().textContent()).not.toBe(id);
-  expect((await control('evidence')).received).toHaveLength(23);
-  await page.getByRole('link', { name: 'Комнаты', exact: true }).click();
-  await expect(page).toHaveURL(/\/rooms$/);
-  await expect(page.getByRole('heading', { name: 'Комнаты', exact: true })).toBeVisible();
-  await page.goBack();
-  await expect(page).toHaveURL(/\/scenes$/);
-  const restoredShell = page.getByRole('article', { name: 'Проверка неизвестного результата', exact: true }).locator('.core-scene-shell');
-  if (await restoredShell.getAttribute('open') === null) await restoredShell.getByText('Запуск и результат', { exact: true }).click();
-  await expect(unknown).toBeVisible();
-  await page.screenshot({ path: 'test-results/live-software-history-back-mobile.png', fullPage: true });
-  await expect(unknown.getByRole('button', { name: 'Подготовить запуск', exact: true })).toHaveCount(0);
-  await unknown.getByText('Недавние запуски этой сцены', { exact: true }).click();
-  await unknown.getByRole('button', { name: `Открыть запуск ${id}`, exact: true }).click();
-  await expect(unknown).toContainText('Срок ожидания истёк, результат неизвестен');
-  expect(posts).toHaveLength(count + 1);
-  await page.getByRole('button', { name: 'Включить тёмную тему', exact: true }).click();
-  await unknown.scrollIntoViewIfNeeded();
-  await page.screenshot({ path: 'test-results/live-software-scene-recovered-dark-mobile.png', fullPage: true });
-  expect((await control('evidence')).received).toHaveLength(23);
-  await page.getByRole('article', { name: 'Проверка новой версии', exact: true }).getByText('Запуск и результат', { exact: true }).click();
-  const changed = page.getByRole('region', { name: 'Подтверждённый запуск: Проверка новой версии' });
+  // A changed definition refuses before dispatch. Refresh/review are observation only.
+  await article('Проверка новой версии').getByText('Запуск и результат', { exact: true }).click();
+  const changed = region('Проверка новой версии');
   await page.waitForLoadState('networkidle');
   const revision = await control('scene-revision-change');
-  await changed.getByRole('button', { name: 'Подготовить запуск', exact: true }).click();
+  await changed.getByRole('button', { name: 'Запустить сценарий', exact: true }).click();
   await expect(changed.getByRole('alert')).toContainText('Конфликт версии');
-  const beforeReview = posts.length;
+  expect(posts).toHaveLength(4);
   await changed.getByRole('button', { name: 'Обновить сценарий для нового запуска', exact: true }).click();
-  await expect(changed).toContainText(`Актуальная версия: ${revision.revision}`); expect(posts).toHaveLength(beforeReview);
-  await expect(changed.getByRole('button', { name: 'Подготовить новый запуск', exact: true })).toBeDisabled();
+  await expect(changed).toContainText(`Актуальная версия: ${revision.revision}`);
+  await expect(changed.getByRole('button', { name: 'Запустить новый сценарий', exact: true })).toBeDisabled();
   await changed.getByRole('checkbox').check();
-  await changed.getByRole('button', { name: 'Подготовить новый запуск', exact: true }).click();
-  await expect(changed).toContainText('команды ещё не отправлены'); expect(posts).toHaveLength(beforeReview + 1);
-  expect((await control('evidence')).received).toHaveLength(23);
+  await expect(changed.getByRole('button', { name: 'Запустить новый сценарий', exact: true })).toBeEnabled();
+  expect(posts).toHaveLength(4); expect((await control('evidence')).received).toHaveLength(23);
+  expect(posts.every(url => url.endsWith('/scene-runs/execute'))).toBe(true);
 });

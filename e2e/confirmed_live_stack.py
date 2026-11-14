@@ -54,7 +54,7 @@ openssl req -newkey rsa:2048 -nodes -keyout server.key -out server.csr -subj /CN
 printf 'subjectAltName=DNS:localhost\nextendedKeyUsage=serverAuth\n' > extensions
 openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 1 -extfile extensions >/dev/null 2>&1
 openssl req -x509 -newkey rsa:2048 -nodes -keyout wrong.key -out wrong.crt -days 1 -subj /CN=Wrong-Test-CA >/dev/null 2>&1
-chmod 644 server.key
+
 """
         docker(
             "run",
@@ -112,6 +112,18 @@ log_dest stdout
 log_type all
 """,
             encoding="utf-8",
+        )
+        # Newly generated disposable files only. Do not depend on the caller's
+        # umask: the broker drops to UID 1883. Private material is readable only
+        # by that UID; public configuration/certificates contain no credentials.
+        docker(
+            "run", "--rm", "--network", "none",
+            "--mount", f"type=bind,source={root},target=/lab",
+            "--entrypoint", "sh",
+            "eclipse-mosquitto:2@sha256:75d6662dee52c947dc9dd9c29f1d8d7ffef78ddaf38001caa09755681e8bbc98",
+            "-ec", "chown 1883:1883 /lab/passwd /lab/server.key; "
+            "chmod 0400 /lab/passwd /lab/server.key; "
+            "chmod 0444 /lab/acl /lab/mosquitto.conf /lab/ca.crt /lab/server.crt",
         )
         pg = self.name + "-pg"
         self.containers.append(pg)

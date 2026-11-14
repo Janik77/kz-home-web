@@ -54,6 +54,7 @@ async def acceptance(values):
     assert "/v1/houses/{house_id}/me/permissions" in schema["paths"]
     received, published, held = [], [], []
     mode = "apply"
+    mode_plan = []  # Deterministic per-command software device fault plan.
     delay = {"path": None, "method": "GET", "skip": 0, "seen": False, "gate": asyncio.Event()}
     forwarded = []
     control_key = secrets.token_urlsafe(32)
@@ -80,11 +81,12 @@ async def acceptance(values):
                 received.append({"command_id": envelope.command_id, "correlation_id": envelope.correlation_id,
                                  "on": envelope.state["on"], "topic": str(item.topic),
                                  "qos": item.qos, "retain": item.retain})
-                if mode == "hold":
+                effective_mode = mode_plan.pop(0) if mode_plan else mode
+                if effective_mode == "hold":
                     held.append(item)
-                elif mode == "apply":
+                elif effective_mode == "apply":
                     await relay.handle(str(item.topic), bytes(item.payload), item.retain)
-                elif mode == "fail":
+                elif effective_mode == "fail":
                     # Fault injected at the software device boundary, not in Core.
                     await relay.send(TopicKind.ACK, AckEnvelope(command_id=envelope.command_id,
                         correlation_id=envelope.correlation_id, timestamp=utc_now(), status="failed"))
@@ -122,6 +124,12 @@ async def acceptance(values):
                 if action == "/mode":
                     assert data["mode"] in ("apply", "hold", "drop", "fail")
                     mode = data["mode"]
+                    mode_plan.clear()
+                elif action == "/mode-plan":
+                    plan = data["plan"]
+                    assert isinstance(plan, list) and 1 <= len(plan) <= 16
+                    assert all(item in ("apply", "hold", "drop", "fail") for item in plan)
+                    mode_plan[:] = plan
                 elif action == "/release":
                     for item in held:
                         await relay.handle(str(item.topic), bytes(item.payload), item.retain)
@@ -284,7 +292,7 @@ async def acceptance(values):
                 assert all(row["claimed"] and row["device_id"] == "fixture_relay" for row in records)
             scene_evidence["scene_receipt_links"] = links
             (WEB / "test-results" / "scene-live-evidence.json").write_text(json.dumps(scene_evidence, indent=2), encoding="utf-8")
-            print("PASS scene browser: explicit sequential success, partial failure, timeout; all 23 commands verified against SET/ACK/state/SQL", flush=True)
+            print("PASS scene browser: server-driven sequential success, partial failure, timeout; all 23 commands verified against SET/ACK/state/SQL", flush=True)
             if os.environ.get("BASELINE_WEB_SOURCE"):
                 baseline = await asyncio.to_thread(subprocess.run,
                     ["npx", "playwright", "test", "--config", "playwright.scene-live.config.ts"], cwd=WEB,

@@ -1,3 +1,4 @@
+import { createSceneIntents } from './scene-intents';
 import { createRunHistory, type RunHistory } from './run-history';
 import { boolean, list, object, string } from './dtos';
 import { CoreError } from './errors';
@@ -5,16 +6,17 @@ import { readHousePermissions } from './permissions';
 import { decodeReceipt, type Receipt } from './relay-control';
 import type { CoreSession } from './session';
 
-const statuses = ['ready', 'running', 'succeeded', 'stopped', 'unknown', 'expired'] as const;
+const statuses = ['ready', 'running', 'succeeded', 'stopped', 'unknown', 'expired', 'partial', 'refused'] as const;
 const actionStatuses = ['ready', 'waiting', 'dispatch_unknown', 'blocked', 'skipped', 'queued', 'dispatched', 'applied', 'failed', 'timed_out'] as const;
 export interface RunAction { position: number; device_id: string; requested_on: boolean; status: typeof actionStatuses[number]; failure_code: string | null; receipt: Receipt | null }
-export interface SceneRun { id: string; house_id: string; scene_id: string; scene_revision: number; created_at: string; dispatch_deadline: string; status: typeof statuses[number]; actions: RunAction[] }
+export interface SceneRun { id: string; house_id: string; scene_id: string; scene_revision: number; created_at: string; dispatch_deadline: string; status: typeof statuses[number]; execution_mode: 'manual' | 'server'; execution_error: string | null; actions: RunAction[] }
 function integer(value: unknown, minimum: number): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < minimum) throw new CoreError('protocol');
   return value;
 }
 export function decodeSceneRun(value: unknown): SceneRun {
   const v = object(value), house = string(v.house_id);
+  if (v.execution_mode !== 'manual' && v.execution_mode !== 'server') throw new CoreError('protocol');
   if (!statuses.includes(v.status as SceneRun['status'])) throw new CoreError('protocol');
   const created = string(v.created_at), deadline = string(v.dispatch_deadline);
   if (!Number.isFinite(Date.parse(created)) || !Number.isFinite(Date.parse(deadline)) || Date.parse(deadline) <= Date.parse(created)) throw new CoreError('protocol');
@@ -29,11 +31,13 @@ export function decodeSceneRun(value: unknown): SceneRun {
   });
   if (!actions.length || actions.length > 16 || actions.some((a, i) => a.position !== i) ||
     new Set(actions.flatMap(a => a.receipt ? [a.receipt.command_id] : [])).size !== actions.filter(a => a.receipt).length ||
-    (v.status === 'succeeded' && actions.some(a => a.status !== 'applied'))) throw new CoreError('protocol');
-  return { id: string(v.id), house_id: house, scene_id: string(v.scene_id), scene_revision: integer(v.scene_revision, 1), created_at: created, dispatch_deadline: deadline, status: v.status as SceneRun['status'], actions };
+    (v.status === 'succeeded' && actions.some(a => a.status !== 'applied')) ||
+    (v.status === 'partial' && (!actions.some(a => a.status === 'applied') || actions.every(a => a.status === 'applied'))) ||
+    (v.status === 'refused' && actions.some(a => a.status === 'applied'))) throw new CoreError('protocol');
+  return { id: string(v.id), house_id: house, scene_id: string(v.scene_id), scene_revision: integer(v.scene_revision, 1), created_at: created, dispatch_deadline: deadline, status: v.status as SceneRun['status'], execution_mode: v.execution_mode, execution_error: v.execution_error === null ? null : string(v.execution_error), actions };
 }
 export function checkRun(previous: SceneRun, next: SceneRun) {
-  for (const key of ['id', 'house_id', 'scene_id', 'scene_revision', 'created_at', 'dispatch_deadline'] as const) if (next[key] !== previous[key]) throw new CoreError('protocol');
+  for (const key of ['id', 'house_id', 'scene_id', 'scene_revision', 'created_at', 'dispatch_deadline', 'execution_mode'] as const) if (next[key] !== previous[key]) throw new CoreError('protocol');
   if (next.actions.length !== previous.actions.length) throw new CoreError('protocol');
   previous.actions.forEach((a, i) => {
     const b = next.actions[i]!;
@@ -43,6 +47,8 @@ export function checkRun(previous: SceneRun, next: SceneRun) {
 }
 export interface SceneRuns {
   readonly history?: RunHistory;
+  readonly intents?: ReturnType<typeof createSceneIntents>;
+  lookup(key: string, signal: AbortSignal): Promise<SceneRun>;
   permissions(signal: AbortSignal): Promise<string[]>;
   create(scene: string, revision: number, key: string, signal: AbortSignal): Promise<SceneRun>;
   read(id: string, signal: AbortSignal, previous?: SceneRun): Promise<SceneRun>;
@@ -56,11 +62,12 @@ export function createSceneRuns(session: CoreSession, house: string): SceneRuns 
     if (!['scene.read', 'scene.run', 'device.read', 'device.control'].every(p => grants.includes(p))) throw new CoreError('forbidden');
   };
   const decode = (value: unknown) => { const run = decodeSceneRun(value); if (run.house_id !== house) throw new CoreError('protocol'); return run; };
-  return { permissions, history: createRunHistory(),
+  return { permissions, history: createRunHistory(), intents: createSceneIntents(),
+    async lookup(key, signal) { return session.read(`${path}/by-key/${encodeURIComponent(key)}`, decode, signal); },
     async create(scene, revision, key, signal) {
       integer(revision, 1); await authorize(signal);
-      const run = await session.command(path, { scene_id: scene, expected_revision: revision }, key, decode, signal, 201);
-      if (run.scene_id !== scene || run.scene_revision !== revision) throw new CoreError('protocol');
+      const run = await session.command(`${path}/execute`, { scene_id: scene, expected_revision: revision }, key, decode, signal, 201);
+      if (run.execution_mode !== 'server' || run.scene_id !== scene || run.scene_revision !== revision) throw new CoreError('protocol');
       return run;
     },
     async read(id, signal, previous) {
