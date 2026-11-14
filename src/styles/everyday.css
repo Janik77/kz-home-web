@@ -160,3 +160,10 @@
  .everyday-room-device-heading { align-items: start; flex-direction: column; gap: 8px; }
  .everyday-room-summary { gap: 12px; }
 }
+
+@media (min-width: 651px) {
+ .everyday-room-heading .everyday-heading > div:first-child { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 20px; align-items: center; }
+ .everyday-room-heading .everyday-eyebrow { grid-column: 1 / -1; }
+ .everyday-room-heading .everyday-heading h1 { margin: 4px 0; }
+ .everyday-room-heading .everyday-connection { grid-column: 2; grid-row: 2; }
+}
