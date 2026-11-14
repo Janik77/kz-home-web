@@ -402,15 +402,16 @@ test('LIVE server favorites: two accounts, two houses, idempotency, reload and n
  try{
   await page.goto('/');await loginAs('owner');await expect(add()).toBeEnabled();
   await page.screencast.start({path:'test-results/live-favorites-save-mobile.webm',size:{width:390,height:844}});
-  await add().dblclick();await expect(saved()).toBeEnabled();expect(mutations).toBe(1);
-  await devices();await expect(saved()).toBeEnabled();
+  await add().dblclick();await expect(saved()).toBeEnabled();expect(mutations).toBe(1);await saved().scrollIntoViewIfNeeded();await page.waitForTimeout(1000);
+  await devices();await expect(saved()).toBeEnabled();await saved().scrollIntoViewIfNeeded();await page.waitForTimeout(1000);
   await page.screencast.stop();
   // Replay explicit idempotent set against real Core; never a command endpoint.
   for(let i=0;i<2;i++){const r=await page.request.put('/core-api/v1/houses/fixture_house/me/device-favorites/fixture_relay',{headers:{Authorization:bearer}});expect(r.status()).toBe(204);}
   await page.reload();await loginAs('owner');await expect(saved()).toBeEnabled();
   await logout();await loginAs('owner');await expect(saved()).toBeEnabled();
   await page.screencast.start({path:'test-results/live-favorites-restored-mobile.webm',size:{width:390,height:844}});
-  await devices();await expect(saved()).toHaveAttribute('aria-pressed','true');
+  await saved().scrollIntoViewIfNeeded();await page.waitForTimeout(800);
+  await devices();await expect(saved()).toHaveAttribute('aria-pressed','true');await saved().scrollIntoViewIfNeeded();await page.waitForTimeout(1000);
   await page.screencast.stop();
   for(const width of [390,1440])for(const theme of ['light','dark']){await page.setViewportSize({width,height:width===390?844:1000});await themeAs(theme);await ready();await page.screenshot({path:`test-results/live-favorites-restored-${width}-${theme}.png`,fullPage:true});}
   for(const screen of ['home','room','detail']){
