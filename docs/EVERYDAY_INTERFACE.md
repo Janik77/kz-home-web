@@ -103,3 +103,12 @@ LIVE_CORE_SOURCE="$(cd ../kz-home-core && pwd)" ../kz-interface-venv/bin/python 
 реального оборудования и полный аудит истории не заявляются готовыми.
 Ни визуальная проверка, ни applied ACK/state программного реле не являются
 проверкой физического устройства или доказательством физического OFF.
+
+## Аудит зависимостей
+
+Проверка 2026-11-14: `npm audit --omit=dev` — 0; полный `npm audit` —
+9 moderate записей в цепочке dev-инструментов ESLint/typescript-eslint →
+minimatch 10.2.6 (GHSA-g3hv-75wg-m249). Это не production bundle. Предложенный
+npm `--force` меняет несовместимые версии; он не применялся. Отдельный follow-up
+должен обновить совместимую цепочку линтера после проверки lint/typecheck/unit
+и lockfile, а не скрыть advisory или принудительно сменить major.

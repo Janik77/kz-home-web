@@ -262,3 +262,9 @@
 .app-shell--everyday .scene-details li { gap:12px; flex-wrap:wrap; }
 
 .room-card--everyday > div > span { display:inline-flex; align-items:center; gap:6px; margin-top:6px; font-size:14px; }
+
+@media (min-width:1200px) and (max-width:1399px) {
+ .everyday-home--sparse .everyday-home-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+ .everyday-home--sparse .everyday-overview { grid-column:span 2; grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .everyday-home--sparse .everyday-events { grid-column:span 1; }
+}
