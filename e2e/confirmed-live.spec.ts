@@ -52,6 +52,7 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
   // Native browser capture starts after sign-in and stops before any account changes.
   await page.screencast.start({ path: 'test-results/live-software-home-control.webm', size: { width: 390, height: 844 } });
   await new Promise(resolve => setTimeout(resolve, 800));
+  const initialHeight=(await card.boundingBox())!.height;
   await control('mode', { mode: 'hold' });
   await intent(true);
   await expect(status).toHaveText('Ожидаем подтверждение'); await expect(state).toHaveText('Выключено');
@@ -62,6 +63,7 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
   await new Promise(resolve => setTimeout(resolve, 2000));
   await control('release');
   await expect(status).toHaveText('Выполнено · состояние обновлено'); await expect(state).toHaveText('Включено');
+  expect(Math.abs((await card.boundingBox())!.height-initialHeight)).toBeLessThanOrEqual(1);
   await new Promise(resolve => setTimeout(resolve, 1200));
   await page.screencast.stop();
   await page.getByRole('link', { name: /Room.*Устройств/ }).click();
@@ -69,8 +71,8 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole('link', { name: 'Устройства', exact: true }).click();
   await control('mode', { mode: 'apply' });
-  await intent(false); await expect(status).toHaveText('Выполнено · данные Core обновлены'); await expect(state).toHaveText('Выключено');
-  await intent(false); await expect(status).toHaveText('Выполнено · данные Core обновлены'); await expect(state).toHaveText('Выключено');
+  await intent(false); await expect(status).toHaveText('Выполнено · состояние обновлено'); await expect(state).toHaveText('Выключено');
+  await intent(false); await expect(status).toHaveText('Выполнено · состояние обновлено'); await expect(state).toHaveText('Выключено');
   await page.screenshot({ path: 'test-results/live-software-desktop.png', fullPage: true });
   console.log('PASS ON, OFF, unchanged OFF, pending, no optimistic update, duplicate clicks');
 
@@ -94,13 +96,13 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
   expect(await browserCommand(owner)).toBe(409);
   await control('online'); await control('mode', { mode: 'apply' });
   await page.getByRole('button', { name: 'Обновить данные' }).click();
-  await expect(off).toBeEnabled(); await intent(false); await expect(status).toHaveText('Выполнено · данные Core обновлены');
+  await expect(off).toBeEnabled(); await intent(false); await expect(status).toHaveText('Выполнено · состояние обновлено');
   await logout();
   for (const role of ['resident', 'installer', 'technician']) {
     await control('role', { role }); await login('resident');
     await expect(on).toBeEnabled();
-    await intent(true); await expect(status).toHaveText('Выполнено · данные Core обновлены'); await expect(state).toHaveText('Включено');
-    await intent(false); await expect(status).toHaveText('Выполнено · данные Core обновлены'); await expect(state).toHaveText('Выключено');
+    await intent(true); await expect(status).toHaveText('Выполнено · состояние обновлено'); await expect(state).toHaveText('Включено');
+    await intent(false); await expect(status).toHaveText('Выполнено · состояние обновлено'); await expect(state).toHaveText('Выключено');
     if (role !== 'technician') await logout();
   }
   const beforeRevocation = posts.length;
@@ -261,6 +263,24 @@ test('LIVE create scene and rename definitions without running devices', async (
   await page.getByRole('button', { name: 'Сохранить название' }).click();
   await expect(page.getByRole('heading', { name: 'Название без изменения логики' })).toBeVisible();
   await page.screenshot({ path: 'test-results/live-software-rule-mobile.png', fullPage: true });
+  await page.getByRole('link', { name: 'Комнаты', exact: true }).click();
+  await page.screencast.start({ path: 'test-results/live-space-create.webm' });
+  await page.getByRole('button', { name: 'Добавить комнату или этаж' }).click();
+  await page.getByLabel('Что добавить').selectOption('floor');
+  await page.getByLabel('Название', { exact: true }).fill('Тестовый этаж');
+  await page.getByRole('button', { name: 'Создать', exact: true }).dblclick();
+  await expect(page.getByRole('status').filter({ hasText:'Сохранено и проверено.' })).toBeVisible();
+  await page.getByRole('button', { name: 'Добавить комнату или этаж' }).click();
+  await page.getByLabel('Что добавить').selectOption('room');
+  await page.getByLabel('Название', { exact: true }).fill('Тестовая комната');
+  await page.getByLabel('Этаж', { exact: true }).selectOption({ label:'Тестовый этаж' });
+  await page.getByRole('link', { name: 'Сценарии', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name:'Остаться', exact:true }).click();
+  await expect(page.getByLabel('Название', {exact:true})).toHaveValue('Тестовая комната');
+  await page.getByRole('button', { name: 'Создать', exact: true }).click();
+  await expect(page.getByRole('heading', {name:'Тестовая комната',exact:true})).toBeVisible();
+  await page.screencast.stop();
+  await page.screenshot({path:'test-results/live-space-created-mobile.png',fullPage:true});
   const after = await control('definition-evidence');
   expect(after.scenes).toHaveLength(1);
   expect(after.scenes[0]).toMatchObject({ name: 'Вечер с семьёй', house_id: 'fixture_house',
@@ -268,7 +288,16 @@ test('LIVE create scene and rename definitions without running devices', async (
   expect(after.rules).toHaveLength(1);
   expect(after.rules[0]).toMatchObject({ name: 'Название без изменения логики', enabled: false,
     trigger: before.rules[0].trigger, conditions: before.rules[0].conditions, actions: before.rules[0].actions });
-  expect(after.mqtt_commands).toBe(before.mqtt_commands); expect(after.mqtt_commands).toBe(18);
+  expect(after.mqtt_commands).toBe(before.mqtt_commands);
+  await page.getByRole('link',{name:'Настройки',exact:true}).click();
+  await page.getByRole('button',{name:'Выбрать или создать дом'}).click();
+  await expect(page.getByRole('heading',{name:'Ваши дома'})).toBeVisible();
+  await page.getByRole('button',{name:'Создать дом',exact:true}).click();
+  await page.getByLabel('Название дома').fill('Пустой тестовый дом');
+  await page.getByRole('button',{name:'Сохранить дом'}).click();
+  await expect(page.getByRole('button',{name:'Пустой тестовый дом',exact:true})).toBeVisible();
+  await page.screenshot({path:'test-results/live-space-house-created.png',fullPage:true});
+ expect(after.mqtt_commands).toBe(18);
   expect(dangerous).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   console.log('PASS LIVE definitions: persisted scene and renamed rule, untouched actions/trigger/enabled, zero extra MQTT commands');

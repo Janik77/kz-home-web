@@ -1,3 +1,4 @@
+import { CreateSpace } from './create-space';
 import { useState } from 'react';
 import { PageHeading } from '../../components/ui/page-heading';
 import { HomeDataBoundary } from '../home/home-data-boundary';
@@ -8,8 +9,9 @@ import { useRepository } from '../../app/services';
 export function RoomsPage() {
   const readOnly = useRepository().readOnly;
   const [floor, setFloor] = useState('all');
-  return <HomeDataBoundary>{(home) => <div className="page rooms-page">
+  return <HomeDataBoundary>{(home) => <div className="page everyday-page rooms-page">
     <PageHeading eyebrow={home.house.name} title="Комнаты" description={`Комнат: ${home.rooms.length} · этажей: ${home.floors.length}. Откройте комнату для просмотра устройств.`} />
+    <CreateSpace home={home} />
     <div className="filter-bar" role="group" aria-label="Фильтр по этажу">
       {[{ id: 'all', name: 'Все комнаты' }, ...home.floors].map((item) => <button type="button" key={item.id} aria-pressed={floor === item.id} onClick={() => setFloor(item.id)}>{item.name}</button>)}
     </div>

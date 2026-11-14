@@ -25,7 +25,7 @@ export function LoginPage({ session, snapshot }: { session: CoreSession; snapsho
     if (input instanceof HTMLInputElement) input.value = '';
     await session.login(email, password);
   }
-  return <main className="session-page session-page--login" ref={main}>
+  return <main className="app-shell--everyday session-page session-page--login" ref={main}>
     <aside className="session-intro" aria-label="О вашем доме">
       <p className="eyebrow">ПРОСТРАНСТВО ДЛЯ ГЛАВНОГО</p><p className="session-intro__title">Дом.<br />В гармонии.</p>
       <div className="architecture-window" aria-hidden="true"><span /><span /><span /></div>

@@ -132,6 +132,7 @@ test('fails closed for online and offline relays and refreshes observed state wi
   const partial = page.getByRole('article', { name: 'Partial relay · Living room' });
   await partial.getByText('О состоянии и управлении').click();
   await expect(partial).toContainText('Для этих данных нет поддержанного управления Web.');
+  await expect(partial.getByRole('button',{name:'Включить',exact:true})).toHaveCount(0);
   await expect(page.getByRole('switch')).toHaveCount(0);
   await expect(page.getByRole('slider')).toHaveCount(0);
   await accessible(page);
@@ -289,14 +290,16 @@ test('reads scoped automations and events; denied journal leaves rooms accessibl
   });
   await page.goto('/automations'); await login(page);
   await expect(page.getByRole('heading', { name: 'Свет при движении' })).toBeVisible();
-  await expect(page.getByText('Выключена в Core')).toBeVisible();
+  await expect(page.getByText('Выключена', {exact:true})).toBeVisible();
   await expect(page.getByText('Другой дом')).toHaveCount(0);
   await accessible(page);
   await page.screenshot({ path: testInfo.outputPath('automations-contract-light.png'), fullPage: true });
   const mobileMore = page.locator('.mobile-more summary');
   if (await mobileMore.isVisible()) await mobileMore.click();
   await page.getByRole('navigation', { name: /навигация/ }).filter({ visible: true }).getByRole('link', { name: 'Журнал' }).click();
-  await expect(page.getByText('command_failed')).toBeVisible();
+  await expect(page.getByText('Другое событие', {exact:true})).toBeVisible();
+  await page.getByText('Технические сведения', {exact:true}).click();
+  await expect(page.getByText('command_failed · relay', {exact:true})).toBeVisible();
   await expect(page.getByText('not-for-ui')).toHaveCount(0);
   await accessible(page);
   await page.getByRole('button', { name: 'Включить тёмную тему' }).click();
@@ -453,3 +456,13 @@ test('login is accessible in both themes without submitting credentials', async 
   }
 });
 
+
+test('house chooser uses the everyday system in both themes', async ({page},info)=>{
+ test.skip(!['desktop','mobile'].includes(info.project.name),'Two representative screenshot sizes.');
+ await interceptCore(page,{'/houses':[coreHouse,{...coreHouse,id:'second',name:'Дом у озера'}]});
+ await page.goto('/');await login(page);await expect(page.getByRole('heading',{name:'Ваши дома',exact:true})).toBeVisible();
+ for(const theme of ['light','dark']){
+  if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:theme==='dark'?'Включить тёмную тему':'Включить светлую тему'}).click();
+  await accessible(page);await page.screenshot({path:`test-results/house-chooser-${info.project.name}-${theme}.png`,fullPage:true,animations:'disabled'});
+ }
+});

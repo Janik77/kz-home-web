@@ -22,3 +22,5 @@ it('separates an actually empty room from an offline device without scenes', () 
   expect(offline.devices).toHaveLength(1); expect(offline.devices[0]!.connection).toBe('offline');
   expect(offline.scenes).toEqual([]);
 });
+
+it('provides an honest vacant house without invented floors or rooms',()=>{const home=designFixture('vacant');expect(home.rooms).toEqual([]);expect(home.floors).toEqual([]);expect(home.devices).toEqual([]);expect(home.scenes).toEqual([]);});

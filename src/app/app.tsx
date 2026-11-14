@@ -1,3 +1,4 @@
+import { DeviceDetailPage } from '../features/devices/device-detail-page';
 import { createBrowserRouter, createRoutesFromElements, Link, Route, RouterProvider } from 'react-router';
 import { useEffect, useState } from 'react';
 import { DraftGuard } from './draft-guard';
@@ -16,6 +17,7 @@ const routes = createRoutesFromElements(<Route element={<DraftGuard><AppShell />
     <Route path="rooms" element={<RoomsPage />} />
     <Route path="rooms/:roomId" element={<RoomPage />} />
     <Route path="scenes" element={<ScenesPage />} />
+    <Route path="devices/:deviceId" element={<DeviceDetailPage />} />
     <Route path="devices" element={<DevicesPage />} />
     <Route path="automations" element={<AutomationsPage />} />
     <Route path="events" element={<EventsPage />} />

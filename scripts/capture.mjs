@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 // Run from either the baseline or changed checkout. Captures mock data only.
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -18,7 +19,8 @@ try {
     for (const theme of ['light', 'dark']) {
       await page.goto('http://127.0.0.1:5186/settings');
       await page.locator(`input[name="theme"][value="${theme}"]`).check();
-      for (const route of ['', 'rooms', 'rooms/living', 'devices', 'scenes', 'automations', 'events', 'settings']) {
+      for (const route of ['', 'rooms', 'rooms/living', 'devices', 'devices/living-main', 'scenes', 'automations', 'events', 'settings']) {
+        if(route.startsWith('devices/') && !existsSync('src/features/devices/device-detail-page.tsx')) continue;
         await page.goto(`http://127.0.0.1:5186/${route}`);
         await page.locator('h1').waitFor();
         await page.locator('.topbar__location strong').filter({ hasText: /Family home|Демонстрационный дом/ }).waitFor({ state: 'attached' });
@@ -27,7 +29,7 @@ try {
         await page.evaluate(async () => { await Promise.all([...document.images].map(img => img.decode().catch(() => {}))); });
         const name = `${device}-${theme}-${(route || 'home').replaceAll('/', '-')}.png`;
         if (!(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))) throw new Error(`Overflow: ${device} ${theme} ${route}`);
-        await page.screenshot({ path: resolve(output, name), fullPage: true });
+        await page.screenshot({ path: resolve(output, name), fullPage: true, animations: 'disabled' });
         manifest.push({ name, width, height, theme, route: route || '/', data: 'mock simulation', documentHeight: await page.evaluate(() => document.documentElement.scrollHeight) });
       }
     }
@@ -52,7 +54,7 @@ try {
       if (await page.locator('html').getAttribute('data-theme') !== theme) await page.locator('.icon-button').click();
       await page.evaluate(() => document.fonts.ready);
       if (!(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))) throw new Error(`Login overflow: ${device}`);
-      await page.screenshot({ path: resolve(output, `${device}-${theme}-login.png`), fullPage: true });
+      await page.screenshot({ path: resolve(output, `${device}-${theme}-login.png`), fullPage: true, animations: 'disabled' });
     }
     await page.close();
   }
