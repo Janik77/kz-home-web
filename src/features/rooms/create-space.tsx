@@ -12,11 +12,11 @@ export function CreateSpace({home}: {home:HomeSnapshot}) {
  const [open,setOpen]=useState(false), [kind,setKind]=useState<'floor'|'room'>('room'), [name,setName]=useState(''), [floorId,setFloorId]=useState(''), [id,setId]=useState(()=>crypto.randomUUID()), [busy,setBusy]=useState(false), [message,setMessage]=useState(''), [error,setError]=useState(false);
  const running=useRef<AbortController|null>(null);
  useEffect(()=>()=>running.current?.abort(),[]);
- const discard=useDraftGuard(open && !!name, busy);
+ const discard=useDraftGuard(open && (!!name || !!floorId || kind!=='room'), busy);
  const rights=useQuery({queryKey:['structure-permissions'],queryFn:({signal})=>structure!.permissions(signal),enabled:!!structure,retry:false});
  if(!structure)return null;
  const allowed=rights.data?.includes('house.manage') && rights.data.includes('house.read') && !rights.isError;
- function clear(){setOpen(false);setName('');setFloorId('');setId(crypto.randomUUID());}
+ function clear(){setOpen(false);setKind('room');setName('');setFloorId('');setId(crypto.randomUUID());}
  async function save(){
   if(!allowed || running.current || !validName(name) || (kind==='room'&&!floorId))return;
   const controller=new AbortController();running.current=controller;setBusy(true);setMessage('');setError(false);

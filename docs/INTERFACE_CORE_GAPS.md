@@ -53,8 +53,8 @@ Current Core Home says "Устройства дома"; only clearly marked demo
 POST /devices creates a database device, not a discovered/provisioned physical
 unit. A generic "Add real device" button would be misleading. Onboarding/profile
 bindings require their separate reviewed flow; this UI does not bypass it.
-POST /houses is available to authenticated users; participant management remains
-outside this stage. Automated rule enable/run can cause device commands and is
+POST /houses is available in the house chooser with stable ID, one POST and
+readback. Participant management remains outside this stage. Automated rule enable/run can cause device commands and is
 not exposed as harmless metadata. Full action/trigger editing needs a typed editor
 preserving unknown supported fields, explicit effect review, and revision CAS.
 GET /events?house_id=...&limit=100 is a bounded journal, not full command history.

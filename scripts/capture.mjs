@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 // Run from either the baseline or changed checkout. Captures mock data only.
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -19,6 +20,7 @@ try {
       await page.goto('http://127.0.0.1:5186/settings');
       await page.locator(`input[name="theme"][value="${theme}"]`).check();
       for (const route of ['', 'rooms', 'rooms/living', 'devices', 'devices/living-main', 'scenes', 'automations', 'events', 'settings']) {
+        if(route.startsWith('devices/') && !existsSync('src/features/devices/device-detail-page.tsx')) continue;
         await page.goto(`http://127.0.0.1:5186/${route}`);
         await page.locator('h1').waitFor();
         await page.locator('.topbar__location strong').filter({ hasText: /Family home|Демонстрационный дом/ }).waitFor({ state: 'attached' });
