@@ -44,10 +44,10 @@
 .everyday-overview { display: grid; gap: 28px; min-width: 0; }
 .everyday-devices { min-width: 0; }
 .everyday-page .device-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(235px, 1fr)); gap: 16px; align-items: start; }
-.everyday-page .device-card { min-height: 205px; padding: 20px; border-radius: var(--everyday-card-radius); background: var(--color-surface); border: 1px solid var(--color-border); box-shadow: 0 2px 4px #00000003; }
+.everyday-page .device-card { min-height: 0; padding: 20px; border-radius: var(--everyday-card-radius); background: var(--color-surface); border: 1px solid var(--color-border); box-shadow: 0 2px 4px #00000003; }
 .everyday-page .device-card--active { background: var(--color-active-surface); border-color: var(--color-active-border); }
-.everyday-page .device-card__top { display: flex; flex-wrap: wrap; align-items: start; gap: 12px; }
-.everyday-page .device-card__icon { width: 40px; height: 40px; border-radius: 12px; background: var(--color-surface-soft); color: var(--color-muted); }
+.everyday-page .device-card__top { margin-bottom: 0; display: flex; flex-wrap: wrap; align-items: start; gap: 12px; }
+.everyday-page .device-card__icon { display: grid; width: 40px; height: 40px; border-radius: 12px; background: var(--color-surface-soft); color: var(--color-muted); }
 .everyday-page .device-card--active .device-card__icon { color: var(--color-accent); background: var(--color-accent-soft); }
 .everyday-page .device-card__identity { flex: 1; min-width: 100px; }
 .everyday-page .device-card h3 { font-size: 16px; line-height: 1.45; letter-spacing: -.015em; }
@@ -115,7 +115,23 @@
  .everyday-scene { min-width: 0; padding: 12px; gap: 8px; font-size: 14px; }
  .everyday-scene > svg:last-child:not(:first-child) { display: none; }
  .everyday-page .device-grid, .everyday-room-page .device-grid, .everyday-page .device-grid:has(> :only-child) { grid-template-columns: minmax(0, 1fr); gap: 12px; }
- .everyday-page .device-card { padding: 18px; min-height: 180px; }
+ .everyday-page .device-card { padding: 18px; min-height: 0; }
  .everyday-overview { grid-template-columns: 1fr; gap: 24px; }
  .everyday-room-summary { gap: 14px; }
+}
+
+.app-shell--everyday .state-panel { min-height: 0; padding: 24px; text-align: left; align-items: start; }
+
+@media (min-width: 1200px) {
+ .everyday-home--sparse .everyday-home-grid { grid-template-columns: 320px minmax(0, 1fr); }
+ .everyday-home--sparse .everyday-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+ .everyday-home--sparse .everyday-section-title { flex-wrap: wrap; gap: 0 12px; }
+}
+@media (max-width: 650px) {
+ .everyday-heading { display: grid; grid-template-columns: minmax(0, 1fr) 44px; }
+ .everyday-heading > div:first-child { min-width: 0; }
+ .everyday-heading h1 { overflow-wrap: normal; word-break: normal; font-size: clamp(24px, 7vw, 28px); }
+ .everyday-heading__actions { display: flex; flex-direction: column; }
+ .everyday-heading__actions .button { width: 44px; height: 44px; font-size: 0; min-height: 44px; }
+ .everyday-heading__actions .button svg { display: block; }
 }

@@ -1,5 +1,3 @@
-import { mkdir } from 'node:fs/promises';
-import { execFileSync } from 'node:child_process';
 import { expect, test } from '@playwright/test';
 
 // Real browser traffic only. The control endpoint drives an owned software relay,
@@ -51,13 +49,8 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
     receipts.push(receipt); return receipt;
   }
   await page.setViewportSize({ width: 390, height: 844 });
-  await mkdir('test-results/software-control-frames', { recursive: true });
-  let recording = true, frame = 0;
-  // Start AFTER sign-in. Only actual screen frames of software-device control, no credentials.
-  const capture = (async () => { while (recording) {
-    await page.screenshot({ path: `test-results/software-control-frames/${String(frame++).padStart(5, '0')}.png` });
-    await new Promise(resolve => setTimeout(resolve, 200));
-  } })();
+  // Native browser capture starts after sign-in and stops before any account changes.
+  await page.screencast.start({ path: 'test-results/live-software-home-control.webm', size: { width: 390, height: 844 } });
   await new Promise(resolve => setTimeout(resolve, 800));
   await control('mode', { mode: 'hold' });
   await intent(true);
@@ -69,8 +62,8 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
   await new Promise(resolve => setTimeout(resolve, 2000));
   await control('release');
   await expect(status).toHaveText('Выполнено · состояние обновлено'); await expect(state).toHaveText('Включено');
-  await new Promise(resolve => setTimeout(resolve, 1200)); recording = false; await capture;
-  execFileSync('ffmpeg', ['-y', '-framerate', '4', '-i', 'test-results/software-control-frames/%05d.png', '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuv420p', 'test-results/live-software-home-control.webm'], { stdio: 'pipe' });
+  await new Promise(resolve => setTimeout(resolve, 1200));
+  await page.screencast.stop();
   await page.getByRole('link', { name: /Room.*Устройств/ }).click();
   await page.screenshot({ path: 'test-results/live-software-room-composition.png', fullPage: true });
   await page.goto('/devices');

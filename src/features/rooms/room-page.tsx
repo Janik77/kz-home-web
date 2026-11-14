@@ -6,7 +6,7 @@ import { EverydayHeader, QuickScenes, RoomConnection, SectionTitle } from '../ho
 import { getRoomSummary } from '../../domain/selectors';
 export function RoomPage() {
   const { roomId } = useParams();
-  return <HomeDataBoundary>{home => {
+  return <HomeDataBoundary household>{home => {
     const room = home.rooms.find(item => item.id === roomId);
     if (!room) return <div className="everyday-page"><h1>Комната не найдена</h1><Link className="text-link" to="/rooms">Все комнаты</Link></div>;
     const devices = home.devices.filter(d => d.roomId === room.id); const summary = getRoomSummary(devices);

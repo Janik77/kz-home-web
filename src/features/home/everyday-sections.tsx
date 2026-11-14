@@ -11,7 +11,7 @@ import { sceneFeedback } from '../scenes/scene-result';
 export function EverydayHeader({ home, title, subtitle }: { home: HomeSnapshot; title: string; subtitle: string }) {
   const query = useHome(); const demo = !useRepository().readOnly;
   return <header className="everyday-heading"><div><p className="everyday-eyebrow">{subtitle}</p><h1>{title}</h1><p className="everyday-connection"><Wifi size={16} aria-hidden="true" />{demo ? 'Виртуальный дом' : 'Данные дома получены'}{!demo && <span> · обновление вручную</span>}</p></div><div className="everyday-heading__actions">
-    <Button variant="secondary" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw size={17} aria-hidden="true" />{query.isFetching ? 'Обновляем…' : 'Обновить данные'}</Button>
+    {!demo && <Button variant="secondary" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw size={17} aria-hidden="true" />{query.isFetching ? 'Обновляем…' : 'Обновить данные'}</Button>}
     <Link className="everyday-profile" to="/settings" aria-label="Аккаунт и дома"><UserRound size={20} aria-hidden="true" /><span>{home.house.name}</span></Link>
   </div></header>;
 }
@@ -37,7 +37,7 @@ export function RecentEvents({ home }: { home: HomeSnapshot }) {
   const repository = useRepository();
   const query = useQuery({ queryKey: ['activity', 'events'], queryFn: ({ signal }) => repository.activity!.events(signal), enabled: !!repository.activity, retry: false });
   // Raw event types/IDs remain in the journal. Only explicit supported labels belong here.
-  const labels: Record<string, string> = { 'device.offline': 'Устройство потеряло связь', 'device.online': 'Связь восстановлена', 'device.command.failed': 'Команда не выполнена', 'device.command.timed_out': 'Не удалось подтвердить команду' };
+  const labels: Record<string, string> = { device_offline: 'Устройство потеряло связь', device_online: 'Связь восстановлена', automation_failed: 'Правило не выполнено' };
   const rows = (query.data ?? []).filter(e => labels[e.type] || (!repository.readOnly && e.type.startsWith('Пример:'))).slice(0, 3);
   return <section className="everyday-events"><SectionTitle title="Недавние события" to="/events" link="Журнал" />{query.isError ? <p className="everyday-empty" role="alert">Не удалось загрузить события. <Button variant="quiet" onClick={() => void query.refetch()}>Повторить</Button></p> : query.isPending && repository.activity ? <p role="status" className="everyday-empty">Загружаем события…</p> : rows.length ? <ol>{rows.map(e => <li key={e.id}><Activity size={17} aria-hidden="true" /><div><p>{labels[e.type] ?? e.type.replace('Пример: ', '')}</p>{home.devices.find(d => d.id === e.entityId) && <small>{home.devices.find(d => d.id === e.entityId)!.name}</small>}<time dateTime={e.createdAt}>{new Date(e.createdAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</time></div></li>)}</ol> : <p className="everyday-empty">{query.data?.length ? 'Другие события доступны в журнале.' : 'Нет доступных важных событий.'}</p>}</section>;
 }

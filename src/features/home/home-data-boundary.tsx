@@ -4,14 +4,14 @@ import { StatePanel } from '../../components/ui/state-panel';
 import { useHome } from './use-home';
 import { CoreError, coreErrorMessage } from '../../data/core/errors';
 
-export function HomeDataBoundary({ children, locale = 'ru' }: { children: (home: HomeSnapshot) => ReactNode; locale?: 'en' | 'ru' }) {
+export function HomeDataBoundary({ children, locale = 'ru', household = false }: { household?: boolean; children: (home: HomeSnapshot) => ReactNode; locale?: 'en' | 'ru' }) {
   const query = useHome();
   if (locale === 'ru') {
     if (query.isPending) return <StatePanel kind="loading" title="Готовим ваш дом" description="Загружаем комнаты и устройства." />;
     if (query.isError) {
       const restricted = query.error instanceof CoreError && query.error.kind === 'forbidden';
       const unavailable = query.error instanceof CoreError && ['network', 'server'].includes(query.error.kind);
-      return <StatePanel kind={restricted ? 'restricted' : 'error'} title={restricted ? 'Доступ ограничен' : unavailable ? 'Core недоступен' : 'Не удалось загрузить дом'} description={restricted ? 'У этой учётной записи нет доступа к данным дома.' : 'Проверьте соединение и повторите загрузку. Состояние устройств не подтверждено.'} retryLabel="Повторить" onRetry={() => void query.refetch()} />;
+      return <StatePanel kind={restricted ? 'restricted' : 'error'} title={restricted ? 'Доступ ограничен' : unavailable ? (household ? 'Нет связи с домом' : 'Core недоступен') : 'Не удалось загрузить дом'} description={restricted ? 'У этой учётной записи нет доступа к данным дома.' : 'Проверьте соединение и повторите загрузку. Состояние устройств не подтверждено.'} retryLabel="Повторить" onRetry={() => void query.refetch()} />;
     }
     return children(query.data);
   }
@@ -19,7 +19,7 @@ export function HomeDataBoundary({ children, locale = 'ru' }: { children: (home:
   if (query.isError) {
     const restricted = query.error instanceof CoreError && query.error.kind === 'forbidden';
     const unavailable = query.error instanceof CoreError && ['network', 'server'].includes(query.error.kind);
-    return <StatePanel kind={restricted ? 'restricted' : 'error'} title={restricted ? 'Доступ ограничен' : unavailable ? 'Core недоступен' : 'Не удалось загрузить дом'} description={coreErrorMessage(query.error)} onRetry={() => void query.refetch()} />;
+    return <StatePanel kind={restricted ? 'restricted' : 'error'} title={restricted ? 'Доступ ограничен' : unavailable ? (household ? 'Нет связи с домом' : 'Core недоступен') : 'Не удалось загрузить дом'} description={coreErrorMessage(query.error)} onRetry={() => void query.refetch()} />;
   }
   return children(query.data);
 }
