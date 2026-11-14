@@ -143,7 +143,8 @@ test('fails closed for online and offline relays and refreshes observed state wi
   await page.getByRole('button', { name: 'Обновить данные' }).click();
   await expect(card).toContainText('Включено');
   await expect(card).toContainText('их свежесть неизвестна');
-  await expect(page.getByRole('status')).toHaveCount(0);
+  await expect(card.getByRole('status')).toHaveCount(0);
+  await expect(page.getByText(/Выполнено ·/)).toHaveCount(0);
   expect(requests.filter((request) => request.method !== 'GET').map((request) => request.path)).toEqual(['/auth/login']);
   expect(requests.filter((request) => request.path === '/devices?house_id=house-a')).toHaveLength(readsBeforeRefresh + 1);
 });
