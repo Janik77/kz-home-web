@@ -22,9 +22,11 @@ test('LIVE external MQTT state, visible-page bounded reads, reconnect and unsave
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('http://127.0.0.1:5176/');
+  await page.bringToFront();
+  await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe('visible');
   await page.getByLabel('Электронная почта', { exact: true }).fill('owner@example.test');
   await page.getByLabel('Пароль', { exact: true }).fill(process.env.RELAY_OWNER_PASSWORD!);
-  await page.getByLabel('Пароль', { exact: true }).press('Enter');
+  await page.getByRole('button', { name: 'Войти', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Fixture', level: 1, exact: true })).toBeVisible();
   const initialNavigations = navigations;
   await external(true);

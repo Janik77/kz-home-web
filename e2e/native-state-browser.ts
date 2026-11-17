@@ -1,6 +1,6 @@
 import { test as base } from '@playwright/test';
 import { spawn } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -26,6 +26,7 @@ export const test = base.extend({
       browser = await playwright.chromium.connectOverCDP(`http://127.0.0.1:${port}`, { noDefaults: true });
       const context = browser.contexts()[0]!;
       // No no-sandbox, fake visibility getter, lifecycle freeze, or focus override.
+      await mkdir(info.outputDir, { recursive: true });
       video = spawn('ffmpeg', ['-y', '-f', 'x11grab', '-video_size', '1440x1000', '-framerate', '12',
         '-i', process.env.DISPLAY!, '-an', '-c:v', 'libvpx-vp9', '-crf', '38', '-b:v', '0',
         info.outputPath('native-state-screen.webm')], { stdio: 'ignore' });
