@@ -37,7 +37,8 @@ test('LIVE automation editor → dry-run → enable → MQTT event → confirmed
   await page.getByLabel('Электронная почта', { exact: true }).fill('owner@example.test');
   await page.getByLabel('Пароль', { exact: true }).fill(process.env.RELAY_OWNER_PASSWORD!);
   await page.getByLabel('Пароль', { exact: true }).press('Enter');
-  await page.getByRole('button', { name: 'Fixture', exact: true }).click();
+  // This isolated fixture has one accessible home, selected automatically.
+  await expect(page.getByRole('heading', { name: 'Fixture', exact: true, level: 1 })).toBeVisible();
   await page.getByRole('link', { name: 'Правила', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Автоматизации', exact: true })).toBeVisible();
   await setInitial();
