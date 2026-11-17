@@ -81,7 +81,7 @@ test('LIVE automation editor → dry-run → enable → MQTT event → confirmed
   for (const [name, mode, outcome] of [
     ['Отказ программного реле', 'fail', 'Устройство отказало'],
     ['Потеря подтверждения', 'drop', 'Нет подтверждения в срок, исход неизвестен'],
-  ]) {
+  ] as const) {
     await setInitial(); await create(name); await control('mode', { mode }); await enable(name);
     await card(name).getByRole('button', { name: 'Результаты запусков', exact: true }).click();
     await control('state', { on: false });

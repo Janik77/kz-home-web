@@ -6,7 +6,7 @@ import { resolve } from 'node:path';
 const dir = resolve('test-results/home-room-matrix'); await mkdir(dir, { recursive: true });
 process.env.VITE_DATA_MODE = 'mock';
 const server = await createServer({ server: { host: '127.0.0.1', port: 5188, strictPort: true } }); await server.listen();
-const browser = await chromium.launch(); const manifest = [];
+const browser = await chromium.launch({ chromiumSandbox: true, ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) }); const manifest = [];
 try {
  for (const dataset of ['one', 'many', 'empty', 'offline', 'vacant']) for (const width of [390, 1280, 1440, 1920]) for (const theme of ['light', 'dark']) {
   const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 1000 } });
