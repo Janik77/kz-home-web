@@ -13,8 +13,9 @@ const rule: EditableAutomation = { id: 'rule-a', houseId: 'house-a', name: 'Ве
 function setup(overrides: Partial<Automations> = {}, withRule = false) {
   const save = vi.fn<Automations['save']>(async () => rule), toggle = vi.fn<Automations['toggle']>(async () => ({ ...rule, enabled: true, revision: 2 })), check = vi.fn<Automations['check']>(async () => ({ automation_id: rule.id, revision: 1, eligible: false, conditions_match: true, issues: ['rule_disabled'], actions: [] }));
   const service: Automations = { permissions: async () => ['automation.read', 'automation.manage'], devices: async () => [device], read: async () => rule, save, toggle, check, runs: async () => [], ...overrides };
-  const repo = { ...createMockHomeRepository(initialHome, 0), automations: service, activity: { automations: async () => withRule ? [rule] : [], events: async () => [] } };
-  renderHome(repo, () => <AutomationWorkspace />); return { save, toggle, check };
+  const rename = vi.fn(async () => undefined);
+  const repo = { ...createMockHomeRepository(initialHome, 0), definitions: { permissions: service.permissions, rename, createScene: vi.fn() }, automations: service, activity: { automations: async () => withRule ? [rule] : [], events: async () => [] } };
+  renderHome(repo, () => <AutomationWorkspace />); return { save, toggle, check, rename };
 }
 it('creates a complete validated disabled-by-adapter draft without execution', async () => {
   const t = setup(); await userEvent.click(await screen.findByRole('button', { name: 'Создать правило' }));
@@ -55,4 +56,14 @@ it('does not turn unsupported rule into a lossy editable draft', async () => {
   setup({ read: async () => ({ ...rule, draft: null }) }, true);
   await userEvent.click(await screen.findByRole('button', { name: 'Редактировать правило' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('сохранено без изменений'); expect(screen.queryByLabelText('Название правила')).not.toBeInTheDocument();
+});
+
+it('retains legacy name-only CAS rename without rewriting unsupported actions or enabling', async () => {
+  const t = setup({ read: async () => ({ ...rule, draft: null }) }, true);
+  await userEvent.click(await screen.findByRole('button', { name: 'Изменить название' }));
+  await userEvent.clear(screen.getByLabelText('Новое название'));
+  await userEvent.type(screen.getByLabelText('Новое название'), 'Без изменения логики');
+  await userEvent.click(screen.getByRole('button', { name: 'Сохранить название' }));
+  expect(t.rename).toHaveBeenCalledWith('automations', 'rule-a', 'Вечер', 'Без изменения логики', expect.any(AbortSignal), 1);
+  expect(t.save).not.toHaveBeenCalled(); expect(t.toggle).not.toHaveBeenCalled();
 });

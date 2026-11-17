@@ -74,6 +74,7 @@ test('LIVE automation editor → dry-run → enable → MQTT event → confirmed
     await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
     const toggle = page.getByRole('button', { name: theme === 'dark' ? 'Включить тёмную тему' : 'Включить светлую тему', exact: true });
     if (await toggle.count()) await toggle.click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
     await page.screenshot({ path: `test-results/live-automation-${width}-${theme}.png`, fullPage: true });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
