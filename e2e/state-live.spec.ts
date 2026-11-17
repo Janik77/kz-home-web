@@ -1,3 +1,4 @@
+import { writeFile } from 'node:fs/promises';
 import { expect } from '@playwright/test';
 import { test } from './native-state-browser';
 
@@ -85,5 +86,7 @@ test('LIVE external MQTT state, visible-page bounded reads, reconnect and unsave
   const proof = await control('evidence');
   expect(proof.received).toHaveLength(0); expect(proof.commands).toHaveLength(0);
   await page.screenshot({ path: 'test-results/live-state-draft.png', fullPage: true });
-  await test.info().attach('bounded-read-evidence', { body: JSON.stringify({ reads, hiddenReads, offlineReads, editorReads, navigations, writes, core_sha: proof.core_sha, web_sha: proof.web_sha }), contentType: 'application/json' });
+  const metrics = JSON.stringify({ reads, hiddenReads, offlineReads, editorReads, navigations, writes, core_sha: proof.core_sha, web_sha: proof.web_sha });
+  await writeFile(test.info().outputPath('bounded-read-evidence.json'), metrics);
+  await test.info().attach('bounded-read-evidence', { body: metrics, contentType: 'application/json' });
 });
