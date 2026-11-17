@@ -1,3 +1,4 @@
+import { createAutomations } from './automations';
 import { createDeviceFavorites } from './favorites';
 import { createStructure } from './structure';
 import { createSceneRuns } from './scene-runs';
@@ -19,6 +20,7 @@ export function createCoreHomeRepository(session: CoreSession, houseId: string):
   // Legacy/mock snapshot mutations remain disabled. v0.15 uses separate receipts.
   return {
     readOnly: true,
+    automations: createAutomations(session, houseId),
     favorites: createDeviceFavorites(session, houseId),
     structure: createStructure(session, houseId),
     sceneRuns: createSceneRuns(session, houseId),

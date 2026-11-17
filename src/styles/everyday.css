@@ -295,3 +295,16 @@
  .everyday-room-page .everyday-devices--single .device-card--core > .favorite-button { grid-column:1; grid-row:3; justify-self:start; align-self:start; margin:0; }
  .everyday-room-page .everyday-devices--single .device-card--core > [lang] { grid-column:2; grid-row:2 / span 2; }
 }
+
+/* Automation editor extends the accepted shared form/card system. */
+.automation-editor { margin-block: 1rem; }
+.automation-fields { display: grid; grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.automation-fields label { min-width: 0; }
+.automation-fields select { width: 100%; min-width: 0; }
+.automation-action + .automation-action { margin-top: 1rem; border-top: 1px solid var(--color-border); padding-top: 1rem; }
+.automation-tools { margin-top: 1rem; }
+.automation-confirm, .automation-check, .automation-comparison, .automation-history { border-top: 1px solid var(--color-border); padding-top: 1rem; margin-top: 1rem; }
+.automation-history details { margin-block: .75rem; overflow-wrap: anywhere; }
+.automation-history summary { cursor: pointer; padding-block: .5rem; }
+.automation-card code, .automation-comparison { overflow-wrap: anywhere; }
+@media (max-width: 640px) { .automation-fields { grid-template-columns: 1fr; } }
