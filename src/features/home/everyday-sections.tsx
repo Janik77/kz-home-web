@@ -10,7 +10,7 @@ import { sceneFeedback } from '../scenes/scene-result';
 
 export function EverydayHeader({ home, title, subtitle }: { home: HomeSnapshot; title: string; subtitle: string }) {
   const query = useHome(); const demo = !useRepository().readOnly;
-  return <header className="everyday-heading"><div><p className="everyday-eyebrow">{subtitle}</p><h1>{title}</h1><p className="everyday-connection"><Wifi size={16} aria-hidden="true" />{demo ? 'Виртуальный дом' : 'Данные дома получены'}{!demo && <span> · обновление вручную</span>}</p></div><div className="everyday-heading__actions">
+  return <header className="everyday-heading"><div><p className="everyday-eyebrow">{subtitle}</p><h1>{title}</h1><p className="everyday-connection"><Wifi size={16} aria-hidden="true" />{demo ? 'Виртуальный дом' : query.isError ? 'Обновление недоступно' : 'Данные дома получены'}{!demo && <span> · последнее полученное состояние</span>}</p></div><div className="everyday-heading__actions">
     {!demo && <Button variant="secondary" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw size={17} aria-hidden="true" />{query.isFetching ? 'Обновляем…' : 'Обновить данные'}</Button>}
     <Link className="everyday-profile" to="/settings" aria-label="Аккаунт и дома"><UserRound size={20} aria-hidden="true" /><span>{home.house.name}</span></Link>
   </div></header>;

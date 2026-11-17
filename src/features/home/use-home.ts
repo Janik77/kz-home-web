@@ -1,13 +1,35 @@
 import { useMutation, useQuery, useQueryClient, useIsMutating } from '@tanstack/react-query';
 import { useRepository } from '../../app/services';
+import { CoreError } from '../../data/core/errors';
 import type { DeviceCommand, SceneResult } from '../../domain/home';
 
 export const homeKey = ['home', 'current'] as const;
 const controlsKey = ['home-controls'] as const;
 
-export function useHome() {
+// Only the shell owns the timer. Other consumers share this query/cache.
+export const liveHomeInterval = 5_000;
+export function isLiveHomePage(pathname: string) {
+  return pathname === '/' || /^\/devices\/[^/]+\/?$/.test(pathname);
+}
+
+export function useHome({ live = false }: { live?: boolean } = {}) {
   const repository = useRepository();
-  return useQuery({ queryKey: homeKey, queryFn: ({ signal }) => repository.getHome(signal) });
+  return useQuery({
+    queryKey: homeKey, queryFn: ({ signal }) => repository.getHome(signal),
+    ...(live ? {
+      retry: false,
+      staleTime: liveHomeInterval,
+      refetchOnWindowFocus: 'always' as const,
+      refetchOnReconnect: 'always' as const,
+      refetchIntervalInBackground: false,
+      refetchInterval: (query: { state: { error: Error | null; fetchFailureCount: number } }) => {
+        const error = query.state.error;
+        if (error instanceof CoreError && ['unauthorized', 'forbidden', 'not-found'].includes(error.kind)) return false;
+        // No immediate retry storm while Core is unavailable.
+        return error ? 30_000 : liveHomeInterval;
+      },
+    } : {}),
+  });
 }
 
 export function useHomeControls() {
