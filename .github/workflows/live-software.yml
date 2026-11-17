@@ -67,6 +67,11 @@ jobs:
       - name: Automation event to confirmed receipt browser acceptance
         working-directory: web
         run: '"$RUNNER_TEMP/live-venv/bin/python" -B e2e/automation-live-runner.py'
+      - name: External MQTT state and visible-page browser acceptance
+        working-directory: web
+        env:
+          LIVE_STATE_ONLY: '1'
+        run: 'xvfb-run -a "$RUNNER_TEMP/live-venv/bin/python" -B e2e/automation-live-runner.py'
       - name: Core combined regression suite
         working-directory: core
         run: '"$RUNNER_TEMP/live-venv/bin/python" -m pytest -q'
@@ -75,6 +80,9 @@ jobs:
         with:
           name: live-software-evidence
           path: |
+            web/test-results/state-live-evidence.json
+            web/test-results/state-live/
+            web/test-results/live-state-*.png
             web/test-results/automation-live-evidence.json
             web/test-results/automation-live/
             web/test-results/live-automation-*.png

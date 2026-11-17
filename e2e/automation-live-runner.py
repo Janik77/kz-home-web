@@ -132,14 +132,22 @@ async def acceptance(values):
                    'RELAY_CONTROL_URL': f'http://127.0.0.1:{server.sockets[0].getsockname()[1]}',
                    'RELAY_CONTROL_KEY': key, 'RELAY_OWNER_PASSWORD': seed['password']}
             result = await asyncio.to_thread(subprocess.run,
-                ['npx', 'playwright', 'test', '--config', 'playwright.automation-live.config.ts'],
+                ['npx', 'playwright', 'test', '--config', 'playwright.state-live.config.ts' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'playwright.automation-live.config.ts'],
                 cwd=WEB, env=env, timeout=300)
             proof = await asyncio.to_thread(evidence)
             proof['browser_exit'] = result.returncode
-            (WEB / 'test-results' / 'automation-live-evidence.json').write_text(json.dumps(proof, indent=2))
+            (WEB / 'test-results' / ('state-live-evidence.json' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'automation-live-evidence.json')).write_text(json.dumps(proof, indent=2))
             # Browser scenarios prescribe one confirmed run, one refused ACK, one unknown.
-            proof['verification'] = verify(proof, {'applied': 1, 'failed': 1, 'timed_out': 1})
-            (WEB / 'test-results' / 'automation-live-evidence.json').write_text(json.dumps(proof, indent=2))
+            if os.environ.get('LIVE_STATE_ONLY') == '1':
+                assert result.returncode == 0, 'Live state browser checks failed'
+                assert not proof['received'] and not proof['commands'], 'Read-only state test sent commands'
+                assert proof['physical_devices'] == '0'
+                assert len(proof['triggers']) >= 6, 'Missing external MQTT state updates'
+                proof['verification'] = 'external-state-read-only'
+                (WEB / 'test-results' / 'state-live-evidence.json').write_text(json.dumps(proof, indent=2))
+            else:
+                proof['verification'] = verify(proof, {'applied': 1, 'failed': 1, 'timed_out': 1})
+            (WEB / 'test-results' / ('state-live-evidence.json' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'automation-live-evidence.json')).write_text(json.dumps(proof, indent=2))
             assert not receiver.done(), 'Software receiver stopped'
         finally:
             server.close()
