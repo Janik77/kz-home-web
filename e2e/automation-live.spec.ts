@@ -12,10 +12,10 @@ test('LIVE automation editor → dry-run → enable → MQTT event → confirmed
   async function create(name: string, trigger = false, action = true) {
     await page.getByRole('button', { name: 'Создать правило', exact: true }).click();
     await page.getByLabel('Название правила', { exact: true }).fill(name);
-    await page.getByLabel('Событие: устройство', { exact: true }).selectOption('fixture_relay');
-    await page.getByLabel('Событие: питание', { exact: true }).selectOption(String(trigger));
-    await page.getByLabel('Действие 1: устройство', { exact: true }).selectOption('fixture_relay');
-    await page.getByLabel('Действие 1: питание', { exact: true }).selectOption(String(action));
+    await page.getByRole('combobox', { name: 'Событие: устройство', exact: true }).selectOption('fixture_relay');
+    await page.getByRole('combobox', { name: 'Событие: питание', exact: true }).selectOption(String(trigger));
+    await page.getByRole('combobox', { name: 'Действие 1: устройство', exact: true }).selectOption('fixture_relay');
+    await page.getByRole('combobox', { name: 'Действие 1: питание', exact: true }).selectOption(String(action));
     await page.getByRole('button', { name: 'Сохранить правило', exact: true }).click();
     await expect(card(name)).toContainText('Выключена');
   }
