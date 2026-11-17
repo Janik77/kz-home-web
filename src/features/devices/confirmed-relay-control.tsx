@@ -4,7 +4,7 @@ import { useRepository } from '../../app/services';
 import type { Device } from '../../domain/home';
 import { CoreError } from '../../data/core/errors';
 import type { Receipt } from '../../data/core/relay-control';
-import { homeKey } from '../home/use-home';
+import { homeKey, useHome } from '../home/use-home';
 import { Button } from '../../components/ui/button';
 
 const refreshKey = ['home', 'command-refresh'] as const;
@@ -29,6 +29,7 @@ function errorMessage(error: unknown) {
 }
 export function ConfirmedRelayControl({ device, everyday = false, explicitPower = false }: { device: Device; everyday?: boolean; explicitPower?: boolean }) {
   const repository = useRepository();
+  const home = useHome();
   const control = repository.relayControl;
   const client = useQueryClient();
   const eligibility = useQuery({ queryKey: ['relay-eligibility'], queryFn: ({ signal }) => control!.eligible(signal), enabled: !!control, retry: false, staleTime: 0 });
@@ -39,7 +40,7 @@ export function ConfirmedRelayControl({ device, everyday = false, explicitPower 
   useEffect(()=>{if(status==='Выполнено · состояние обновлено'||status==='Выполнено · данные Core обновлены'){const timer=setTimeout(()=>setStatus(''),4000);return()=>clearTimeout(timer);}},[status]);
   if (!control) return null;
   if (everyday && device.kind !== 'relay' && device.kind !== 'light') return <p className="device-card__footnote">Для этого типа или неизвестного состояния нет поддержанного управления Web.</p>;
-  const allowed = device.connection === 'online' && eligibility.data?.includes(device.id) === true && !eligibility.isError && !eligibility.isFetching;
+  const allowed = !home.isError && device.connection === 'online' && eligibility.data?.includes(device.id) === true && !eligibility.isError && !eligibility.isFetching;
   const run = async (on: boolean) => {
     if (running.current || !allowed) return;
     const controller = new AbortController(); running.current = controller;

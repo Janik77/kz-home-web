@@ -5,7 +5,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { Wordmark } from '../components/brand/wordmark';
 import { ThemeToggle } from '../components/ui/theme-toggle';
 import { NavigationEffects } from './navigation-effects';
-import { useHome } from '../features/home/use-home';
+import { isLiveHomePage, useHome } from '../features/home/use-home';
 import { getHomeSummary } from '../domain/selectors';
 import { useRuntime } from './runtime-context';
 import { Button } from '../components/ui/button';
@@ -48,7 +48,7 @@ export function AppShell() {
   const signature = pathname === '/' || /^\/rooms\/[^/]+$/.test(pathname);
   const core = runtime.mode === 'core';
   const modeLabel = core ? 'Ваш дом' : 'Демо · без оборудования';
-  const home = useHome();
+  const home = useHome({ live: core && isLiveHomePage(pathname) });
   const summary = home.data ? getHomeSummary(home.data) : null;
   return (
     <div className="app-shell app-shell--everyday">
@@ -71,7 +71,7 @@ export function AppShell() {
           </div>
         </header>
         <main id="main-content" className="main-content" tabIndex={-1}>
-          {!signature && core && <div className="connection-bar"><span>Данные дома получены</span><div><Button variant="quiet" aria-disabled={home.isFetching} onClick={() => { if (!home.isFetching) void home.refetch(); }}>{home.isFetching ? 'Обновляем…' : 'Обновить данные'}</Button><Link className="text-link" to="/settings">Аккаунт и дома</Link></div></div>
+          {!signature && core && <div className="connection-bar"><span>{home.isError ? 'Нет связи: показаны последние известные данные' : 'Данные дома получены'}</span><div><Button variant="quiet" aria-disabled={home.isFetching} onClick={() => { if (!home.isFetching) void home.refetch(); }}>{home.isFetching ? 'Обновляем…' : 'Обновить данные'}</Button><Link className="text-link" to="/settings">Аккаунт и дома</Link></div></div>
           }
           <FavoritesNotice />
           <Outlet />
