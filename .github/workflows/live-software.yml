@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
+      PLAYWRIGHT_CHANNEL: chrome
       CORE_BASE_SHA: c5303b8aa5378ac1761e1fc9f24d375a9c69ff4d
       BASELINE_WEB_SOURCE: ${{ github.workspace }}/web-before
       PYTHONDONTWRITEBYTECODE: '1'
@@ -49,7 +50,7 @@ jobs:
           "$RUNNER_TEMP/live-venv/bin/python" -m pip check
           npm ci
           npm --prefix ../web-before ci
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chrome
       - name: Evidence verifier negative regressions
         working-directory: web
         run: |

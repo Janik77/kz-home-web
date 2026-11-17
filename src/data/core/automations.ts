@@ -54,7 +54,11 @@ export function decodeAutomationRun(value: unknown): AutomationRun {
     if (['queued', 'dispatched', 'applied', 'failed', 'timed_out'].includes(action.status) && !receipt) throw new CoreError('protocol');
     return action;
   });
-  if (actions.length > 16 || actions.some((a, i) => a.position !== i) || (v.status === 'succeeded' && (!actions.length || actions.some(a => a.status !== 'applied')))) throw new CoreError('protocol');
+  if (actions.length > 16 || actions.some((a, i) => a.position !== i) ||
+    new Set(actions.flatMap(a => a.receipt ? [a.receipt.command_id] : [])).size !== actions.filter(a => a.receipt).length ||
+    (v.status === 'succeeded' && (!actions.length || actions.some(a => a.status !== 'applied'))) ||
+    (v.status === 'partial' && (!actions.some(a => a.status === 'applied') || actions.every(a => a.status === 'applied'))) ||
+    (v.status === 'refused' && actions.some(a => a.status === 'applied'))) throw new CoreError('protocol');
   return { id: string(v.id), house_id: house, automation_id: string(v.automation_id), automation_revision: revision(v.automation_revision), created_at: created, status: v.status as AutomationRun['status'], execution_error: nullable(v.execution_error), actions };
 }
 export interface Automations {
@@ -83,6 +87,8 @@ export function createAutomations(session: CoreSession, house: string): Automati
       }
       const body = { name: draft.name.trim(), trigger: draft.trigger, conditions: draft.conditions, actions: draft.actions, ...(expectedRevision === undefined ? { id: draft.id, house_id: house, enabled: false } : { expected_revision: expectedRevision }) };
       const written = await session.definitionWrite(expectedRevision === undefined ? '/automations' : path(draft.id), expectedRevision === undefined ? 'POST' : 'PATCH', body, expectedRevision === undefined ? 201 : 200, decode(draft.id), signal);
+      if (expectedRevision !== undefined && written.revision !== expectedRevision + 1) throw new CoreError('protocol');
+      if (expectedRevision === undefined && written.enabled) throw new CoreError('protocol');
       const saved = await read(draft.id, signal);
       if (!saved.draft || saved.revision !== written.revision || saved.name !== body.name || JSON.stringify(saved.draft.trigger) !== JSON.stringify(draft.trigger) || JSON.stringify(saved.draft.conditions) !== JSON.stringify(draft.conditions) || JSON.stringify(saved.draft.actions) !== JSON.stringify(draft.actions)) throw new CoreError('conflict');
       return saved;
@@ -90,6 +96,7 @@ export function createAutomations(session: CoreSession, house: string): Automati
     async toggle(id, enabled, expectedRevision, signal) {
       revision(expectedRevision); await authorize(signal);
       const written = await session.definitionWrite(path(id), 'PATCH', { enabled, expected_revision: expectedRevision }, 200, decode(id), signal);
+      if (written.revision !== expectedRevision + 1) throw new CoreError('protocol');
       const saved = await read(id, signal);
       if (saved.enabled !== enabled || saved.revision !== written.revision) throw new CoreError('conflict');
       return saved;
