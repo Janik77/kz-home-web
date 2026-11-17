@@ -92,6 +92,12 @@ test('LIVE automation editor → dry-run → enable → MQTT event → confirmed
   }
   expect(await count()).toBe(3);
   await page.reload();
+  // Authentication is intentionally memory-only; history must survive a new session.
+  await expect(page.getByLabel('Электронная почта', { exact: true })).toBeVisible();
+  await page.getByLabel('Электронная почта', { exact: true }).fill('owner@example.test');
+  await page.getByLabel('Пароль', { exact: true }).fill(process.env.RELAY_OWNER_PASSWORD!);
+  await page.getByLabel('Пароль', { exact: true }).press('Enter');
+  await expect(page.getByRole('heading', { name: 'Автоматизации', exact: true })).toBeVisible();
   await expect(card('Потеря подтверждения')).toBeVisible();
   await card('Потеря подтверждения').getByRole('button', { name: 'Результаты запусков', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Запуски: Потеря подтверждения', exact: true })).toContainText('Нет подтверждения в срок, исход неизвестен');
