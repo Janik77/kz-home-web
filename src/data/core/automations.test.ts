@@ -6,7 +6,7 @@ import { automationErrors, decodeAutomationRun, decodeEditableAutomation, type A
 const draft: AutomationDraft = { id: 'rule-a', name: 'Реле', trigger: { type: 'device_state', device_id: 'relay-a', field: 'on', operator: 'eq', value: true }, conditions: [], actions: [{ type: 'device_state', device_id: 'relay-a', state: { on: false } }] };
 const device = { id: 'relay-a', name: 'Реле', room_id: 'room-a', type: 'relay', capabilities: ['on_off'], state: { on: false }, online: true, updated_at: '2026-11-17T12:00:00Z' };
 const record = { ...draft, house_id: 'house-a', enabled: false, revision: 1 };
-async function setup(options: { grants?: string[]; status?: number; foreign?: boolean; changed?: boolean; readbackFailure?: boolean } = {}) {
+async function setup(options: { grants?: string[]; status?: number; foreign?: boolean; changed?: boolean; readbackFailure?: boolean; oldCore?: boolean } = {}) {
   let saved = { ...record }, wrote = false; const writes: { path: string; body: Record<string, unknown> }[] = [];
   const fetcher = vi.fn<typeof fetch>(async (url, init) => {
     const path = String(url).replace('/core-api', '');
@@ -22,7 +22,7 @@ async function setup(options: { grants?: string[]; status?: number; foreign?: bo
       if (wrote && options.readbackFailure) return new Response(null, { status: 503 });
       return Response.json({ ...saved, ...(options.foreign ? { house_id: 'other' } : {}), ...(options.changed && !wrote ? { revision: 3 } : {}) });
     }
-    if (path.endsWith('/dry-run')) { writes.push({ path, body: JSON.parse(String(init?.body)) }); return Response.json({ automation_id: 'rule-a', revision: 1, eligible: false, conditions_match: true, issues: ['rule_disabled'], actions: [{ device_id: 'relay-a', requested_on: false }] }); }
+    if (path.endsWith('/dry-run')) { if(options.oldCore) return new Response(null, {status:404}); return Response.json({ automation_id: 'rule-a', revision: 1, eligible: false, conditions_match: true, issues: ['rule_disabled'], actions: [{ device_id: 'relay-a', requested_on: false }] }); }
     return Response.json(coreResponses[path]);
   });
   const services = createServices({ mode: 'core', apiUrl: '/core-api' }, fetcher); if (services.mode !== 'core') throw Error();
@@ -54,7 +54,7 @@ it('enables explicitly with optimistic revision and no legacy enable/run routes'
 it('dry-run only calls the no-command endpoint and retains disabled/conditions distinction', async () => {
   const t = await setup(); const check = await t.service.check('rule-a', new AbortController().signal);
   expect(check.conditions_match).toBe(true); expect(check.eligible).toBe(false);
-  expect(t.writes.map(w => w.path)).toEqual(['/automations/rule-a/dry-run']);
+  expect(t.writes).toEqual([]); expect(t.fetcher.mock.calls.filter(([url]) => String(url).endsWith('/dry-run'))).toHaveLength(1);
 });
 it('keeps unsupported legacy rules readable but not silently editable', () => {
   expect(decodeEditableAutomation(record).draft).toEqual(draft);
@@ -72,4 +72,14 @@ it('rejects false success and foreign receipts, preserving unknown results', () 
   expect(decodeAutomationRun(run).status).toBe('unknown');
   expect(() => decodeAutomationRun({ ...run, status: 'succeeded' })).toThrow();
   expect(() => decodeAutomationRun({ ...run, actions: [{ ...run.actions[0], status: 'applied' }] })).toThrow();
+});
+
+it('old Core cannot activate or edit rules via the legacy unconfirmed executor', async () => {
+  const t = await setup({ oldCore: true });
+  await expect(t.service.toggle('rule-a', true, 1, new AbortController().signal)).rejects.toBeDefined();
+  await expect(t.service.save(draft, 1, new AbortController().signal)).rejects.toBeDefined();
+  expect(t.writes).toHaveLength(0);
+  // Disabling remains a safe operation even during rollback to old Core.
+  await t.service.toggle('rule-a', false, 1, new AbortController().signal);
+  expect(t.writes).toHaveLength(1); expect(t.writes[0]?.body.enabled).toBe(false);
 });

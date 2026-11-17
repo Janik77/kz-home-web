@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 20
     env:
       PLAYWRIGHT_CHANNEL: chrome
-      CORE_BASE_SHA: c5303b8aa5378ac1761e1fc9f24d375a9c69ff4d
+      CORE_BASE_SHA: f6a0826929c87b39dec7e81d22280f1218bf18f1
       BASELINE_WEB_SOURCE: ${{ github.workspace }}/web-before
       PYTHONDONTWRITEBYTECODE: '1'
       LIVE_CORE_SOURCE: ${{ github.workspace }}/core
@@ -31,7 +31,7 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: 1a3226527e6b9501735b29e251a2982c7f5577f4
+          ref: c55dba53cb093c55d006dcd76f54b823a6f6e2be
           path: web-before
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -64,6 +64,9 @@ jobs:
       - name: Real browser to Core to MQTT TLS software relay and PostgreSQL receipts
         working-directory: web
         run: '"$RUNNER_TEMP/live-venv/bin/python" -B e2e/confirmed-live-runner.py'
+      - name: Automation event to confirmed receipt browser acceptance
+        working-directory: web
+        run: '"$RUNNER_TEMP/live-venv/bin/python" -B e2e/automation-live-runner.py'
       - name: Core combined regression suite
         working-directory: core
         run: '"$RUNNER_TEMP/live-venv/bin/python" -m pytest -q'
@@ -72,6 +75,9 @@ jobs:
         with:
           name: live-software-evidence
           path: |
+            web/test-results/automation-live-evidence.json
+            web/test-results/automation-live/
+            web/test-results/live-automation-*.png
             web/test-results/confirmed-live-evidence.json
             web/test-results/scene-live-evidence.json
             web/test-results/confirmed-live-preservation.json

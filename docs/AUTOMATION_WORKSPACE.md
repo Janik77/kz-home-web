@@ -1,6 +1,7 @@
 # Automations: event → confirmed result
 
 This branch builds on Web #26 (c55dba53cb093c55d006dcd76f54b823a6f6e2be).
+Runtime candidate: Core #49 `f6a0826929c87b39dec7e81d22280f1218bf18f1`.
 Requires the matching Core confirmed-automation API; old Core does not silently fall
 back to the legacy unconfirmed `/automations/{id}/run` path.
 
@@ -14,7 +15,9 @@ back to the legacy unconfirmed `/automations/{id}/run` path.
   readable and are not lossy-converted by the editor.
 - New rule saves disabled; save/readback must agree. Enabling is an explicit
   acknowledged operation because subsequent state events can send commands.
-- Edits and enable/disable PATCH carry the captured `expected_revision`. Conflict
+- Edits and enabling first require a successful current-revision dry-run API response,
+  so older Core cannot silently activate its legacy unconfirmed executor. Disabling
+  remains available. Edits and enable/disable PATCH carry the captured `expected_revision`. Conflict
   keeps draft and original version; comparison is read-only. No automatic retry.
 - Draft guard protects navigation, house/session context changes and page reload
   through the existing app guard. Drafts are memory-only, not durable autosave.

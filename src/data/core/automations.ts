@@ -76,6 +76,15 @@ export function createAutomations(session: CoreSession, house: string): Automati
   const path = (id: string) => `/automations/${encodeURIComponent(id)}`;
   const decode = (id: string) => (value: unknown) => { const rule = decodeEditableAutomation(value); if (rule.id !== id || rule.houseId !== house) throw new CoreError('protocol'); return rule; };
   const read = (id: string, signal: AbortSignal) => session.read(path(id), decode(id), signal);
+  // Older Core exposes PATCH but executes automations without receipts. Never
+  // activate or alter a live definition before the confirmed executor API answers.
+  const verifyExecutor = async (id: string, expected: number, signal: AbortSignal) => {
+    await session.definitionWrite(`${path(id)}/dry-run`, 'POST', {}, 200, value => {
+      const v = object(value);
+      if (string(v.automation_id) !== id || revision(v.revision) !== expected) throw new CoreError('conflict');
+      boolean(v.eligible); boolean(v.conditions_match); list(v.issues, string);
+    }, signal);
+  };
   const devices = async (signal: AbortSignal) => session.read(`/devices?house_id=${encodeURIComponent(house)}`, v => list(v, decodeDevice), signal);
   return { permissions, read, devices,
     async save(draft, expectedRevision, signal) {
@@ -84,6 +93,7 @@ export function createAutomations(session: CoreSession, house: string): Automati
       if (expectedRevision !== undefined) {
         revision(expectedRevision);
         if ((await read(draft.id, signal)).revision !== expectedRevision) throw new CoreError('conflict');
+        await verifyExecutor(draft.id, expectedRevision, signal);
       }
       const body = { name: draft.name.trim(), trigger: draft.trigger, conditions: draft.conditions, actions: draft.actions, ...(expectedRevision === undefined ? { id: draft.id, house_id: house, enabled: false } : { expected_revision: expectedRevision }) };
       const written = await session.definitionWrite(expectedRevision === undefined ? '/automations' : path(draft.id), expectedRevision === undefined ? 'POST' : 'PATCH', body, expectedRevision === undefined ? 201 : 200, decode(draft.id), signal);
@@ -95,6 +105,7 @@ export function createAutomations(session: CoreSession, house: string): Automati
     },
     async toggle(id, enabled, expectedRevision, signal) {
       revision(expectedRevision); await authorize(signal);
+      if (enabled) await verifyExecutor(id, expectedRevision, signal);
       const written = await session.definitionWrite(path(id), 'PATCH', { enabled, expected_revision: expectedRevision }, 200, decode(id), signal);
       if (written.revision !== expectedRevision + 1) throw new CoreError('protocol');
       const saved = await read(id, signal);
