@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './native-state-browser';
 
 test('LIVE external MQTT state, visible-page bounded reads, reconnect and unsaved editor', async ({ page, context }) => {
   async function control(action: string, body = {}) {
@@ -43,13 +44,7 @@ test('LIVE external MQTT state, visible-page bounded reads, reconnect and unsave
   await page.screenshot({ path: 'test-results/live-state-device.png', fullPage: true });
 
   // A real second browser tab in headed Chrome/Xvfb, not an injected visibility property.
-  // Playwright forces focus emulation ON by default, making even background
-  // pages report visible. Remove that test-runner override; do not fake DOM state.
-  const cdp = await context.newCDPSession(page);
-  await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: false });
   const other = await context.newPage();
-  const otherCdp = await context.newCDPSession(other);
-  await otherCdp.send('Emulation.setFocusEmulationEnabled', { enabled: false });
   await other.goto('about:blank'); await other.bringToFront();
   await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe('hidden');
   await page.waitForTimeout(1000); const hiddenReads = reads;

@@ -51,6 +51,7 @@ jobs:
           npm ci
           npm --prefix ../web-before ci
           npx playwright install --with-deps chrome
+          sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Evidence verifier negative regressions
         working-directory: web
         run: |
@@ -61,17 +62,17 @@ jobs:
           docker pull postgres:17-bookworm@sha256:665dc7b37ac52a17e298511414c21d23ffa4e6a6ef6225b3e5d59c7afb35e994
           docker pull eclipse-mosquitto:2@sha256:75d6662dee52c947dc9dd9c29f1d8d7ffef78ddaf38001caa09755681e8bbc98
           docker pull alpine/openssl:latest@sha256:6821afa2476e11be343f29275f2ca24291720ff0a7148bd131fd8e314ff26d9e
+      - name: External MQTT state and visible-page browser acceptance
+        working-directory: web
+        env:
+          LIVE_STATE_ONLY: '1'
+        run: 'xvfb-run -a --server-args="-screen 0 1440x1000x24" "$RUNNER_TEMP/live-venv/bin/python" -B e2e/automation-live-runner.py'
       - name: Real browser to Core to MQTT TLS software relay and PostgreSQL receipts
         working-directory: web
         run: '"$RUNNER_TEMP/live-venv/bin/python" -B e2e/confirmed-live-runner.py'
       - name: Automation event to confirmed receipt browser acceptance
         working-directory: web
         run: '"$RUNNER_TEMP/live-venv/bin/python" -B e2e/automation-live-runner.py'
-      - name: External MQTT state and visible-page browser acceptance
-        working-directory: web
-        env:
-          LIVE_STATE_ONLY: '1'
-        run: 'xvfb-run -a "$RUNNER_TEMP/live-venv/bin/python" -B e2e/automation-live-runner.py'
       - name: Core combined regression suite
         working-directory: core
         run: '"$RUNNER_TEMP/live-venv/bin/python" -m pytest -q'
