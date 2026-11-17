@@ -12,7 +12,7 @@ const server = await createServer({ server: { host: '127.0.0.1', port: 5186, str
 await server.listen();
 let browser;
 try {
-  browser = await chromium.launch(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH } : {});
+  browser = await chromium.launch({ chromiumSandbox: true, ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH } : process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) });
   const manifest = [];
   for (const [device, width, height] of [['desktop', 1440, 1000], ['small-desktop', 1024, 900], ['tablet', 834, 1112], ['mobile', 390, 844], ['compact', 320, 740]]) {
     const page = await browser.newPage({ viewport: { width, height }, isMobile: device !== 'desktop', hasTouch: device !== 'desktop' });
@@ -45,7 +45,7 @@ const loginServer = await createServer({ server: { host: '127.0.0.1', port: 5187
 await loginServer.listen();
 let loginBrowser;
 try {
-  loginBrowser = await chromium.launch();
+  loginBrowser = await chromium.launch({ chromiumSandbox: true, ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) });
   for (const [device, width, height] of [['desktop', 1440, 1000], ['small-desktop', 1024, 900], ['tablet', 834, 1112], ['mobile', 390, 844], ['compact', 320, 740]]) {
     const page = await loginBrowser.newPage({ viewport: { width, height } });
     await page.goto('http://127.0.0.1:5187');

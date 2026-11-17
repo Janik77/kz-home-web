@@ -4,7 +4,7 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:5173';
 
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: ['**/core.spec.ts', '**/live-core.spec.ts', '**/confirmed-live.spec.ts', '**/scene-live.spec.ts', '**/scene-visual.spec.ts'],
+  testIgnore: ['**/core.spec.ts', '**/live-core.spec.ts', '**/confirmed-live.spec.ts', '**/scene-live.spec.ts', '**/scene-visual.spec.ts', '**/automation-live.spec.ts'],
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 2 : 0,
@@ -12,6 +12,7 @@ export default defineConfig({
   use: {
     baseURL,
     browserName: 'chromium',
+    launchOptions: { chromiumSandbox: true },
     colorScheme: 'light',
     ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}),
     trace: 'retain-on-failure',
