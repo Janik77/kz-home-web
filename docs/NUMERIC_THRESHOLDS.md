@@ -1,6 +1,6 @@
 # Numeric sensors / threshold substage
 
-Base: Web #28 `6f8f72f`; Core #51 `d405505637bc65f6a23083570dd8d43ddf9a465b`.
+Base: Web #28 `6f8f72f`; Core #51 `3ba219e8d6b776ad4024e8b23ea894a43c22eb6d`.
 
 - Supported advertised capabilities: temperature (-100..150 °C), humidity (0..100%), illuminance (0..200000 lx).
 - Trigger `numeric_threshold`: strict lt/gt, positive hysteresis, reset boundary within sensor range. First fresh sample establishes baseline only. Numeric AND uses `numeric_state` and eq/neq/lt/lte/gt/gte.
