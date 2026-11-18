@@ -368,3 +368,26 @@
 
 .rooms-page .room-card > div { min-width: 0; }
 .rooms-page .room-card h2 { overflow-wrap: anywhere; }
+
+/* Visual QA: keep the only room above the fold instead of stacking heading gaps. */
+.rooms-page { gap: 12px; }
+.rooms-toolbar .page-heading { border-bottom: 0; padding-bottom: 0; }
+.rooms-toolbar .page-heading__description { margin-top: 6px; }
+.main-content:has(.rooms-page) > .connection-bar { padding-bottom: 8px; margin-bottom: 14px; }
+@media (min-width: 651px) and (max-width: 1199px) {
+ .app-shell--everyday .sidebar .nav-item span { white-space: nowrap; }
+}
+@media (min-width: 651px) and (max-width: 900px) {
+ .everyday-heading__actions .button { width: 44px; height: 44px; padding: 8px; font-size: 0; }
+ .everyday-heading__actions .button svg { display: block; flex-shrink: 0; }
+ .everyday-connection span { display: none; }
+}
+@media (min-width: 760px) {
+ .everyday-home:not(.everyday-home--sparse) .everyday-devices,
+ .everyday-home:not(.everyday-home--sparse) .everyday-overview { grid-column: auto; }
+}
+@media (min-width: 1200px) {
+ .everyday-home:not(.everyday-home--sparse) .device-grid { align-items: stretch; }
+ .everyday-home:not(.everyday-home--sparse) .device-card > [lang] { margin-top: auto; }
+}
+.everyday-room-page { gap: 16px; }

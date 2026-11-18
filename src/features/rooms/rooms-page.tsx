@@ -13,7 +13,7 @@ export function RoomsPage() {
   const confirmLeave = useConfirmLeave();
   const [floor, setFloor] = useState('all');
   return <HomeDataBoundary>{(home) => <div className="page everyday-page rooms-page">
-    <div className="rooms-toolbar"><PageHeading eyebrow={home.house.name} title="Комнаты" description={`Комнат: ${home.rooms.length} · этажей: ${home.floors.length}. Откройте комнату для просмотра устройств.`} />
+    <div className="rooms-toolbar"><PageHeading eyebrow={home.house.name} title="Комнаты" description={`Комнат: ${home.rooms.length} · этажей: ${home.floors.length}`} />
     <CreateSpace home={home} /></div>
     <div className="filter-bar" role="group" aria-label="Фильтр по этажу">
       {[{ id: 'all', name: 'Все комнаты' }, ...home.floors].map((item) => <button type="button" key={item.id} aria-pressed={floor === item.id} onClick={() => { if (floor !== item.id) confirmLeave(() => setFloor(item.id)); }}>{item.name}</button>)}

@@ -22,6 +22,11 @@ for (const theme of ['light', 'dark']) for (const shape of ['single', 'populated
  await expect(page.getByRole('heading', { name: 'Наш дом', exact: true })).toBeVisible();
  const overflow = async () => expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
  await overflow();
+ if (page.viewportSize()!.width >= 1366) {
+  const deviceSection = (await page.locator('.everyday-devices').boundingBox())!, roomsSection = (await page.locator('.everyday-overview').boundingBox())!;
+  expect(roomsSection.x).toBeGreaterThanOrEqual(deviceSection.x + deviceSection.width);
+  expect(Math.abs(roomsSection.y - deviceSection.y)).toBeLessThanOrEqual(1);
+ }
  if (devices.length) {
   const card = page.getByRole('article').first(); await expect(card.getByRole('button', { name: 'Добавить в избранное: Свет у окна' })).toHaveCount(1);
   const box = (await card.boundingBox())!; expect(box.width).toBeGreaterThanOrEqual(250); expect(box.height).toBeLessThan(450);
