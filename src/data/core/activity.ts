@@ -1,3 +1,4 @@
+import { scheduleDescription } from './schedules';
 import { isNumericField, numericFields, thresholdExplanation, validNumericTest, type NumericTrigger } from './numeric';
 import type { HomeActivity, AutomationRule, HomeEvent } from '../../domain/activity';
 import type { CoreSession } from './session';
@@ -7,6 +8,7 @@ import { CoreError } from './errors';
 const operators: Record<string, string> = { eq: '=', neq: '≠', gt: '>', gte: '≥', lt: '<', lte: '≤' };
 function stateRule(value: unknown): string {
   const v = object(value);
+  if (v.type === 'schedule') return scheduleDescription(v);
   if (v.type === 'numeric_threshold') {
     const trigger = v as unknown as NumericTrigger;
     if (!validNumericTest(trigger)) throw new CoreError('protocol');
@@ -19,6 +21,7 @@ function stateRule(value: unknown): string {
 export function decodeAutomation(value: unknown): AutomationRule & { houseId: string } {
   const v = object(value);
   return { revision: decodeRevision(v.revision), id: string(v.id), houseId: string(v.house_id), name: string(v.name), enabled: boolean(v.enabled),
+    ...(object(v.trigger).type === 'schedule' ? { schedule: true } : {}),
     trigger: stateRule(v.trigger),
     conditions: list(v.conditions, value => {
       const c = object(value);

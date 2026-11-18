@@ -1,3 +1,4 @@
+import { decodeSchedule, validSchedule, type ScheduleTrigger } from './schedules';
 import { isNumericField, validNumericTest, type NumericTrigger, type NumericCondition } from './numeric';
 import { boolean, decodeDevice, decodeRevision, list, object, string, type CoreDevice } from './dtos';
 import { decodeAutomation } from './activity';
@@ -10,7 +11,8 @@ import type { CoreSession } from './session';
 
 export interface StateTest { type: 'device_state'; device_id: string; field: 'on'; operator: 'eq' | 'neq'; value: boolean }
 export type ConditionTest = StateTest | NumericCondition;
-export type TriggerTest = StateTest | NumericTrigger;
+export type DeviceTrigger = StateTest | NumericTrigger;
+export type TriggerTest = DeviceTrigger | ScheduleTrigger;
 export interface AutomationDraft { id: string; name: string; trigger: TriggerTest; conditions: ConditionTest[]; actions: { type: 'device_state'; device_id: string; state: { on: boolean } }[] }
 export interface EditableAutomation extends AutomationRule { draft: AutomationDraft | null; houseId: string }
 export interface AutomationCheck { automation_id: string; revision: number; eligible: boolean; conditions_match: boolean; issues: string[]; actions: { device_id: string; requested_on: boolean }[] }
@@ -40,7 +42,7 @@ function numericTest(value: unknown, trigger: boolean): NumericTrigger | Numeric
 export function decodeEditableAutomation(value: unknown): EditableAutomation {
   const v = object(value), rule = decodeAutomation(v); let draft: AutomationDraft | null = null;
   try {
-    draft = { id: rule.id, name: rule.name, trigger: object(v.trigger).type === 'numeric_threshold' ? numericTest(v.trigger, true) : stateTest(v.trigger), conditions: list(v.conditions, c => object(c).type === 'numeric_state' ? numericTest(c, false) : stateTest(c)), actions: list(v.actions, value => {
+    draft = { id: rule.id, name: rule.name, trigger: object(v.trigger).type === 'schedule' ? decodeSchedule(v.trigger) : object(v.trigger).type === 'numeric_threshold' ? numericTest(v.trigger, true) : stateTest(v.trigger), conditions: list(v.conditions, c => object(c).type === 'numeric_state' ? numericTest(c, false) : stateTest(c)), actions: list(v.actions, value => {
       const a = object(value), s = object(a.state);
       if (a.type !== 'device_state' || Object.keys(s).length !== 1) throw new CoreError('protocol');
       return { type: 'device_state', device_id: string(a.device_id), state: { on: boolean(s.on) } };
@@ -52,7 +54,8 @@ export function decodeEditableAutomation(value: unknown): EditableAutomation {
 export function automationErrors(draft: AutomationDraft, devices: CoreDevice[]): string[] {
   const ids = new Set(devices.filter(supportsRelay).map(d => d.id)), errors: string[] = [];
   if (!validName(draft.name)) errors.push('Укажите название до 255 символов.');
-  if (![draft.trigger, ...draft.conditions].every(t => t.type === 'device_state' ? ids.has(t.device_id) && t.field === 'on' && ['eq', 'neq'].includes(t.operator) && typeof t.value === 'boolean' : validNumericTest(t) && devices.some(d => d.id === t.device_id && d.capabilities.includes(t.field)))) errors.push('Выберите поддерживаемое устройство и корректное значение для события и каждого условия. Порог возврата должен оставаться в диапазоне датчика.');
+  if (![draft.trigger, ...draft.conditions].every(t => t.type === 'schedule' ? true : t.type === 'device_state' ? ids.has(t.device_id) && t.field === 'on' && ['eq', 'neq'].includes(t.operator) && typeof t.value === 'boolean' : validNumericTest(t) && devices.some(d => d.id === t.device_id && d.capabilities.includes(t.field)))) errors.push('Выберите поддерживаемое устройство и корректное значение для события и каждого условия. Порог возврата должен оставаться в диапазоне датчика.');
+  if (draft.trigger.type === 'schedule' && !validSchedule(draft.trigger)) errors.push('Выберите время HH:MM и хотя бы один день недели.');
   if (draft.conditions.length > 50) errors.push('Допускается до 50 условий.');
   if (draft.actions.length < 1 || draft.actions.length > 16 || draft.actions.some(a => !ids.has(a.device_id) || typeof a.state.on !== 'boolean')) errors.push('Добавьте от 1 до 16 действий с доступными реле ON/OFF.');
   return errors;
