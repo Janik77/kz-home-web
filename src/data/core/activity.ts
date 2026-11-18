@@ -1,3 +1,4 @@
+import { isNumericField, numericFields, thresholdExplanation, validNumericTest, type NumericTrigger } from './numeric';
 import type { HomeActivity, AutomationRule, HomeEvent } from '../../domain/activity';
 import type { CoreSession } from './session';
 import { boolean, decodeRevision, list, number, object, string } from './dtos';
@@ -6,9 +7,14 @@ import { CoreError } from './errors';
 const operators: Record<string, string> = { eq: '=', neq: '≠', gt: '>', gte: '≥', lt: '<', lte: '≤' };
 function stateRule(value: unknown): string {
   const v = object(value);
+  if (v.type === 'numeric_threshold') {
+    const trigger = v as unknown as NumericTrigger;
+    if (!validNumericTest(trigger)) throw new CoreError('protocol');
+    return `${string(v.device_id)} · ${numericFields[trigger.field].label}: ${thresholdExplanation(trigger)}`;
+  }
   const operator = operators[string(v.operator)];
-  if (v.type !== 'device_state' || !operator || !('value' in v)) throw new CoreError('protocol');
-  return `${string(v.device_id)} · ${string(v.field)} ${operator} ${JSON.stringify(v.value)}`;
+  if (!['device_state', 'numeric_state'].includes(String(v.type)) || !operator || !('value' in v)) throw new CoreError('protocol');
+  return `${string(v.device_id)} · ${isNumericField(string(v.field)) ? numericFields[v.field as keyof typeof numericFields].label : string(v.field)} ${operator} ${JSON.stringify(v.value)}${isNumericField(string(v.field)) ? ` ${numericFields[v.field as keyof typeof numericFields].unit}` : ''}`;
 }
 export function decodeAutomation(value: unknown): AutomationRule & { houseId: string } {
   const v = object(value);

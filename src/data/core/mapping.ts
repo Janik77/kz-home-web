@@ -1,3 +1,4 @@
+import { numericCapabilities, numericFields, validReading } from './numeric';
 import type { Device, HomeSnapshot, Scene } from '../../domain/home';
 import type { CoreDevice, CoreFloor, CoreHouse, CoreRoom, CoreScene } from './dtos';
 import { CoreError } from './errors';
@@ -8,14 +9,14 @@ const labels: Record<string, string> = { on: 'Питание', brightness: 'Яр
 
 function describeValue(key: string, value: unknown): string {
   if (typeof value === 'boolean') return key === 'on' ? (value ? 'Включено' : 'Выключено') : value ? 'Обнаружено' : 'Не обнаружено';
-  if (numeric(value)) return `${value}${['position', 'brightness', 'humidity'].includes(key) ? '%' : ['temperature', 'target_temperature'].includes(key) ? '°C' : ''}`;
+  if (numeric(value)) return `${value}${['position', 'brightness', 'humidity'].includes(key) ? '%' : ['temperature', 'target_temperature'].includes(key) ? '°C' : key === 'illuminance' ? ' лк' : ''}`;
   if (typeof value === 'string') return value;
   return 'Недоступно';
 }
 
 export function mapDevice(dto: CoreDevice): Device {
   const base = { id: dto.id, name: dto.name, roomId: dto.room_id,
-    connection: dto.online ? 'online' as const : 'offline' as const, favorite: false };
+    connection: dto.online ? 'online' as const : 'offline' as const, favorite: false, numericReadings: numericCapabilities(dto).map(field => ({ field, label: numericFields[field].label, unit: numericFields[field].unit, value: validReading(field, dto.state[field]) ? dto.state[field] as number : null, observedAt: dto.numeric_observed_at?.[field] ?? null })) };
   const state = dto.state;
   const supports = (field: string) => dto.capabilities.includes(field);
   if (dto.type === 'light' && supports('on_off') && typeof state.on === 'boolean') {
@@ -28,7 +29,7 @@ export function mapDevice(dto: CoreDevice): Device {
   // Partial state, single-measurement sensors and future types are visible without defaults.
   // Core updated_at is intentionally not mapped to a measurement timestamp.
   const typeLabel = dto.type.replaceAll('_', ' ');
-  const readings = Object.entries(state).map(([key, value]) => ({ label: labels[key] ?? key.replaceAll('_', ' '), value: describeValue(key, value) }));
+  const readings = Object.entries(state).filter(([key]) => !['temperature', 'humidity', 'illuminance'].includes(key)).map(([key, value]) => ({ label: labels[key] ?? key.replaceAll('_', ' '), value: describeValue(key, value) }));
   return { ...base, kind: 'other', typeLabel, readings,
     ...(supports('temperature') && numeric(state.temperature) ? { temperature: state.temperature } : {}),
     ...(supports('humidity') && numeric(state.humidity) ? { humidity: state.humidity } : {}) };

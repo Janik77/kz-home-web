@@ -26,6 +26,7 @@ interface DeviceBase {
   name: string;
   connection: 'online' | 'offline';
   favorite: boolean;
+  numericReadings?: { field: string; label: string; unit: string; value: number | null; observedAt: string | null }[];
 }
 
 export type Device = DeviceBase & (

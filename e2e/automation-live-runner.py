@@ -29,6 +29,9 @@ def sha(path):
 async def acceptance(values):
     config, seed, ids, api, sql, migration = values
     await provision(api, ids, seed)
+    numeric_mode = os.environ.get('LIVE_NUMERIC_ONLY') == '1'
+    if numeric_mode:
+        await api.request('PATCH', '/devices/fixture_relay', {'capabilities': ['on_off', 'temperature', 'humidity', 'illuminance']})
     received, published, triggers = [], [], []
     mode = 'apply'
     key = secrets.token_urlsafe(32)
@@ -74,7 +77,15 @@ async def acceptance(values):
                 assert 0 <= size <= 1024
                 data = json.loads(await reader.readexactly(size))
                 result = {}
-                if path == '/state':
+                if path == '/numeric':
+                    assert numeric_mode and data['field'] in ('temperature', 'humidity', 'illuminance')
+                    from datetime import datetime, timedelta, timezone
+                    timestamp = utc_now() if not data.get('stale') else datetime.now(timezone.utc) - timedelta(seconds=180)
+                    frame = StateEnvelope(timestamp=timestamp, correlation_id='numeric-' + uuid4().hex, state={'on': relay.on, data['field']: data['value']})
+                    triggers.append(frame.model_dump(mode='json'))
+                    await mqtt.publish(relay.topic(TopicKind.STATE), frame.model_dump_json(), qos=1, retain=False)
+                    result = {'correlation_id': frame.correlation_id}
+                elif path == '/state':
                     assert type(data['on']) is bool
                     relay.on = data['on']
                     frame = StateEnvelope(timestamp=utc_now(), correlation_id='trigger-' + uuid4().hex, state={'on': relay.on})
@@ -83,7 +94,7 @@ async def acceptance(values):
                     result = {'correlation_id': frame.correlation_id}
                 elif path == '/repeat':
                     assert triggers
-                    await mqtt.publish(relay.topic(TopicKind.STATE), json.dumps(triggers[-1]), qos=1, retain=True)
+                    await mqtt.publish(relay.topic(TopicKind.STATE), json.dumps(triggers[-1]), qos=1, retain=not numeric_mode)
                 elif path == '/mode':
                     assert data['mode'] in ('apply', 'fail', 'drop')
                     mode = data['mode']
@@ -132,13 +143,17 @@ async def acceptance(values):
                    'RELAY_CONTROL_URL': f'http://127.0.0.1:{server.sockets[0].getsockname()[1]}',
                    'RELAY_CONTROL_KEY': key, 'RELAY_OWNER_PASSWORD': seed['password']}
             result = await asyncio.to_thread(subprocess.run,
-                ['npx', 'playwright', 'test', '--config', 'playwright.state-live.config.ts' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'playwright.automation-live.config.ts'],
+                ['npx', 'playwright', 'test', '--config', 'playwright.numeric-live.config.ts' if numeric_mode else 'playwright.state-live.config.ts' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'playwright.automation-live.config.ts'],
                 cwd=WEB, env=env, timeout=300)
             proof = await asyncio.to_thread(evidence)
             proof['browser_exit'] = result.returncode
-            (WEB / 'test-results' / ('state-live-evidence.json' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'automation-live-evidence.json')).write_text(json.dumps(proof, indent=2))
+            (WEB / 'test-results' / ('numeric-live-evidence.json' if numeric_mode else 'state-live-evidence.json' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'automation-live-evidence.json')).write_text(json.dumps(proof, indent=2))
             # Browser scenarios prescribe one confirmed run, one refused ACK, one unknown.
-            if os.environ.get('LIVE_STATE_ONLY') == '1':
+            if numeric_mode:
+                assert result.returncode == 0, 'Numeric live browser checks failed'
+                assert proof['physical_devices'] == '0'
+                proof['verification'] = verify(proof, {'applied': 1})
+            elif os.environ.get('LIVE_STATE_ONLY') == '1':
                 assert result.returncode == 0, 'Live state browser checks failed'
                 assert not proof['received'] and not proof['commands'], 'Read-only state test sent commands'
                 assert proof['physical_devices'] == '0'
@@ -147,7 +162,7 @@ async def acceptance(values):
                 (WEB / 'test-results' / 'state-live-evidence.json').write_text(json.dumps(proof, indent=2))
             else:
                 proof['verification'] = verify(proof, {'applied': 1, 'failed': 1, 'timed_out': 1})
-            (WEB / 'test-results' / ('state-live-evidence.json' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'automation-live-evidence.json')).write_text(json.dumps(proof, indent=2))
+            (WEB / 'test-results' / ('numeric-live-evidence.json' if numeric_mode else 'state-live-evidence.json' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'automation-live-evidence.json')).write_text(json.dumps(proof, indent=2))
             assert not receiver.done(), 'Software receiver stopped'
         finally:
             server.close()

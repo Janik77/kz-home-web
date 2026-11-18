@@ -1,0 +1,42 @@
+// Contract fixtures only: screenshots prove composition, not Core/MQTT execution.
+import AxeBuilder from '@axe-core/playwright';
+import { test, expect } from '@playwright/test';
+import { coreResponses, coreDevice } from '../src/test/core-fixtures';
+import { themeStorageKey } from '../src/app/theme-context';
+for (const theme of ['light', 'dark']) test(`numeric UI ${theme}`, async ({ page }, info) => {
+  await page.addInitScript(({ key, value }) => localStorage.setItem(key, value), { key: themeStorageKey, value: theme });
+  const sensor = { ...coreDevice, id: 'sensor', name: 'Климат гостиной', type: 'temperature_sensor', capabilities: ['temperature', 'humidity', 'illuminance'], state: { temperature: 24.5, humidity: 47, illuminance: 98 }, numeric_observed_at: { temperature: new Date().toISOString(), humidity: null, illuminance: new Date(Date.now() - 180000).toISOString() } };
+  await page.route('**/core-api/**', async route => {
+    const url = new URL(route.request().url()), path = url.pathname.replace('/core-api', '') + url.search;
+    if (path.endsWith('/me/permissions')) return route.fulfill({ json: { house_id: 'house-a', permissions: ['device.read', 'automation.read', 'automation.manage'] } });
+    if (path.includes('/me/device-favorites')) return route.fulfill({ json: { device_ids: ['sensor'] } });
+    if (path === '/automations' || path.startsWith('/events')) return route.fulfill({ json: [] });
+    if (path === '/devices?house_id=house-a') return route.fulfill({ json: [sensor, { ...coreDevice, type: 'relay', name: 'Программное реле', capabilities: ['on_off'], state: { on: false } }] });
+    if (!(path in coreResponses)) throw Error(path);
+    return route.fulfill({ json: coreResponses[path] });
+  });
+  await page.goto('/');
+  await page.getByLabel('Электронная почта', { exact: true }).fill('owner@example.test');
+  await page.getByLabel('Пароль', { exact: true }).fill('fixture-only');
+  await page.getByLabel('Пароль', { exact: true }).press('Enter');
+  await expect(page.getByRole('heading', { name: 'Family home', exact: true })).toBeVisible();
+  if (await page.locator('.mobile-more summary').isVisible()) await page.locator('.mobile-more summary').click();
+  await page.getByRole('link', { name: 'Устройства', exact: true }).click();
+  await expect(page.getByText('Свежесть неизвестна', { exact: true })).toBeVisible();
+  await expect(page.getByText('Устарело · не используется для правил')).toBeVisible();
+  await page.screenshot({ path: info.outputPath(`readings-${theme}.png`), fullPage: true });
+  if (await page.locator('.mobile-more summary').isVisible()) await page.locator('.mobile-more summary').click();
+  await page.getByRole('link', { name: 'Правила', exact: true }).click();
+  await page.getByRole('button', { name: 'Создать правило' }).click();
+  await page.getByLabel('Название правила').fill('Включить свет, когда темнеет');
+  await page.getByRole('combobox', { name: 'Событие: устройство', exact: true }).selectOption('sensor');
+  await page.getByRole('combobox', { name: 'Событие: показатель', exact: true }).selectOption('illuminance');
+  await page.getByRole('combobox', { name: 'Событие: сравнение', exact: true }).selectOption('lt');
+  await page.getByLabel('Событие: значение · лк').fill('100');
+  await page.getByLabel('Гистерезис · лк').fill('20');
+  await page.getByRole('combobox', { name: 'Действие 1: устройство', exact: true }).selectOption(coreDevice.id);
+  await expect(page.getByRole('button', { name: 'Сохранить правило' })).toBeEnabled();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
+  await page.screenshot({ path: info.outputPath(`threshold-${theme}.png`), fullPage: true });
+});
