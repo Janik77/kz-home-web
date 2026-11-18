@@ -88,7 +88,10 @@ async def acceptance(values):
                     result = {'correlation_id': frame.correlation_id}
                 elif path == '/refresh':
                     assert schedule_mode
-                    await relay.state('schedule-fresh-' + uuid4().hex)
+                    # Freshness reports are source observations, not command receipts.
+                    frame = StateEnvelope(timestamp=utc_now(), correlation_id='schedule-fresh-' + uuid4().hex, state={'on': relay.on})
+                    triggers.append(frame.model_dump(mode='json'))
+                    await mqtt.publish(relay.topic(TopicKind.STATE), frame.model_dump_json(), qos=1, retain=True)
                 elif path == '/state':
                     assert type(data['on']) is bool
                     relay.on = data['on']

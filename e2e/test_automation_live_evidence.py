@@ -58,3 +58,19 @@ class EvidenceTests(unittest.TestCase):
             verify(value, {'timed_out': 1})
         value['published'] = []
         verify(value, {'timed_out': 1})
+
+class SourceAndReceiptEvidence(unittest.TestCase):
+    def test_source_freshness_is_not_a_receipt_or_an_extra_command(self):
+        state = {'protocol_version': 'v1', 'correlation_id': 'c1', 'state': {'on': True}}
+        ack = {'protocol_version': 'v1', 'correlation_id': 'c1', 'command_id': 'cmd', 'status': 'applied'}
+        row = {'command_id': 'cmd', 'correlation_id': 'c1', 'status': 'applied', 'requested_on': True, 'reported_on': True, 'ack_status': 'applied', 'state_received_at': '2026-11-18', 'ack_received_at': '2026-11-18'}
+        source = {'protocol_version': 'v1', 'correlation_id': 'schedule-fresh-one', 'state': {'on': False}}
+        proof = {'browser_exit': 0, 'physical_devices': '0', 'core_sha': 'core', 'web_sha': 'web', 'commands': [row],
+                 'received': [{'command_id': 'cmd', 'correlation_id': 'c1', 'on': True, 'topic': 'kzhome/v1/fixture_house/fixture_relay/set', 'qos': 1, 'retain': False}],
+                 'triggers': [source], 'published': [{'topic': 'device/ack', 'payload': ack, 'qos': 1, 'retain': False}, {'topic': 'device/state', 'payload': state, 'qos': 1, 'retain': True}]}
+        self.assertEqual(verify(proof, {'applied': 1})['verified_commands'], 1)
+        wrong = copy.deepcopy(proof)
+        wrong['published'].append({'topic': 'device/state', 'payload': source, 'qos': 1, 'retain': True})
+        with self.assertRaisesRegex(AssertionError, 'Unrelated result state'): verify(wrong, {'applied': 1})
+        wrong = copy.deepcopy(proof); wrong['published'].pop()
+        with self.assertRaises(AssertionError): verify(wrong, {'applied': 1})

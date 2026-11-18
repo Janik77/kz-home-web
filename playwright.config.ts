@@ -4,7 +4,7 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:5173';
 
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: ['**/numeric-live.spec.ts', '**/numeric-ui.spec.ts', '**/core.spec.ts', '**/live-core.spec.ts', '**/confirmed-live.spec.ts', '**/scene-live.spec.ts', '**/scene-visual.spec.ts', '**/automation-live.spec.ts', '**/state-live.spec.ts'],
+  testIgnore: ['**/schedule-live.spec.ts', '**/schedule-ui.spec.ts', '**/numeric-live.spec.ts', '**/numeric-ui.spec.ts', '**/core.spec.ts', '**/live-core.spec.ts', '**/confirmed-live.spec.ts', '**/scene-live.spec.ts', '**/scene-visual.spec.ts', '**/automation-live.spec.ts', '**/state-live.spec.ts'],
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 2 : 0,
