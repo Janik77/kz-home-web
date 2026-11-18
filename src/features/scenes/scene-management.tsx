@@ -62,5 +62,5 @@ function OpenScene({id,service}:{id:string;service:SceneEditing}) {
 export function SceneManagement({id}:{id:string}) {
  const service=useRepository().sceneEditing;const[open,setOpen]=useState(false);
  if(!service)return null;
- return <section>{!open?<Button variant="secondary" onClick={()=>setOpen(true)}>Изменить действия или создать копию</Button>:<OpenScene id={id} service={service}/>}</section>;
+ return <section className="scene-management">{!open?<Button variant="secondary" onClick={()=>setOpen(true)}>Изменить действия или создать копию</Button>:<OpenScene id={id} service={service}/>}</section>;
 }

@@ -308,3 +308,6 @@
 .automation-history summary { cursor: pointer; padding-block: .5rem; }
 .automation-card code, .automation-comparison { overflow-wrap: anywhere; }
 @media (max-width: 640px) { .automation-fields { grid-template-columns: 1fr; } }
+/* A full plan editor needs the same readable canvas as an expanded run. */
+.app-shell--everyday .scene-grid--detailed .scene-card:has(.scene-management form) { grid-column: 1 / -1; }
+.app-shell--everyday .scene-management { min-width: 0; width: 100%; }
