@@ -1,6 +1,6 @@
 import {decodeScene} from './dtos';
 import { expect, it } from 'vitest';
-import { decodeDurableWait, validDurablePlan, decodeWaitRunAction } from './durable';
+import { durableReason, decodeDurableWait, validDurablePlan, decodeWaitRunAction } from './durable';
 import { decodeSceneRun, checkRun } from './scene-runs';
 import { decodeEditableAutomation, decodeAutomationRun } from './automations';
 const relay={type:'device_state' as const,device_id:'r',state:{on:true}};
@@ -47,3 +47,5 @@ it('keeps durable relay extensions read-only rather than silently dropping const
  expect(decodeEditableAutomation(rule).draft).toBeNull();
  const scene=decodeScene({...rule,created_at:created,updated_at:created});expect(scene.actions[0]).toMatchObject({unsupported:true});
 });
+
+it('explains exact restore invalidation without implying rollback or inventing unknown reasons',()=>{expect(durableReason('restore_invalidation')).toContain('не откатываются');expect(durableReason('future_unknown')).toBeUndefined();});

@@ -43,3 +43,5 @@ export function validateDurableRun(v:Record<string,unknown>,actions:({status:str
  if(v.status==='cancelled'&&!fields.cancelled_at)throw new CoreError('protocol');
  if(actions.some(a=>a.type!=='durable_wait'&&['cancelled','expired'].includes(a.status)&&(!fields.plan_deadline||a.receipt!==null)))throw new CoreError('protocol');
 }
+
+export const durableReason = (code:string) => code==='restore_invalidation' ? 'Оставшиеся шаги отменены при восстановлении резервной копии. Уже выполненные действия не откатываются.' : undefined;

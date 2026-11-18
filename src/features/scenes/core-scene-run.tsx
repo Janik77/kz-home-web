@@ -1,3 +1,4 @@
+import {durableReason} from '../../data/core/durable';
 import { WaitRunView } from '../definitions/wait-run-view';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -111,12 +112,12 @@ export function CoreSceneRun({ scene, home }: { scene: Scene; home: HomeSnapshot
     </>}
     {run && <>
       {run.execution_mode === 'manual' && <p role="alert">Это прежний ручной запуск. Эта страница только читает его результат и не продолжает отправку.</p>}
-      {run.execution_error && <p role="alert">Причина остановки Core: <code>{run.execution_error}</code></p>}
+      {run.execution_error && <p role="alert">Причина остановки Core: <span>{durableReason(run.execution_error) ?? run.execution_error}</span></p>}
       <p role="status">{summaries[run.status]}. Подтверждено: {run.actions.filter(a => a.status === 'applied').length} из {run.actions.filter(a => !('type' in a)).length}.</p>
       <p className="quiet-note">ID: <code>{run.id}</code> · версия {run.scene_revision}. Отправка до {new Date(run.dispatch_deadline).toLocaleString('ru-RU')}.</p>
       <ol>{run.actions.map(action => <li key={action.position}>
         {'type' in action ? <WaitRunView action={action}/> : <><strong>{home.devices.find(d => d.id === action.device_id)?.name ?? action.device_id} · {action.requested_on ? 'Вкл' : 'Выкл'}</strong></>}
-        <p>{action.failure_code === 'publish_unconfirmed' ? 'Отправка не подтверждена — результат неизвестен' : labels[action.status]}{action.failure_code && <> · <code>{action.failure_code}</code></>}</p>
+        <p>{action.failure_code === 'publish_unconfirmed' ? 'Отправка не подтверждена — результат неизвестен' : labels[action.status]}{action.failure_code && <> · <span>{durableReason(action.failure_code) ?? action.failure_code}</span></>}</p>
         {action.receipt && <details><summary>Квитанция действия {action.position + 1}</summary><p>Команда: <code>{action.receipt.command_id}</code></p><p>Корреляция: <code>{action.receipt.correlation_id}</code></p></details>}
       </li>)}</ol>
       {run.status==='waiting'&&run.plan_deadline&&service.cancel&&allowed&&<><Button variant="secondary" disabled={busy} onClick={()=>setConfirmCancel(true)}>Отменить оставшиеся шаги</Button>{confirmCancel&&<div role="group" aria-label="Отмена оставшихся шагов"><p>Уже подтверждённое действие не отменится. Если Core уже начал следующий шаг, отмена может быть отклонена; прочитайте актуальный результат.</p><Button disabled={busy} onClick={()=>{setConfirmCancel(false);void perform(async signal=>{try{return await service.cancel!(run,signal);}catch(failure){try{const fresh=await service.read(run.id,signal,run);signal.throwIfAborted();setRun(fresh);}catch{/* Keep the original cancellation failure; no retry. */}throw failure;}});}}>Подтвердить отмену оставшихся шагов</Button><Button variant="quiet" onClick={()=>setConfirmCancel(false)}>Продолжить ожидание</Button></div>}</>}
