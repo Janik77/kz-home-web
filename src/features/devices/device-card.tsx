@@ -40,7 +40,7 @@ export function DeviceCard({ everyday = false, details = false, device, roomName
       {(readOnly || device.kind === 'curtain' || device.kind === 'sensor' || device.kind === 'other') && <span className="device-card__type">{device.kind === 'other' ? device.typeLabel : labels[device.kind]}</span>}
     </div>
 
-    {!device.numericReadings?.length && <p className="device-card__state">{readOnly ? `${offline ? 'Не в сети · последнее: ' : ''}${stateRu(device)}` : device.kind === 'light' && !offline && device.brightness !== null ? (device.on ? 'Включено' : 'Выключено') : describeDevice(device)}</p>}
+    {(!device.numericReadings?.length || device.kind !== 'other' || device.readings.length > 0) && <p className="device-card__state">{readOnly ? `${offline ? 'Не в сети · последнее: ' : ''}${stateRu(device)}` : device.kind === 'light' && !offline && device.brightness !== null ? (device.on ? 'Включено' : 'Выключено') : describeDevice(device)}</p>}
     <NumericReadings device={device} />
     {/* CSS exposes exactly one favorite in its natural reading/tab order; relay stays mounted on resize. */}
     {readOnly && <FavoriteButton className="favorite-button--desktop" id={device.id} name={device.name} />}

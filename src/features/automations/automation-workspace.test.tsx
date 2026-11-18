@@ -85,3 +85,14 @@ it('edits supported numeric threshold with hysteresis and numeric AND without en
   expect(t.save.mock.calls[0]?.[0]).toMatchObject({ trigger: { type: 'numeric_threshold', field: 'temperature', operator: 'gt', value: 25, hysteresis: 2 }, conditions: [{ type: 'numeric_state', field: 'humidity', operator: 'gt' }] });
   expect(t.toggle).not.toHaveBeenCalled();
 });
+
+it('allows numeric trigger on mixed relay capabilities without removing power choice', async () => {
+  setup({ devices: async () => [{ ...device, capabilities: ['on_off', 'temperature'], state: { on: false, temperature: 23 } }] });
+  await userEvent.click(await screen.findByRole('button', { name: 'Создать правило' }));
+  await userEvent.selectOptions(screen.getByLabelText('Событие: устройство'), device.id);
+  expect(screen.getByLabelText('Событие: питание')).toBeInTheDocument();
+  await userEvent.selectOptions(screen.getByLabelText('Событие: показатель'), 'temperature');
+  expect(screen.getByLabelText('Гистерезис · °C')).toBeInTheDocument();
+  await userEvent.selectOptions(screen.getByLabelText('Событие: показатель'), 'on');
+  expect(screen.getByLabelText('Событие: питание')).toBeInTheDocument();
+});

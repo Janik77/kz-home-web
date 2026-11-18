@@ -20,7 +20,8 @@ export interface AutomationRun { id: string; house_id: string; automation_id: st
 function revision(value: unknown) { const r = decodeRevision(value); if (!r) throw new CoreError('protocol'); return r; }
 const nullable = (v: unknown) => v === null ? null : string(v);
 function stateTest(value: unknown): StateTest {
-  const v = object(value);
+  const v = { ...object(value) };
+  if (v.hysteresis === null) delete v.hysteresis;
   if (Object.keys(v).some(k => !['type', 'device_id', 'field', 'operator', 'value'].includes(k))) throw new CoreError('protocol');
   if (v.type !== 'device_state' || v.field !== 'on' || !['eq', 'neq'].includes(String(v.operator))) throw new CoreError('protocol');
   return { type: 'device_state', device_id: string(v.device_id), field: 'on', operator: v.operator as 'eq' | 'neq', value: boolean(v.value) };
@@ -28,7 +29,8 @@ function stateTest(value: unknown): StateTest {
 function numericTest(value: unknown, trigger: true): NumericTrigger;
 function numericTest(value: unknown, trigger: false): NumericCondition;
 function numericTest(value: unknown, trigger: boolean): NumericTrigger | NumericCondition {
-  const v = object(value);
+  const v = { ...object(value) };
+  if (!trigger && v.hysteresis === null) delete v.hysteresis;
   const allowed = ['type', 'device_id', 'field', 'operator', 'value', ...(trigger ? ['hysteresis'] : [])];
   if (v.type !== (trigger ? 'numeric_threshold' : 'numeric_state') || typeof v.field !== 'string' || !isNumericField(v.field) || Object.keys(v).some(k => !allowed.includes(k))) throw new CoreError('protocol');
   const result = { ...v, device_id: string(v.device_id) } as unknown as NumericTrigger | NumericCondition;

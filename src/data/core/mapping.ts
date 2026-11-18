@@ -29,7 +29,7 @@ export function mapDevice(dto: CoreDevice): Device {
   // Partial state, single-measurement sensors and future types are visible without defaults.
   // Core updated_at is intentionally not mapped to a measurement timestamp.
   const typeLabel = dto.type.replaceAll('_', ' ');
-  const readings = Object.entries(state).filter(([key]) => !['temperature', 'humidity', 'illuminance'].includes(key) || supports(key)).map(([key, value]) => ({ label: labels[key] ?? key.replaceAll('_', ' '), value: describeValue(key, value) }));
+  const readings = Object.entries(state).filter(([key]) => !['temperature', 'humidity', 'illuminance'].includes(key)).map(([key, value]) => ({ label: labels[key] ?? key.replaceAll('_', ' '), value: describeValue(key, value) }));
   return { ...base, kind: 'other', typeLabel, readings,
     ...(supports('temperature') && numeric(state.temperature) ? { temperature: state.temperature } : {}),
     ...(supports('humidity') && numeric(state.humidity) ? { humidity: state.humidity } : {}) };

@@ -287,8 +287,8 @@
 
 .run-review .button:disabled { opacity: .55; cursor: not-allowed; }
 .numeric-readings { display:grid; gap:12px; margin:10px 0; }
-.numeric-readings > div { display:flex; justify-content:space-between; align-items:baseline; gap:12px; }
+.numeric-readings > div { display:grid; grid-template-columns:1fr auto; align-items:baseline; gap:2px 8px; }
 .numeric-readings dt { font-size:.8rem; }
-.numeric-readings dd { margin:0; text-align:right; min-width:0; }
-.numeric-readings strong { display:block; font-size:1.3rem; font-variant-numeric:tabular-nums; }
-.numeric-readings span, .numeric-readings time { display:block; font-size:.72rem; line-height:1.5; }
+.numeric-readings dd { display:contents; }
+.numeric-readings strong { text-align:right; display:block; font-size:1.3rem; font-variant-numeric:tabular-nums; }
+.numeric-readings span, .numeric-readings time { grid-column:1/-1; display:block; font-size:.72rem; line-height:1.5; }

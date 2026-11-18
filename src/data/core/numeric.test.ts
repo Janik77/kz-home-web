@@ -35,3 +35,15 @@ it('explains strict crossing, hysteresis recovery and first-sample baseline', ()
   expect(thresholdExplanation(trigger)).toContain('к 23 °C или ниже');
   expect(thresholdExplanation({ ...trigger, operator: 'lt' })).toContain('к 27 °C или выше');
 });
+
+it('accepts actual Core null hysteresis defaults on nonthreshold tests without losing meaningful fields', () => {
+  const wire = { ...draft, house_id: 'house', enabled: false, trigger: { type: 'device_state', device_id: 'relay', field: 'on', operator: 'eq', value: true, hysteresis: null }, conditions: draft.conditions.map(c => ({ ...c, hysteresis: null })) };
+  expect(decodeEditableAutomation(wire).draft?.trigger).toEqual({ type: 'device_state', device_id: 'relay', field: 'on', operator: 'eq', value: true });
+  expect(decodeEditableAutomation(wire).draft?.conditions).toEqual(draft.conditions);
+  expect(decodeEditableAutomation({ ...wire, conditions: draft.conditions.map(c => ({ ...c, hysteresis: 1 })) }).draft).toBeNull();
+});
+
+it('retains nonnumeric state beside numeric readings on a mixed sensor', () => {
+  const mixed = mapDevice({ ...sensor, capabilities: ['motion', 'illuminance'], state: { motion: true, illuminance: 120 } });
+  expect(mixed).toMatchObject({ kind: 'other', readings: [{ label: 'Движение', value: 'Обнаружено' }], numericReadings: [{ field: 'illuminance', value: 120 }] });
+});

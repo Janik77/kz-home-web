@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 20
     env:
       PLAYWRIGHT_CHANNEL: chrome
-      CORE_BASE_SHA: f4b6787c6ee630d7cb7b2fd19b6fdb4c2b16d315
+      CORE_BASE_SHA: d405505637bc65f6a23083570dd8d43ddf9a465b
       BASELINE_WEB_SOURCE: ${{ github.workspace }}/web-before
       PYTHONDONTWRITEBYTECODE: '1'
       LIVE_CORE_SOURCE: ${{ github.workspace }}/core
@@ -73,6 +73,11 @@ jobs:
       - name: Automation event to confirmed receipt browser acceptance
         working-directory: web
         run: '"$RUNNER_TEMP/live-venv/bin/python" -B e2e/automation-live-runner.py'
+      - name: Numeric threshold real Core MQTT browser acceptance
+        working-directory: web
+        env:
+          LIVE_NUMERIC_ONLY: '1'
+        run: '"$RUNNER_TEMP/live-venv/bin/python" -B e2e/automation-live-runner.py'
       - name: Core combined regression suite
         working-directory: core
         run: '"$RUNNER_TEMP/live-venv/bin/python" -m pytest -q'
@@ -81,6 +86,9 @@ jobs:
         with:
           name: live-software-evidence
           path: |
+            web/test-results/numeric-live-evidence.json
+            web/test-results/numeric-live/
+            web/test-results/live-numeric-*.png
             web/test-results/state-live-evidence.json
             web/test-results/state-live/
             web/test-results/live-state-*.png
