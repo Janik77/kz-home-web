@@ -34,6 +34,7 @@ test('LIVE numeric crossing, hysteresis, duplicate immunity and editable roundtr
     await card(name).getByRole('button', { name: 'Редактировать правило', exact: true }).click();
     await expect(page.getByLabel('Название правила')).toHaveValue(name);
     await page.getByRole('button', { name: 'Сохранить правило', exact: true }).click();
+    await expect(page.getByLabel('Название правила')).toHaveCount(0);
     await expect(card(name)).toContainText('Выключена');
   }
   const rule = card('Свет при наступлении темноты');
