@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 50
     env:
       PLAYWRIGHT_CHANNEL: chrome
-      CORE_BASE_SHA: 4c37d208c54a21216b376d825a715a3518804823
+      CORE_BASE_SHA: 51c97f022ecb4151604cc0cb61baacc37a37a4bc
       BASELINE_WEB_SOURCE: ${{ github.workspace }}/web-before
       PYTHONDONTWRITEBYTECODE: '1'
       LIVE_CORE_SOURCE: ${{ github.workspace }}/core

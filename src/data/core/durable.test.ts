@@ -1,3 +1,4 @@
+import {decodeScene} from './dtos';
 import { expect, it } from 'vitest';
 import { decodeDurableWait, validDurablePlan, decodeWaitRunAction } from './durable';
 import { decodeSceneRun, checkRun } from './scene-runs';
@@ -38,4 +39,11 @@ it('accepts actual durable cancelled or expired relay successors, never legacy o
  expect(()=>decodeSceneRun({...run,status:'cancelled',cancelled_at:undefined})).toThrow();
  expect(()=>decodeSceneRun({...run,wait_due_at:'2026-11-18T00:00:07Z'})).toThrow();
  expect(()=>decodeSceneRun({...run,status:'stopped',plan_deadline:undefined,wait_due_at:undefined,resume_deadline:undefined,actions:[{...a,status:'cancelled'}]})).toThrow();
+});
+
+it('keeps durable relay extensions read-only rather than silently dropping constraints',()=>{
+ const actions=[{...relay,future_constraint:{required:true}},wait,relay];
+ const rule={id:'a',house_id:'h',name:'Future',enabled:false,revision:1,trigger:{type:'device_state',device_id:'r',field:'on',operator:'eq',value:true},conditions:[],actions};
+ expect(decodeEditableAutomation(rule).draft).toBeNull();
+ const scene=decodeScene({...rule,created_at:created,updated_at:created});expect(scene.actions[0]).toMatchObject({unsupported:true});
 });

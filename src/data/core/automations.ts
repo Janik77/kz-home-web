@@ -46,7 +46,7 @@ export function decodeEditableAutomation(value: unknown): EditableAutomation {
   try {
     draft = { id: rule.id, name: rule.name, trigger: object(v.trigger).type === 'schedule' ? decodeSchedule(v.trigger) : object(v.trigger).type === 'numeric_threshold' ? numericTest(v.trigger, true) : stateTest(v.trigger), conditions: list(v.conditions, c => object(c).type === 'numeric_state' ? numericTest(c, false) : stateTest(c)), actions: list(v.actions, value => {
       const a = object(value); if(a.type === 'durable_wait') return decodeDurableWait(a); const s = object(a.state);
-      if (a.type !== 'device_state' || Object.keys(s).length !== 1) throw new CoreError('protocol');
+      if (a.type !== 'device_state' || Object.keys(s).length !== 1 || (Array.isArray(v.actions) && v.actions.some(step => object(step).type === 'durable_wait') && Object.keys(a).some(key => !['type','device_id','state'].includes(key)))) throw new CoreError('protocol');
       return { type: 'device_state', device_id: string(a.device_id), state: { on: boolean(s.on) } };
     }) };
     if (draft.actions.length < 1 || draft.actions.length > 16 || !validDurablePlan(draft.actions) || draft.conditions.length > 50) draft = null;

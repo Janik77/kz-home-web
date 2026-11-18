@@ -12,7 +12,7 @@ export interface CoreDevice extends CoreHouse {
 }
 export interface CoreScene extends CoreHouse {
   revision?: number | undefined;
-  house_id: string; actions: ({ type: 'device_state'; device_id: string; state: Record<string, unknown> } | DurableWait | {type:'delay';seconds:number})[];
+  house_id: string; actions: ({ type: 'device_state'; device_id: string; state: Record<string, unknown>; unsupported?: boolean } | DurableWait | {type:'delay';seconds:number})[];
 }
 export interface TokenPair { access_token: string; refresh_token: string; token_type: 'bearer'; expires_in: number }
 
@@ -63,7 +63,7 @@ export function decodeScene(value: unknown): CoreScene {
     if(action.type === 'durable_wait') return decodeDurableWait(action);
     if(action.type === 'delay') return {type:'delay' as const,seconds:number(action.seconds)};
     if (action.type !== 'device_state') throw new CoreError('protocol');
-    return { type: 'device_state', device_id: string(action.device_id), state: object(action.state) };
+    return { type: 'device_state', device_id: string(action.device_id), state: object(action.state), ...(Array.isArray(item.actions) && item.actions.some(step=>object(step).type==='durable_wait') && Object.keys(action).some(key=>!['type','device_id','state'].includes(key)) ? {unsupported:true} : {}) };
   }) };
 }
 export function decodeTokens(value: unknown): TokenPair {
