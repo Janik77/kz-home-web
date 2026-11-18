@@ -297,3 +297,9 @@
 .schedule-days legend { width: 100%; }
 .definition-editor .schedule-days label { display: inline-flex; align-items: center; gap: .45rem; min-height: 44px; margin-block: 0; }
 .definition-editor .schedule-days input { width: 1.1rem; height: 1.1rem; min-height: 0; padding: 0; accent-color: var(--color-accent); }
+
+/* Existing definition surfaces, with compact wrapping actions on narrow screens. */
+.metadata-editor { min-width: 0; }
+.metadata-actions { display: flex; flex-wrap: wrap; gap: .65rem; align-items: center; }
+.metadata-comparison { margin-top: 1rem; border-top: 1px solid var(--color-border); padding-top: 1rem; overflow-wrap: anywhere; }
+.metadata-editor select, .metadata-editor input { max-width: 100%; }

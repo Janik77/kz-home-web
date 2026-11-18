@@ -1,3 +1,4 @@
+import { MetadataEditor } from '../metadata/metadata-editor';
 import { CreateSpace } from './create-space';
 import { useState } from 'react';
 import { PageHeading } from '../../components/ui/page-heading';
@@ -12,6 +13,7 @@ export function RoomsPage() {
   return <HomeDataBoundary>{(home) => <div className="page everyday-page rooms-page">
     <PageHeading eyebrow={home.house.name} title="Комнаты" description={`Комнат: ${home.rooms.length} · этажей: ${home.floors.length}. Откройте комнату для просмотра устройств.`} />
     <CreateSpace home={home} />
+    {readOnly && home.floors.length > 0 && <details className="settings-panel"><summary>Названия этажей</summary>{home.floors.map(item => <MetadataEditor key={item.id} kind="floor" id={item.id} title={item.name} />)}</details>}
     <div className="filter-bar" role="group" aria-label="Фильтр по этажу">
       {[{ id: 'all', name: 'Все комнаты' }, ...home.floors].map((item) => <button type="button" key={item.id} aria-pressed={floor === item.id} onClick={() => setFloor(item.id)}>{item.name}</button>)}
     </div>
