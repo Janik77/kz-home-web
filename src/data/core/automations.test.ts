@@ -83,3 +83,8 @@ it('old Core cannot activate or edit rules via the legacy unconfirmed executor',
   await t.service.toggle('rule-a', false, 1, new AbortController().signal);
   expect(t.writes).toHaveLength(1); expect(t.writes[0]?.body.enabled).toBe(false);
 });
+
+it('roundtrips ordered durable automation steps with revision and without commands',async()=>{
+ const t=await setup();const next:AutomationDraft={...draft,actions:[{type:'device_state',device_id:'relay-a',state:{on:true}},{type:'durable_wait',seconds:8},...draft.actions]};
+ const saved=await t.service.save(next,1,new AbortController().signal);expect(saved.draft?.actions).toEqual(next.actions);expect(t.writes[0]?.body).toMatchObject({actions:next.actions,expected_revision:1});expect(t.fetcher.mock.calls.some(([url])=>/execute|commands|\/run$/.test(String(url)))).toBe(false);
+});

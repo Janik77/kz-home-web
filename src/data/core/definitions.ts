@@ -1,10 +1,11 @@
+import { isDurableWait, validDurablePlan, type DurableWait } from './durable';
 import type { CoreSession } from './session';
 import { decodeRevision, decodeScene, object, string } from './dtos';
 import { readHousePermissions } from './permissions';
 import { CoreError } from './errors';
 
 export type DefinitionKind = 'scenes' | 'automations';
-export interface SceneDraft { id: string; name: string; actions: { deviceId: string; on: boolean }[] }
+export interface SceneDraft { id: string; name: string; actions: ({ deviceId: string; on: boolean; type?: undefined } | DurableWait)[] }
 export interface Definitions {
   permissions(signal: AbortSignal): Promise<string[]>;
   createScene(draft: SceneDraft, signal: AbortSignal): Promise<void>;
@@ -34,10 +35,10 @@ export function createDefinitions(session: CoreSession, houseId: string): Defini
   return { permissions,
     async createScene(draft, signal) {
       if (!validName(draft.name) || !draft.id || draft.id.length > 64 || !draft.actions.length || draft.actions.length > 100
-        || draft.actions.some(a => !a.deviceId || typeof a.on !== 'boolean')) throw new CoreError('validation');
+        || !validDurablePlan(draft.actions) || draft.actions.some(a => !isDurableWait(a) && (!a.deviceId || typeof a.on !== 'boolean'))) throw new CoreError('validation');
       await authorize('scenes', signal);
       const body = { id: draft.id, house_id: houseId, name: draft.name.trim(),
-        actions: draft.actions.map(a => ({ type: 'device_state', device_id: a.deviceId, state: { on: a.on } })) };
+        actions: draft.actions.map(a => isDurableWait(a) ? a : ({ type: 'device_state', device_id: a.deviceId, state: { on: a.on } })) };
       const path = `/scenes/${encodeURIComponent(draft.id)}`;
       await session.definitionWrite('/scenes', 'POST', body, 201, decode(draft.id), signal);
       const saved = await session.read(path, decodeScene, signal);

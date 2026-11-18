@@ -1,3 +1,4 @@
+import { validateDurableRun, decodeWaitRunAction, decodeDurableRunFields, type WaitRunAction, type DurableRunFields } from './durable';
 import { createSceneIntents } from './scene-intents';
 import { createRunHistory, type RunHistory } from './run-history';
 import { boolean, list, object, string } from './dtos';
@@ -6,10 +7,11 @@ import { readHousePermissions } from './permissions';
 import { decodeReceipt, type Receipt } from './relay-control';
 import type { CoreSession } from './session';
 
-const statuses = ['ready', 'running', 'succeeded', 'stopped', 'unknown', 'expired', 'partial', 'refused'] as const;
-const actionStatuses = ['ready', 'waiting', 'dispatch_unknown', 'blocked', 'skipped', 'queued', 'dispatched', 'applied', 'failed', 'timed_out'] as const;
-export interface RunAction { position: number; device_id: string; requested_on: boolean; status: typeof actionStatuses[number]; failure_code: string | null; receipt: Receipt | null }
-export interface SceneRun { id: string; house_id: string; scene_id: string; scene_revision: number; created_at: string; dispatch_deadline: string; status: typeof statuses[number]; execution_mode: 'manual' | 'server'; execution_error: string | null; actions: RunAction[] }
+const statuses = ['ready', 'running', 'succeeded', 'stopped', 'unknown', 'expired', 'partial', 'refused', 'waiting', 'cancelled'] as const;
+const actionStatuses = ['cancelled', 'expired', 'ready', 'waiting', 'dispatch_unknown', 'blocked', 'skipped', 'queued', 'dispatched', 'applied', 'failed', 'timed_out'] as const;
+export interface RelayRunAction { position: number; device_id: string; requested_on: boolean; status: typeof actionStatuses[number]; failure_code: string | null; receipt: Receipt | null }
+export type RunAction = RelayRunAction | WaitRunAction;
+export interface SceneRun extends DurableRunFields { id: string; house_id: string; scene_id: string; scene_revision: number; created_at: string; dispatch_deadline: string; status: typeof statuses[number]; execution_mode: 'manual' | 'server'; execution_error: string | null; actions: RunAction[] }
 function integer(value: unknown, minimum: number): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < minimum) throw new CoreError('protocol');
   return value;
@@ -22,25 +24,32 @@ export function decodeSceneRun(value: unknown): SceneRun {
   if (!Number.isFinite(Date.parse(created)) || !Number.isFinite(Date.parse(deadline)) || Date.parse(deadline) <= Date.parse(created)) throw new CoreError('protocol');
   const actions = list(v.actions, item => {
     const a = object(item);
-    if (!actionStatuses.includes(a.status as RunAction['status'])) throw new CoreError('protocol');
+    if(a.type === 'durable_wait') return decodeWaitRunAction(a);
+    if (!actionStatuses.includes(a.status as RelayRunAction['status'])) throw new CoreError('protocol');
     const action: RunAction = { position: integer(a.position, 0), device_id: string(a.device_id), requested_on: boolean(a.requested_on),
-      status: a.status as RunAction['status'], failure_code: a.failure_code === null ? null : string(a.failure_code), receipt: a.receipt === null ? null : decodeReceipt(a.receipt) };
+      status: a.status as RelayRunAction['status'], failure_code: a.failure_code === null ? null : string(a.failure_code), receipt: a.receipt === null ? null : decodeReceipt(a.receipt) };
     if (action.receipt && (action.receipt.house_id !== house || action.receipt.device_id !== action.device_id || action.receipt.requested_on !== action.requested_on || action.receipt.status !== action.status || Date.parse(action.receipt.expires_at) > Date.parse(deadline))) throw new CoreError('protocol');
     if (['queued', 'dispatched', 'applied', 'failed', 'timed_out'].includes(action.status) && !action.receipt) throw new CoreError('protocol');
     return action;
   });
+  const durable = decodeDurableRunFields(v); validateDurableRun(v,actions,durable); const hasWait = actions.some(a => 'type' in a);
+  if(hasWait && !durable.plan_deadline || !hasWait && durable.plan_deadline || (v.status==='waiting'&&(!hasWait||!durable.wait_due_at)) || (v.status==='cancelled'&&(!hasWait||!durable.cancelled_at))) throw new CoreError('protocol');
+  if(durable.plan_deadline && durable.plan_deadline!==deadline)throw new CoreError('protocol');
   if (!actions.length || actions.length > 16 || actions.some((a, i) => a.position !== i) ||
     new Set(actions.flatMap(a => a.receipt ? [a.receipt.command_id] : [])).size !== actions.filter(a => a.receipt).length ||
-    (v.status === 'succeeded' && actions.some(a => a.status !== 'applied')) ||
-    (v.status === 'partial' && (!actions.some(a => a.status === 'applied') || actions.every(a => a.status === 'applied'))) ||
+    (v.status === 'succeeded' && actions.some(a => a.status !== 'applied' && a.status !== 'completed')) ||
+    (v.status === 'partial' && (!actions.some(a => a.status === 'applied') || actions.every(a => a.status === 'applied' || a.status === 'completed'))) ||
     (v.status === 'refused' && actions.some(a => a.status === 'applied'))) throw new CoreError('protocol');
-  return { id: string(v.id), house_id: house, scene_id: string(v.scene_id), scene_revision: integer(v.scene_revision, 1), created_at: created, dispatch_deadline: deadline, status: v.status as SceneRun['status'], execution_mode: v.execution_mode, execution_error: v.execution_error === null ? null : string(v.execution_error), actions };
+  return { ...decodeDurableRunFields(v), id: string(v.id), house_id: house, scene_id: string(v.scene_id), scene_revision: integer(v.scene_revision, 1), created_at: created, dispatch_deadline: deadline, status: v.status as SceneRun['status'], execution_mode: v.execution_mode, execution_error: v.execution_error === null ? null : string(v.execution_error), actions };
 }
 export function checkRun(previous: SceneRun, next: SceneRun) {
   for (const key of ['id', 'house_id', 'scene_id', 'scene_revision', 'created_at', 'dispatch_deadline', 'execution_mode'] as const) if (next[key] !== previous[key]) throw new CoreError('protocol');
+  if(previous.plan_deadline!==next.plan_deadline) throw new CoreError('protocol');
   if (next.actions.length !== previous.actions.length) throw new CoreError('protocol');
   previous.actions.forEach((a, i) => {
     const b = next.actions[i]!;
+    if(('type' in a)!==('type' in b)) throw new CoreError('protocol');
+    if('type' in a && 'type' in b && (a.seconds!==b.seconds || (a.due_at!==null && (a.due_at!==b.due_at || a.resume_deadline!==b.resume_deadline)))) throw new CoreError('protocol');
     if (a.device_id !== b.device_id || a.requested_on !== b.requested_on || (a.receipt && (!b.receipt ||
       a.receipt.command_id !== b.receipt.command_id || a.receipt.correlation_id !== b.receipt.correlation_id || a.receipt.expires_at !== b.receipt.expires_at))) throw new CoreError('protocol');
   });
@@ -52,6 +61,7 @@ export interface SceneRuns {
   permissions(signal: AbortSignal): Promise<string[]>;
   create(scene: string, revision: number, key: string, signal: AbortSignal): Promise<SceneRun>;
   read(id: string, signal: AbortSignal, previous?: SceneRun): Promise<SceneRun>;
+  cancel?(previous: SceneRun, signal: AbortSignal): Promise<SceneRun>;
   dispatch(previous: SceneRun, position: number, signal: AbortSignal): Promise<SceneRun>;
 }
 export function createSceneRuns(session: CoreSession, house: string): SceneRuns {
@@ -75,6 +85,10 @@ export function createSceneRuns(session: CoreSession, house: string): SceneRuns 
       if (run.id !== id) throw new CoreError('protocol');
       if (previous) checkRun(previous, run);
       return run;
+    },
+    async cancel(previous, signal) {
+      await authorize(signal); if(previous.status!=='waiting'||!previous.plan_deadline)throw new CoreError('conflict');
+      const next=await session.definitionWrite(`${path}/${encodeURIComponent(previous.id)}/cancel`,'POST',{},200,decode,signal); checkRun(previous,next); return next;
     },
     async dispatch(previous, position, signal) {
       await authorize(signal);

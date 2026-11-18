@@ -8,6 +8,8 @@ export function SceneDetails({ scene, home }: { scene: Scene; home: HomeSnapshot
   return <details className="scene-details"><summary>Действия ({actions.length})</summary>
     <p className="scene-card__description">{scene.description}</p>
     <ul>{actions.map((action, index) => {
+      if('waitSeconds' in action && typeof action.waitSeconds === 'number') return <li key={index}><span>Сохранённая пауза</span><span>{action.waitSeconds} с после подтверждения предыдущего действия</span></li>;
+      if('unsupported' in action && action.unsupported) return <li key={index}><span>Только просмотр</span><span>{action.description}</span></li>;
       const device = home.devices.find((item) => item.id === action.deviceId);
       const room = home.rooms.find((item) => item.id === device?.roomId);
       const unavailable = !device || device.connection === 'offline';
