@@ -1,3 +1,4 @@
+import type { SceneEditing } from './core/scene-editing';
 import type { Metadata } from './core/metadata';
 import type { HouseClock } from './core/schedules';
 import type { Automations } from './core/automations';
@@ -11,6 +12,7 @@ import type { RelayControl } from './core/relay-control';
 
 /** An application boundary, not an HTTP API. Core transport and mapping belong in an adapter. */
 export interface HomeRepository {
+  readonly sceneEditing?: SceneEditing;
   readonly metadata?: Metadata;
   readonly houseClock?: HouseClock;
   readonly automations?: Automations;

@@ -36,8 +36,8 @@ export function mapDevice(dto: CoreDevice): Device {
 }
 
 function mapScene(dto: CoreScene): Scene {
-  return { id: dto.id, name: dto.name, revision: dto.revision, description: '', icon: 'scene', actions: [],
-    readActions: dto.actions.map((action) => action.type === 'durable_wait' ? ({deviceId:'',waitSeconds:action.seconds,description:`Сохранённая пауза: ${action.seconds} с после подтверждения`}) : action.type === 'delay' ? ({deviceId:'',unsupported:true,description:`Устаревшая задержка: ${action.seconds} с. Запуск не поддерживается.`}) : ({ deviceId: action.device_id, ...(action.unsupported?{unsupported:true}:{}),
+  return { id: dto.id, name: dto.name, ...(dto.is_draft === undefined ? {} : { isDraft: dto.is_draft }), revision: dto.revision, description: '', icon: 'scene', actions: [],
+    readActions: dto.actions.map((action) => action.type === 'unsupported' ? ({deviceId:'',unsupported:true,description:`Неподдерживаемое действие: ${action.originalType}. Только просмотр.`}) : action.type === 'durable_wait' ? ({deviceId:'',waitSeconds:action.seconds,description:`Сохранённая пауза: ${action.seconds} с после подтверждения`}) : action.type === 'delay' ? ({deviceId:'',unsupported:true,description:`Устаревшая задержка: ${action.seconds} с. Запуск не поддерживается.`}) : ({ deviceId: action.device_id, ...(action.unsupported?{unsupported:true}:{}),
       description: Object.entries(action.state).map(([key, value]) => `${labels[key] ?? key.replaceAll('_', ' ')}: ${describeValue(key, value)}`).join(' · ') || 'Нет изменений состояния' })) };
 }
 

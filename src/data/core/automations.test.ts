@@ -16,7 +16,8 @@ async function setup(options: { grants?: string[]; status?: number; foreign?: bo
       if (init?.method === 'POST' || init?.method === 'PATCH') {
         const body = JSON.parse(String(init.body)); writes.push({ path, body }); wrote = true;
         if (options.status) return new Response(null, { status: options.status });
-        saved = { ...saved, ...body, revision: saved.revision + 1 };
+        const responseBody = { ...body }; delete responseBody.expected_revision;
+        saved = { ...saved, ...responseBody, revision: saved.revision + 1 };
         return Response.json(saved, { status: init.method === 'POST' ? 201 : 200 });
       }
       if (wrote && options.readbackFailure) return new Response(null, { status: 503 });
@@ -88,3 +89,15 @@ it('roundtrips ordered durable automation steps with revision and without comman
  const t=await setup();const next:AutomationDraft={...draft,actions:[{type:'device_state',device_id:'relay-a',state:{on:true}},{type:'durable_wait',seconds:8},...draft.actions]};
  const saved=await t.service.save(next,1,new AbortController().signal);expect(saved.draft?.actions).toEqual(next.actions);expect(t.writes[0]?.body).toMatchObject({actions:next.actions,expected_revision:1});expect(t.fetcher.mock.calls.some(([url])=>/execute|commands|\/run$/.test(String(url)))).toBe(false);
 });
+it('copy returns a distinct disabled rule, checks readback, never toggles or executes',async()=>{
+ const writes:unknown[]=[];let copy:unknown;
+ const fetcher=vi.fn<typeof fetch>(async(url,init)=>{const path=String(url).replace('/core-api','');
+ if(path.endsWith('/me/permissions'))return Response.json({house_id:'house-a',permissions:['automation.read','automation.manage']});
+ if(path==='/automations/rule-a')return Response.json({...record,enabled:true});
+ if(path==='/automations/rule-a/duplicate'){const body=JSON.parse(String(init?.body));writes.push(body);copy={...record,id:body.id,name:body.name,enabled:false,revision:1};return Response.json(copy,{status:201});}
+ if(path==='/automations/copy')return Response.json(copy);
+ return Response.json(coreResponses[path]);});
+ const s=createServices({mode:'core',apiUrl:'/core-api'},fetcher);if(s.mode!=='core')throw Error();await s.session.login('a','b');const api=s.repositoryForHouse('house-a').automations!,sig=new AbortController().signal;
+ const saved=await api.duplicate!(await api.read('rule-a',sig),'copy','Копия',sig);expect(saved).toMatchObject({id:'copy',enabled:false,revision:1});expect(writes).toEqual([{id:'copy',name:'Копия',expected_revision:1}]);expect(fetcher.mock.calls.some(([u])=>/execute|commands|enable|dry-run/.test(String(u)))).toBe(false);
+});
+it.each([{future_constraint:true},{actions:[{...draft.actions[0],future_constraint:true}]}])('never strips future constraints into an editable/copyable rule %j',extra=>{expect(decodeEditableAutomation({...record,...extra}).draft).toBeNull();});

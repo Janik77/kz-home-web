@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 50
     env:
       PLAYWRIGHT_CHANNEL: chrome
-      CORE_BASE_SHA: fc232035f78c99171fd72ac82c78eb1b5bb657fa
+      CORE_BASE_SHA: 1a43ecba1cd07dd231f313fcd42d4d4276e13967
       BASELINE_WEB_SOURCE: ${{ github.workspace }}/web-before
       PYTHONDONTWRITEBYTECODE: '1'
       LIVE_CORE_SOURCE: ${{ github.workspace }}/core
@@ -63,11 +63,17 @@ jobs:
           python -m unittest discover -s e2e -p test_fixture_modes.py -v
           python -m unittest discover -s e2e -p test_durable_fixture_contract.py -v
           python -m unittest discover -s e2e -p test_metadata_fixture_contract.py -v
+          python -m unittest discover -s e2e -p test_scene_edit_fixture_contract.py -v
       - name: Prepare disposable service images before inventory baseline
         run: |
           docker pull postgres:17-bookworm@sha256:665dc7b37ac52a17e298511414c21d23ffa4e6a6ef6225b3e5d59c7afb35e994
           docker pull eclipse-mosquitto:2@sha256:75d6662dee52c947dc9dd9c29f1d8d7ffef78ddaf38001caa09755681e8bbc98
           docker pull alpine/openssl:latest@sha256:6821afa2476e11be343f29275f2ca24291720ff0a7148bd131fd8e314ff26d9e
+      - name: Scene editing and non-executable copies real Core acceptance
+        working-directory: web
+        env:
+          LIVE_SCENE_EDIT_ONLY: '1'
+        run: '"$RUNNER_TEMP/live-venv/bin/python" -B e2e/automation-live-runner.py'
       - name: Metadata real Core CAS browser acceptance without commands
         working-directory: web
         env:
@@ -107,6 +113,9 @@ jobs:
         with:
           name: live-software-evidence
           path: |
+            web/test-results/scene-edit-live-evidence.json
+            web/test-results/scene-edit-live/
+            web/test-results/live-scene-edit-*.png
             web/test-results/metadata-live-evidence.json
             web/test-results/metadata-live/
             web/test-results/live-metadata-*.png
