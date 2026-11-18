@@ -154,7 +154,7 @@ async def acceptance(values):
             (WEB / 'test-results' / ('schedule-live-evidence.json' if schedule_mode else 'numeric-live-evidence.json' if numeric_mode else 'state-live-evidence.json' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'automation-live-evidence.json')).write_text(json.dumps(proof, indent=2))
             # Browser scenarios prescribe one confirmed run, one refused ACK, one unknown.
             if numeric_mode or schedule_mode:
-                assert result.returncode == 0, 'Numeric live browser checks failed'
+                assert result.returncode == 0, 'Schedule/numeric live browser checks failed'
                 assert proof['physical_devices'] == '0'
                 proof['verification'] = verify(proof, {'applied': 1})
             elif os.environ.get('LIVE_STATE_ONLY') == '1':

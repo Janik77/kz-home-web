@@ -21,3 +21,8 @@ it('timezone write rechecks rights, passes CAS, verifies response and readback',
  await service.save('Asia/Almaty',2,new AbortController().signal);
  expect(definitionWrite).toHaveBeenCalledWith('/houses/h','PATCH',{timezone:'Asia/Almaty',expected_timezone_revision:2},200,expect.any(Function),expect.any(AbortSignal));
 });
+
+it('keeps schedule with unknown meaningful fields readable but never edits lossily', () => {
+ const rule=decodeEditableAutomation({id:'r',house_id:'h',name:'Legacy',enabled:false,revision:1,trigger:{...trigger,catchup:true},conditions:[],actions:[{type:'device_state',device_id:'relay',state:{on:true}}]});
+ expect(rule.trigger).toContain('По расписанию'); expect(rule.draft).toBeNull();
+});

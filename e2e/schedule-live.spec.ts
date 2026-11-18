@@ -14,14 +14,14 @@ test('LIVE explicit house timezone and scheduled confirmed relay', async ({ page
  for(const [i,label] of ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].entries()) await page.getByRole('checkbox',{name:label,exact:true}).setChecked(i===day);
  await page.getByRole('combobox',{name:'Действие 1: устройство',exact:true}).selectOption('fixture_relay');
  await page.getByRole('button',{name:'Сохранить правило',exact:true}).click();
- const rule=page.getByRole('article').filter({has:page.getByRole('heading',{name:'Свет по времени дома',exact:true})}); await expect(rule).toContainText('Выключено');
+ const rule=page.getByRole('article').filter({has:page.getByRole('heading',{name:'Свет по времени дома',exact:true})}); await expect(rule).toContainText('Выключена');
  await rule.getByRole('button',{name:'Редактировать правило',exact:true}).click(); await expect(page.getByLabel('Время дома')).toHaveValue(time); await page.getByRole('button',{name:'Сохранить правило',exact:true}).click(); await expect(page.getByLabel('Время дома')).toHaveCount(0);
- await rule.getByRole('button',{name:'Включить правило',exact:true}).click(); await rule.getByRole('button',{name:'Подтвердить включение',exact:true}).click(); await expect(rule).toContainText('Включено');
+ await rule.getByRole('button',{name:'Включить правило',exact:true}).click(); await rule.getByRole('button',{name:'Подтвердить включение',exact:true}).click(); await expect(rule).toContainText('Включена');
  expect(Date.now()).toBeLessThan(target.getTime()-5000); expect((await control('evidence')).received).toHaveLength(0);
  await rule.getByRole('button',{name:'Результаты запусков',exact:true}).click();
  while(Date.now()<target.getTime()+10000) { await control('refresh'); if((await control('evidence')).received.length) break; await page.waitForTimeout(1000); }
  await expect(rule).toContainText('Выполнено: ACK и состояние подтверждены',{timeout:20000}); expect((await control('evidence')).received).toHaveLength(1);
  await page.waitForTimeout(12000); expect((await control('evidence')).received).toHaveLength(1);
  await page.screenshot({path:'test-results/live-schedule-confirmed-desktop.png',fullPage:true}); await page.setViewportSize({width:390,height:844}); await page.screenshot({path:'test-results/live-schedule-confirmed-mobile.png',fullPage:true});
- await rule.getByRole('button',{name:'Выключить правило',exact:true}).click(); await expect(rule).toContainText('Выключено');
+ await rule.getByRole('button',{name:'Выключить правило',exact:true}).click(); await expect(rule).toContainText('Выключена');
 });

@@ -11,7 +11,7 @@ export function decodeSchedule(value: unknown): ScheduleTrigger {
   return { type: 'schedule', time: v.time, weekdays: [...v.weekdays].sort((a, b) => a - b) };
 }
 export function validSchedule(value: unknown) { try { decodeSchedule(value); return true; } catch { return false; } }
-export function scheduleDescription(value: unknown) { const v = decodeSchedule(value); return `По расписанию: ${v.weekdays.map(d => weekdays[d]).join(', ')} в ${v.time} · часовой пояс дома`; }
+export function scheduleDescription(value: unknown) { const raw = object(value); const v = decodeSchedule({ type: raw.type, time: raw.time, weekdays: raw.weekdays }); return `По расписанию: ${v.weekdays.map(d => weekdays[d]).join(', ')} в ${v.time} · часовой пояс дома`; }
 export interface HouseTimezone { id: string; timezone: string | null; revision: number }
 export function validTimezone(value: string) { try { if (!value || value !== value.trim()) return false; new Intl.DateTimeFormat('ru', { timeZone: value }); return true; } catch { return false; } }
 export function decodeHouseTimezone(value: unknown): HouseTimezone {
