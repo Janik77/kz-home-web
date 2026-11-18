@@ -17,18 +17,18 @@ test('LIVE numeric crossing, hysteresis, duplicate immunity and editable roundtr
     const name = numeric ? 'Свет при наступлении темноты' : 'Проверка обычного правила';
     await page.getByRole('button', { name: 'Создать правило', exact: true }).click();
     await page.getByLabel('Название правила', { exact: true }).fill(name);
-    await page.getByLabel('Событие: устройство', { exact: true }).selectOption('fixture_relay');
+    await page.getByRole('combobox', { name: 'Событие: устройство', exact: true }).selectOption('fixture_relay');
     if (numeric) {
-      await page.getByLabel('Событие: показатель', { exact: true }).selectOption('illuminance');
-      await page.getByLabel('Событие: сравнение', { exact: true }).selectOption('lt');
+      await page.getByRole('combobox', { name: 'Событие: показатель', exact: true }).selectOption('illuminance');
+      await page.getByRole('combobox', { name: 'Событие: сравнение', exact: true }).selectOption('lt');
       await page.getByLabel('Событие: значение · лк', { exact: true }).fill('100');
       await page.getByLabel('Гистерезис · лк', { exact: true }).fill('20');
       await page.getByRole('button', { name: 'Добавить условие', exact: true }).click();
-      await page.getByLabel('Условие 1: устройство', { exact: true }).selectOption('fixture_relay');
-      await page.getByLabel('Условие 1: показатель', { exact: true }).selectOption('temperature');
+      await page.getByRole('combobox', { name: 'Условие 1: устройство', exact: true }).selectOption('fixture_relay');
+      await page.getByRole('combobox', { name: 'Условие 1: показатель', exact: true }).selectOption('temperature');
       await page.getByLabel('Условие 1: значение · °C', { exact: true }).fill('10');
     }
-    await page.getByLabel('Действие 1: устройство', { exact: true }).selectOption('fixture_relay');
+    await page.getByRole('combobox', { name: 'Действие 1: устройство', exact: true }).selectOption('fixture_relay');
     await page.getByRole('button', { name: 'Сохранить правило', exact: true }).click();
     await expect(card(name)).toContainText('Выключена');
     await card(name).getByRole('button', { name: 'Редактировать правило', exact: true }).click();

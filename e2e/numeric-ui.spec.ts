@@ -29,12 +29,12 @@ for (const theme of ['light', 'dark']) test(`numeric UI ${theme}`, async ({ page
   await page.getByRole('link', { name: 'Правила', exact: true }).click();
   await page.getByRole('button', { name: 'Создать правило' }).click();
   await page.getByLabel('Название правила').fill('Включить свет, когда темнеет');
-  await page.getByLabel('Событие: устройство').selectOption('sensor');
-  await page.getByLabel('Событие: показатель').selectOption('illuminance');
-  await page.getByLabel('Событие: сравнение').selectOption('lt');
+  await page.getByRole('combobox', { name: 'Событие: устройство', exact: true }).selectOption('sensor');
+  await page.getByRole('combobox', { name: 'Событие: показатель', exact: true }).selectOption('illuminance');
+  await page.getByRole('combobox', { name: 'Событие: сравнение', exact: true }).selectOption('lt');
   await page.getByLabel('Событие: значение · лк').fill('100');
   await page.getByLabel('Гистерезис · лк').fill('20');
-  await page.getByLabel('Действие 1: устройство').selectOption(coreDevice.id);
+  await page.getByRole('combobox', { name: 'Действие 1: устройство', exact: true }).selectOption(coreDevice.id);
   await expect(page.getByRole('button', { name: 'Сохранить правило' })).toBeEnabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
