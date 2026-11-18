@@ -67,3 +67,21 @@ it('retains legacy name-only CAS rename without rewriting unsupported actions or
   expect(t.rename).toHaveBeenCalledWith('automations', 'rule-a', 'Вечер', 'Без изменения логики', expect.any(AbortSignal), 1);
   expect(t.save).not.toHaveBeenCalled(); expect(t.toggle).not.toHaveBeenCalled();
 });
+it('edits supported numeric threshold with hysteresis and numeric AND without enabling', async () => {
+  const sensor = { ...device, id: 'sensor-a', name: 'Температура дома', type: 'temperature_sensor', capabilities: ['temperature', 'humidity'], state: { temperature: 23, humidity: 50 } };
+  const t = setup({ devices: async () => [device, sensor] });
+  await userEvent.click(await screen.findByRole('button', { name: 'Создать правило' }));
+  await userEvent.type(screen.getByLabelText('Название правила'), 'Жарко');
+  await userEvent.selectOptions(screen.getByLabelText('Событие: устройство'), sensor.id);
+  expect(screen.getByText(/Первое свежее показание/)).toBeInTheDocument();
+  await userEvent.clear(screen.getByLabelText('Гистерезис · °C'));
+  expect(screen.getByRole('button', { name: 'Сохранить правило' })).toBeDisabled();
+  await userEvent.type(screen.getByLabelText('Гистерезис · °C'), '2');
+  await userEvent.click(screen.getByRole('button', { name: 'Добавить условие' }));
+  await userEvent.selectOptions(screen.getByLabelText('Условие 1: устройство'), sensor.id);
+  await userEvent.selectOptions(screen.getByLabelText('Условие 1: показатель'), 'humidity');
+  await userEvent.selectOptions(screen.getByLabelText('Действие 1: устройство'), device.id);
+  await userEvent.click(screen.getByRole('button', { name: 'Сохранить правило' }));
+  expect(t.save.mock.calls[0]?.[0]).toMatchObject({ trigger: { type: 'numeric_threshold', field: 'temperature', operator: 'gt', value: 25, hysteresis: 2 }, conditions: [{ type: 'numeric_state', field: 'humidity', operator: 'gt' }] });
+  expect(t.toggle).not.toHaveBeenCalled();
+});

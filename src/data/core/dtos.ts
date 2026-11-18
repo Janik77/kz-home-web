@@ -7,7 +7,7 @@ export interface CoreFloor extends CoreHouse { house_id: string; order: number }
 export interface CoreRoom extends CoreHouse { floor_id: string }
 export interface CoreDevice extends CoreHouse {
   room_id: string; type: string; state: Record<string, unknown>; online: boolean;
-  capabilities: string[]; updated_at: string;
+  capabilities: string[]; updated_at: string; numeric_observed_at?: Record<string, string | null>;
 }
 export interface CoreScene extends CoreHouse {
   revision?: number | undefined;
@@ -47,6 +47,7 @@ export function decodeRoom(value: unknown): CoreRoom {
 export function decodeDevice(value: unknown): CoreDevice {
   const item = object(value);
   return { ...decodeHouse(item), room_id: string(item.room_id), type: string(item.type),
+    ...(item.numeric_observed_at === undefined ? {} : { numeric_observed_at: Object.fromEntries(Object.entries(object(item.numeric_observed_at)).map(([k, v]) => { if (v !== null && (typeof v !== 'string' || !Number.isFinite(Date.parse(v)))) throw new CoreError('protocol'); return [k, v as string | null]; })) }),
     state: object(item.state), online: boolean(item.online), capabilities: list(item.capabilities, string), updated_at: string(item.updated_at) };
 }
 export function decodeRevision(value: unknown): number | undefined {

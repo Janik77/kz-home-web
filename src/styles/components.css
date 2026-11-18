@@ -286,3 +286,9 @@
 }
 
 .run-review .button:disabled { opacity: .55; cursor: not-allowed; }
+.numeric-readings { display:grid; gap:12px; margin:10px 0; }
+.numeric-readings > div { display:flex; justify-content:space-between; align-items:baseline; gap:12px; }
+.numeric-readings dt { font-size:.8rem; }
+.numeric-readings dd { margin:0; text-align:right; min-width:0; }
+.numeric-readings strong { display:block; font-size:1.3rem; font-variant-numeric:tabular-nums; }
+.numeric-readings span, .numeric-readings time { display:block; font-size:.72rem; line-height:1.5; }
