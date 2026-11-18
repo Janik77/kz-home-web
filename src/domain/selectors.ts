@@ -44,7 +44,7 @@ export function getRoomSummary(devices: Device[]) {
 }
 
 export function getSceneSummary(scene: Scene, home: HomeSnapshot) {
-  const actions = scene.readActions ?? scene.actions;
+  const actions = (scene.readActions ?? scene.actions).filter(action => !('waitSeconds' in action));
   const ids = new Set(actions.map((action) => action.deviceId));
   const devices = home.devices.filter((device) => ids.has(device.id));
   const roomIds = new Set(devices.map((device) => device.roomId));
