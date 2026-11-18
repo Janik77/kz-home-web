@@ -59,3 +59,17 @@ it('older Core is read-only, malformed counters rejected', () => {
   expect(decodeMetadata('house', { id: 'h', name: 'Home' }).revision).toBeNull();
   for (const revision of [null, 0, -1, true, '1', 1.5]) expect(() => decodeMetadata('house', { id: 'h', name: 'Home', metadata_revision: revision })).toThrow();
 });
+it('missing old-Core revision cannot be replaced by an invented token', async () => {
+  const t = await setup(); delete t.rows['/houses/house-a']!.metadata_revision;
+  const base = await t.api.read('house', 'house-a', signal());
+  await expect(t.api.save(base, { name: 'Новое', parentId: null }, signal())).rejects.toMatchObject({ kind: 'read-only' }); expect(t.writes).toEqual([]);
+});
+it('rejects a source moved outside this house while the form was open', async () => {
+  const t = await setup(), base = await t.api.read('device', 'device-a', signal());
+  t.rows['/floors/floor-a']!.house_id = 'foreign';
+  await expect(t.api.save(base, { name: 'Новое', parentId: base.parentId }, signal())).rejects.toMatchObject({ kind: 'forbidden' }); expect(t.writes).toEqual([]);
+});
+it('aborted scope never starts a PATCH', async () => {
+  const t = await setup(), base = await t.api.read('house', 'house-a', signal()), task = new AbortController(); task.abort();
+  await expect(t.api.save(base, { name: 'Новое', parentId: null }, task.signal)).rejects.toBeDefined(); expect(t.writes).toEqual([]);
+});

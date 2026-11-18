@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
@@ -45,4 +46,16 @@ it('scope unmount aborts pending save and ignores its late result', async () => 
  const next = api(); vi.mocked(next.read).mockResolvedValue({ ...base, name: 'Другой дом' }); await mount(next); await screen.findByDisplayValue('Другой дом');
  await act(async () => { resolve({ ...base, name: 'Поздний ответ', revision: 4 }); await pending; });
  expect(screen.getByLabelText('Название')).toHaveValue('Другой дом'); expect(screen.queryByText('Изменения сохранены и прочитаны из Core.')).not.toBeInTheDocument();
+});
+
+function RefreshMetadata() { const client = useQueryClient(); return <button onClick={() => void client.invalidateQueries({ queryKey: ['metadata'] })}>Обновить метаданные теста</button>; }
+it('keeps unsaved fields across a transient background read error', async () => {
+ const service = api();
+ renderHome({ ...createMockHomeRepository(initialHome, 0), metadata: service }, () => <><RefreshMetadata /><MetadataEditor kind="room" id="room-a" title="Название и этаж" parents={parents} /></>);
+ await userEvent.click(await screen.findByRole('button', { name: 'Изменить название и размещение' }));
+ await userEvent.type(await screen.findByLabelText('Название'), ' черновик');
+ vi.mocked(service.read).mockRejectedValue(new CoreError('server'));
+ await userEvent.click(screen.getByRole('button', { name: 'Обновить метаданные теста' }));
+ await screen.findByText(/Не удалось обновить данные. Черновик сохранён/);
+ expect(screen.getByLabelText('Название')).toHaveValue('Кухня черновик'); expect(service.save).not.toHaveBeenCalled();
 });

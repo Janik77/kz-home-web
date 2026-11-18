@@ -4,7 +4,7 @@ import { useRepository } from '../../app/services';
 import { useRuntime } from '../../app/runtime-context';
 import { useDraftGuard } from '../../app/draft-guard-context';
 import { Button } from '../../components/ui/button';
-import { coreErrorMessage } from '../../data/core/errors';
+import { CoreError, coreErrorMessage } from '../../data/core/errors';
 import { validName, definitionError } from '../../data/core/definitions';
 import type { Metadata, MetadataKind, MetadataValue } from '../../data/core/metadata';
 import { homeKey } from '../home/use-home';
@@ -66,10 +66,11 @@ function OpenEditor({ service, kind, id, parents = [] }: Props & { service: Meta
   const value = useQuery({ queryKey: ['metadata', kind, id], queryFn: ({ signal }) => service.read(kind, id, signal), retry: false, staleTime: 0 });
   const rights = useQuery({ queryKey: ['metadata-permissions'], queryFn: ({ signal }) => service.permissions(signal), retry: false, staleTime: 0 });
   if (value.isPending || rights.isPending) return <p role="status">Проверяем актуальные данные и права…</p>;
-  if (value.isError || rights.isError) return <><p role="alert">{coreErrorMessage(value.error ?? rights.error)}</p><Button variant="secondary" onClick={() => { void value.refetch(); void rights.refetch(); }}>Повторить чтение</Button></>;
+  if ((value.isError && (!value.data || (value.error instanceof CoreError && ['unauthorized', 'forbidden', 'not-found'].includes(value.error.kind)))) || (rights.isError && (!rights.data || (rights.error instanceof CoreError && ['unauthorized', 'forbidden', 'not-found'].includes(rights.error.kind))))) return <><p role="alert">{coreErrorMessage(value.error ?? rights.error)}</p><Button variant="secondary" onClick={() => { void value.refetch(); void rights.refetch(); }}>Повторить чтение</Button></>;
+  if (!value.data || !rights.data) return <p role="alert">Данные недоступны. Повторите чтение позже.</p>;
   if (!value.data.revision) return <p>Этот Core не поддерживает защиту конфликтов названия и размещения. Просмотр доступен; для изменения нужна совместимая версия Core.</p>;
   if (!rights.data.includes('house.read') || !rights.data.includes(kind === 'device' ? 'device.manage' : 'house.manage')) return <p>Изменение недоступно: нужны права на управление {kind === 'device' ? 'устройствами' : 'домом'}. Данные не изменены.</p>;
-  return <MetadataForm key={`${kind}:${id}`} service={service} original={value.data} parents={parents} />;
+  return <>{(value.isError || rights.isError) && <p role="alert">Не удалось обновить данные. Черновик сохранён; перед записью права и версия будут проверены повторно.</p>}<MetadataForm key={`${kind}:${id}`} service={service} original={value.data} parents={parents} /></>;
 }
 export function MetadataEditor(props: Props) {
   const service = useRepository().metadata;
