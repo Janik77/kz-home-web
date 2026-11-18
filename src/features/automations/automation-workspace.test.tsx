@@ -109,3 +109,15 @@ it('uses verified saved revision immediately and blocks toggle while editor is o
   await userEvent.click(screen.getByRole('button', { name: 'Подтвердить включение' }));
   expect(t.toggle).toHaveBeenCalledWith(rule.id, true, 2, expect.any(AbortSignal));
 });
+
+it('creates schedule disabled draft with explicit weekdays without a numeric sensor', async () => {
+ const t=setup(); await userEvent.click(await screen.findByRole('button',{name:'Создать правило'}));
+ await userEvent.type(screen.getByLabelText('Название правила'),'Утренний свет');
+ await userEvent.selectOptions(screen.getByLabelText('Тип запуска'),'schedule');
+ expect(screen.getByLabelText('Время дома')).toHaveValue('08:00');
+ await userEvent.click(screen.getByLabelText('Пт'));
+ await userEvent.selectOptions(screen.getByLabelText('Действие 1: устройство'),device.id);
+ await userEvent.click(screen.getByRole('button',{name:'Сохранить правило'}));
+ expect(t.save.mock.calls[0]?.[0].trigger).toEqual({type:'schedule',time:'08:00',weekdays:[0,1,2,3]});
+ expect(t.toggle).not.toHaveBeenCalled();
+});

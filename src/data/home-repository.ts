@@ -1,3 +1,4 @@
+import type { HouseClock } from './core/schedules';
 import type { Automations } from './core/automations';
 import type { DeviceFavorites } from './core/favorites';
 import type { Structure } from './core/structure';
@@ -9,6 +10,7 @@ import type { RelayControl } from './core/relay-control';
 
 /** An application boundary, not an HTTP API. Core transport and mapping belong in an adapter. */
 export interface HomeRepository {
+  readonly houseClock?: HouseClock;
   readonly automations?: Automations;
   readonly favorites?: DeviceFavorites;
   readonly structure?: Structure;

@@ -1,3 +1,4 @@
+import { createHouseClock } from './schedules';
 import { createAutomations } from './automations';
 import { createDeviceFavorites } from './favorites';
 import { createStructure } from './structure';
@@ -20,6 +21,7 @@ export function createCoreHomeRepository(session: CoreSession, houseId: string):
   // Legacy/mock snapshot mutations remain disabled. v0.15 uses separate receipts.
   return {
     readOnly: true,
+    houseClock: createHouseClock(session, houseId),
     automations: createAutomations(session, houseId),
     favorites: createDeviceFavorites(session, houseId),
     structure: createStructure(session, houseId),

@@ -1,4 +1,5 @@
 export interface AutomationRule {
+  schedule?: boolean;
   revision?: number | undefined;
   id: string; name: string; enabled: boolean;
   trigger: string; conditions: string[]; actions: string[];
