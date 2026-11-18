@@ -10,7 +10,9 @@ concurrency:
 jobs:
   live-software:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # Two observed slow Ubuntu mirror downloads exhausted the former 20m budget.
+    # Keep acceptance unchanged; bound installation separately from actual tests.
+    timeout-minutes: 50
     env:
       PLAYWRIGHT_CHANNEL: chrome
       CORE_BASE_SHA: 1ae52afa22431943064b5e85313f671b073b9458
@@ -43,6 +45,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install existing pinned dependencies and browser
+        timeout-minutes: 30
         working-directory: web
         run: |
           python -m venv "$RUNNER_TEMP/live-venv"
