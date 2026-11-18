@@ -27,6 +27,7 @@ function LeaveDialog({ stay, discard, pending }: { stay: () => void; discard: ()
 }
 
 export function DraftGuard({ children }: { children: ReactNode }) {
+  const approvedNavigation = useRef(false);
   const [drafts, setDrafts] = useState<Record<string, { dirty: boolean; pending: boolean }>>({});
   const [discardRequest, setDiscardRequest] = useState<{ action: () => void } | null>(null);
   const register = useCallback((id: string, dirty: boolean, pending: boolean) => {
@@ -41,7 +42,7 @@ export function DraftGuard({ children }: { children: ReactNode }) {
   }, []);
   const dirty = Object.values(drafts).some(draft => draft.dirty || draft.pending);
   const pending = Object.values(drafts).some(draft => draft.pending);
-  const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty &&
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => !approvedNavigation.current && dirty &&
     (currentLocation.pathname !== nextLocation.pathname || currentLocation.search !== nextLocation.search));
   useEffect(() => {
     if (!dirty) return;
@@ -50,7 +51,11 @@ export function DraftGuard({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
   useEffect(() => { if (!dirty && blocker.state === 'blocked') blocker.reset(); }, [dirty, blocker]);
-  return <DraftGuardContext value={{ register, remove, confirmDiscard }}>{children}
+  const confirmLeave = (action: () => void) => confirmDiscard(() => {
+    approvedNavigation.current = true;
+    try { action(); } finally { queueMicrotask(() => { approvedNavigation.current = false; }); }
+  }, dirty);
+  return <DraftGuardContext value={{ register, remove, confirmDiscard, confirmLeave }}>{children}
     {(blocker.state === 'blocked' || discardRequest) && <LeaveDialog pending={pending}
       stay={() => { if (blocker.state === 'blocked') blocker.reset(); setDiscardRequest(null); }}
       discard={() => {

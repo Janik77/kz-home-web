@@ -26,6 +26,13 @@ export function CoreWorkspace({ services }: { services: Services }) {
 }
 
 function HouseWorkspace({ services, user }: { services: Services; user: SessionUser }) {
+  const outerClient = useQueryClient();
+  const acceptVerifiedHouseName = async (id: string, name: string, signal: AbortSignal) => {
+    await outerClient.cancelQueries({ queryKey: ['core-houses', user.id] });
+    signal.throwIfAborted();
+    if (services.session.getSnapshot().user !== user) return;
+    outerClient.setQueryData<AccessibleHouse[]>(['core-houses', user.id], old => old?.map(h => h.id === id ? { ...h, name } : h));
+  };
   const [creationGuard,setCreationGuard]=useState({dirty:false,busy:false});
   const leave=(action:()=>void)=>{if(creationGuard.busy)return;if(!creationGuard.dirty||window.confirm('Есть несохранённое название дома. Уйти и потерять черновик?'))action();};
   const [selected, setSelected] = useState<string | null>(null);
@@ -34,7 +41,7 @@ function HouseWorkspace({ services, user }: { services: Services; user: SessionU
   const houseId = selected === '' ? null : query.data?.some((house) => house.id === selected) ? selected : query.data?.length === 1 && !creationGuard.dirty && !creationGuard.busy ? query.data[0]!.id : null;
   useEffect(() => { if (!houseId) { document.title = 'KZ Home · Ваши дома'; heading.current?.focus(); } }, [houseId]);
   const logout = () => { void services.session.logout(); };
-  if (query.data && houseId && !query.isError) return <SelectedHome key={houseId} services={services} user={user} houses={query.data} houseId={houseId} selectHouse={setSelected} logout={logout} />;
+  if (query.data && houseId && !query.isError) return <SelectedHome key={houseId} services={services} user={user} houses={query.data} houseId={houseId} selectHouse={setSelected} logout={logout} acceptVerifiedHouseName={acceptVerifiedHouseName} />;
   return <main className="app-shell--everyday session-page"><div className="session-card">
     <div className="session-card__brand"><p className="eyebrow">ВАШЕ ПРОСТРАНСТВО</p><ThemeToggle /></div><h1 ref={heading} tabIndex={-1}>Ваши дома</h1>
     {query.isPending ? <StatePanel kind="loading" title="Ищем ваши дома" description="Проверяем доступные вашей учётной записи дома." />
@@ -47,14 +54,14 @@ function HouseWorkspace({ services, user }: { services: Services; user: SessionU
   </div></main>;
 }
 
-function SelectedHome({ services, user, houses, houseId, selectHouse, logout }: {
+function SelectedHome({ services, user, houses, houseId, selectHouse, logout, acceptVerifiedHouseName }: {
   services: Services; user: SessionUser; houses: AccessibleHouse[]; houseId: string;
-  selectHouse: (id: string | null) => void; logout: () => void;
+  selectHouse: (id: string | null) => void; logout: () => void; acceptVerifiedHouseName: (id: string, name: string, signal: AbortSignal) => Promise<void>;
 }) {
   const [client] = useState(() => new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: false, refetchOnWindowFocus: false }, mutations: { retry: false } } }));
   const [repository] = useState(() => services.repositoryForHouse(houseId));
   useEffect(() => () => { void client.cancelQueries(); client.clear(); }, [client]);
   return <QueryClientProvider client={client}><RepositoryProvider value={repository}>
-    <RuntimeContext value={{ mode: 'core', user, houses, houseId, selectHouse, logout }}><FavoritesProvider accountId={user.id} houseId={houseId}><App /></FavoritesProvider></RuntimeContext>
+    <RuntimeContext value={{ mode: 'core', user, houses, houseId, selectHouse, logout, acceptVerifiedHouseName }}><FavoritesProvider accountId={user.id} houseId={houseId}><App /></FavoritesProvider></RuntimeContext>
   </RepositoryProvider></QueryClientProvider>;
 }

@@ -3,6 +3,7 @@ import { createContext, useContext, useId, useLayoutEffect } from 'react';
 type DraftRegistry = {
   register: (id: string, dirty: boolean, pending: boolean) => void;
   remove: (id: string) => void;
+  confirmLeave: (action: () => void) => void;
   confirmDiscard: (action: () => void, dirty: boolean) => void;
 };
 export const DraftGuardContext = createContext<DraftRegistry | null>(null);
@@ -20,4 +21,10 @@ export function useDraftGuard(dirty: boolean, pending = false) {
     if (registry) registry.confirmDiscard(action, dirty);
     else action();
   };
+}
+
+/** Guard non-router scope transitions (account, home, logout) with all open drafts. */
+export function useConfirmLeave() {
+  const registry = useContext(DraftGuardContext);
+  return (action: () => void) => registry ? registry.confirmLeave(action) : action();
 }
