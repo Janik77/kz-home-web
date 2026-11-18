@@ -44,9 +44,10 @@ function numericTest(value: unknown, trigger: boolean): NumericTrigger | Numeric
 export function decodeEditableAutomation(value: unknown): EditableAutomation {
   const v = object(value), rule = decodeAutomation(v); let draft: AutomationDraft | null = null;
   try {
+    if (Object.keys(v).some(k => !['id','house_id','name','enabled','trigger','conditions','actions','revision','created_at','updated_at'].includes(k))) throw new CoreError('protocol');
     draft = { id: rule.id, name: rule.name, trigger: object(v.trigger).type === 'schedule' ? decodeSchedule(v.trigger) : object(v.trigger).type === 'numeric_threshold' ? numericTest(v.trigger, true) : stateTest(v.trigger), conditions: list(v.conditions, c => object(c).type === 'numeric_state' ? numericTest(c, false) : stateTest(c)), actions: list(v.actions, value => {
       const a = object(value); if(a.type === 'durable_wait') return decodeDurableWait(a); const s = object(a.state);
-      if (a.type !== 'device_state' || Object.keys(s).length !== 1 || (Array.isArray(v.actions) && v.actions.some(step => object(step).type === 'durable_wait') && Object.keys(a).some(key => !['type','device_id','state'].includes(key)))) throw new CoreError('protocol');
+      if (a.type !== 'device_state' || Object.keys(s).length !== 1 || Object.keys(a).some(key => !['type','device_id','state'].includes(key))) throw new CoreError('protocol');
       return { type: 'device_state', device_id: string(a.device_id), state: { on: boolean(s.on) } };
     }) };
     if (draft.actions.length < 1 || draft.actions.length > 16 || !validDurablePlan(draft.actions) || draft.conditions.length > 50) draft = null;
@@ -89,6 +90,7 @@ export interface Automations {
   permissions(signal: AbortSignal): Promise<string[]>;
   devices(signal: AbortSignal): Promise<CoreDevice[]>;
   read(id: string, signal: AbortSignal): Promise<EditableAutomation>;
+  duplicate?(base: EditableAutomation, id: string, name: string, signal: AbortSignal): Promise<EditableAutomation>;
   save(draft: AutomationDraft, expectedRevision: number | undefined, signal: AbortSignal): Promise<EditableAutomation>;
   toggle(id: string, enabled: boolean, expectedRevision: number, signal: AbortSignal): Promise<EditableAutomation>;
   check(id: string, signal: AbortSignal): Promise<AutomationCheck>;
@@ -112,6 +114,20 @@ export function createAutomations(session: CoreSession, house: string): Automati
   };
   const devices = async (signal: AbortSignal) => session.read(`/devices?house_id=${encodeURIComponent(house)}`, v => list(v, decodeDevice), signal);
   return { permissions, read, devices,
+    async duplicate(base, id, name, signal) {
+      await authorize(signal);
+      if (!base.revision || !base.draft) throw new CoreError('read-only');
+      if (!id || id === base.id || id.length > 64 || !validName(name)) throw new CoreError('validation');
+      const current = await read(base.id, signal);
+      if (current.revision !== base.revision || JSON.stringify(current.draft) !== JSON.stringify(base.draft) || current.enabled !== base.enabled) throw new CoreError('conflict');
+      const expected = { ...base.draft, id, name: name.trim() };
+      const matches = (value: EditableAutomation) => value.revision === 1 && value.enabled === false && JSON.stringify(value.draft) === JSON.stringify(expected);
+      const saved = await session.definitionWrite(`${path(base.id)}/duplicate`, 'POST', { id, name: expected.name, expected_revision: base.revision }, 201, decode(id), signal);
+      if (!matches(saved)) throw new CoreError('protocol');
+      const back = await read(id, signal);
+      if (!matches(back)) throw new CoreError('conflict');
+      return back;
+    },
     async save(draft, expectedRevision, signal) {
       await authorize(signal);
       if (automationErrors(draft, await devices(signal)).length) throw new CoreError('validation');

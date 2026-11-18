@@ -81,11 +81,12 @@ export function CoreSceneRun({ scene, home }: { scene: Scene; home: HomeSnapshot
       const fresh = await repository.getHome(current.signal); current.signal.throwIfAborted();
       const currentScene = fresh.scenes.find(s => s.id === scene.id);
       if (fresh.house.id !== home.house.id || !currentScene || currentScene.revision === undefined) throw new CoreError('not-found');
+      if(currentScene.isDraft === true || currentScene.readActions?.some(a=>a.unsupported)) throw new CoreError('read-only');
       setReview({ scene: currentScene, home: fresh }); client.setQueryData(homeKey, fresh);
     } catch (failure) { if (!current.signal.aborted) setError(errorMessage(failure)); }
     finally { if (!current.signal.aborted) setBusy(false); if (controller.current === current) controller.current = null; }
   }
-  const unsupported = !!scene.readActions?.some(a=>a.unsupported);
+  const unsupported = scene.isDraft === true || !!scene.readActions?.some(a=>a.unsupported);
   const hasHistory = history.some(item => item.sceneId === scene.id);
   const canStartNew = run ? ['succeeded', 'stopped', 'expired', 'unknown', 'partial', 'refused', 'cancelled'].includes(run.status) : attempted || hasHistory;
   return <section className="core-scene-run" aria-label={`Подтверждённый запуск: ${scene.name}`}>
@@ -93,7 +94,7 @@ export function CoreSceneRun({ scene, home }: { scene: Scene; home: HomeSnapshot
       {hasHistory && <p>Есть недавние запуски этой сцены. Откройте результат из списка ниже или отдельно подготовьте новый.</p>}
       <p className="quiet-note">Только программные реле. Один запуск: Core проверяет все действия и выполняет их по порядку, ожидая подтверждения каждого. Если страница перезагружена после потери ответа, сначала откройте прежний запуск по ID: история сеанса не сохраняется.</p>
       {rights.isPending ? <p role="status">Проверяем права запуска…</p> : rights.isError ? <p role="alert">Не удалось проверить права. <Button variant="quiet" onClick={() => void rights.refetch()}>Проверить права запуска</Button></p> : !allowed ? <p>Нет прав на запуск и управление устройствами.</p> : null}
-      {unsupported && <p role="status">Устаревшая задержка доступна только для просмотра. Автоматического преобразования в сохранённую паузу нет.</p>}
+      {scene.isDraft === true ? <p role="status">Это черновик. Сначала отдельно подготовьте его к запуску; подготовка не переключает устройства.</p> : unsupported && <p role="status">План содержит неподдерживаемые действия или ограничения. Автоматического преобразования нет.</p>}
       {scene.revision === undefined && <p>Core не предоставляет revision. Запуск недоступен.</p>}
       {(!hasHistory || attempted) && <Button variant="secondary" disabled={busy || !allowed || scene.revision === undefined || unsupported} onClick={() => {
         if (controller.current) return;
@@ -130,7 +131,7 @@ export function CoreSceneRun({ scene, home }: { scene: Scene; home: HomeSnapshot
       <SceneDetails scene={review.scene} home={review.home} />
       <p className="quiet-note">История ограничена 20 ID текущего дома и сеанса и очищается при перезагрузке, выходе или смене контекста. Успех выбранного запуска и отсутствие неизвестных результатов в этом списке не доказывают безопасность нового запуска.</p>
       <label className="run-acknowledgement"><input type="checkbox" checked={acknowledged} onChange={e => setAcknowledged(e.target.checked)} />Понимаю: история неполна, результаты других запусков могут быть неизвестны. Новый запуск — отдельное намерение, не повтор команды.</label>
-      <div className="definition-buttons"><Button disabled={busy || !allowed || !acknowledged} onClick={() => {
+      <div className="definition-buttons"><Button disabled={busy || !allowed || !acknowledged || unsupported || review.scene.isDraft === true || !!review.scene.readActions?.some(a=>a.unsupported)} onClick={() => {
         if (controller.current) return;
         const intent = { key: crypto.randomUUID(), revision: review.scene.revision! }; attempt.current = intent; service.intents?.set(scene.id, intent);
         setAttempted(true); setRun(null); setReview(null);

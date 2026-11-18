@@ -1,3 +1,4 @@
+import { createSceneEditing } from './scene-editing';
 import { createMetadata } from './metadata';
 import { createHouseClock } from './schedules';
 import { createAutomations } from './automations';
@@ -22,6 +23,7 @@ export function createCoreHomeRepository(session: CoreSession, houseId: string):
   // Legacy/mock snapshot mutations remain disabled. v0.15 uses separate receipts.
   return {
     readOnly: true,
+    sceneEditing: createSceneEditing(session, houseId),
     metadata: createMetadata(session, houseId),
     houseClock: createHouseClock(session, houseId),
     automations: createAutomations(session, houseId),

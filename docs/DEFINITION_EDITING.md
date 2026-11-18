@@ -72,3 +72,63 @@ PATCH races against isolated PostgreSQL/Core, explicit reconciliation and legacy
 ABA for both scenes and automations. Definition tests assert preserved actions,
 trigger/conditions/enabled and zero additional MQTT commands. Existing 18-command
 software-relay verification remains active, with no physical identities or commands.
+
+## Full scene plans and non-executable copies
+
+The scene management panel reuses `ActionPlanEditor`. Supported relay ON/OFF
+steps and bounded durable waits can be changed together with the name through
+one existing revision-CAS PATCH. Unknown action types, state fields, action
+constraints or definition fields are read-only, never stripped into a new plan.
+The older name-only panel remains for older Core read responses without
+`is_draft`; no lifecycle support or revision is invented.
+
+Scene copies use `POST /scenes/{source}/duplicate` with a stable new ID, name and
+captured source revision. Core forces `is_draft=true`. The explicit prepare
+button calls `/activate` with CAS and does not execute. Only the separate
+confirmed-run interface sends commands. Static preparation allows offline
+relay devices with the actual `on_off` capability; runtime readiness and
+execution permissions are checked by Core when the owner separately runs it.
+
+Rule copies use `/automations/{source}/duplicate`, return disabled at revision1,
+and do not carry source run selection/history. The UI says “Выключенная копия”
+for the verified operation; no nonexistent persistent copy-provenance field is
+invented. Existing edit/enable flows are used afterward.
+
+Every write is checked against its response and authenticated scoped GET.
+Lost responses, collisions and failures do not create a second ID or replay the
+copy. Because the server has no provenance token, finding equal content at a
+chosen ID is not evidence that this attempt succeeded. The UI preserves the
+uncertain outcome and asks the owner to inspect the list. Explicit discard
+clears the copy-name draft but does not reset the attempted-copy lock.
+
+Verification is split deliberately:
+- Unit/React tests: parser strictness, CAS/readback, offline static preparation,
+  permission loss, uncertain writes and scope guards.
+- `playwright.scene-edit.config.ts`: intercepted fixtures at desktop/mobile in
+  both themes, screenshots uploaded immediately before other suites clean the
+  parent output directory. These are not live Core evidence.
+- `LIVE_SCENE_EDIT_ONLY=1` in the existing CI-only software fixture: actual
+  PostgreSQL/Core/TLS broker, zero commands through edit/copy/prepare and draft
+  rejection, then one separate explicit relay run with ACK and matching state.
+  Strict receipt evidence verification is unchanged. No physical hardware.
+
+No main merge, production deployment or persistent-stand update is performed.
+
+## Compact-home acceptance (follow-up)
+
+The accepted palette/components and bottom navigation remain. Home uses one
+adaptive device/room grid with a bounded single-relay card; each card has one
+keyboard-accessible favorite in its header. Rooms keeps creation by its heading,
+floor filters above the list and each floor's metadata in its own actions.
+Changing a floor filter is guarded against unsaved/pending metadata. Room
+controls precede the collapsed metadata section. No command or CAS semantics
+change.
+
+`playwright.compact-home.config.ts` covers 390/768/1366/1920 px, both themes,
+single/populated/empty/offline contract fixtures, long unchanged names, bounded
+cards and overflow. The existing confirmed-live runner separately captures the
+actual one-room/one-software-relay home and rooms at those sizes, then verifies
+room ON → ACK plus state → favorite → reload/sign-in persistence. Recording is
+stopped before credential entry. Live receipts and all negative assertions remain
+required. CI artifacts are acceptance evidence only after that exact run passes;
+these instructions do not assert owner-PC setup or physical-device testing.

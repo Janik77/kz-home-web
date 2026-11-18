@@ -48,9 +48,26 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
     expect(receipt.house_id).toBe('fixture_house'); expect(receipt.requested_on).toBe(value);
     receipts.push(receipt); return receipt;
   }
+  // Exact one-room/one-relay stand, not injected presentation fixtures.
+  for (const width of [390, 768, 1366, 1920]) for (const theme of ['light', 'dark']) {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
+    if (await page.locator('html').getAttribute('data-theme') !== theme) await page.getByRole('button', { name: theme === 'dark' ? 'Включить тёмную тему' : 'Включить светлую тему' }).click();
+    await page.getByRole('link', { name: 'Главная', exact: true }).click();
+    await expect(page.getByRole('article')).toHaveCount(1);
+    await expect(page.locator('.everyday-room')).toHaveCount(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const compactCard = (await card.boundingBox())!; expect(compactCard.width).toBeGreaterThanOrEqual(250); expect(compactCard.height).toBeLessThan(450);
+    await page.screenshot({ path: `test-results/live-software-compact-home-${width}-${theme}.png`, fullPage: true });
+    await page.getByRole('link', { name: 'Комнаты', exact: true }).click();
+    await expect(page.locator('.room-grid > *')).toHaveCount(1);
+    await page.screenshot({ path: `test-results/live-software-compact-rooms-${width}-${theme}.png`, fullPage: true });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('link', { name: 'Главная', exact: true }).click();
   // Native browser capture starts after sign-in and stops before any account changes.
   await page.screencast.start({ path: 'test-results/live-software-home-control.webm', size: { width: 390, height: 844 } });
+  await page.getByRole('link', { name: /Room.*Устройств/ }).click();
   await new Promise(resolve => setTimeout(resolve, 800));
   const initialHeight=(await card.boundingBox())!.height;
   await control('mode', { mode: 'hold' });
@@ -64,8 +81,18 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
   await control('release');
   await expect(status).toHaveText('Выполнено · состояние обновлено'); await expect(state).toHaveText('Включено');
   expect(Math.abs((await card.boundingBox())!.height-initialHeight)).toBeLessThanOrEqual(1);
+  await card.getByRole('button', { name: 'Добавить в избранное: Software relay' }).click();
+  await expect(card.getByRole('button', { name: 'Убрать из избранного: Software relay' })).toHaveAttribute('aria-pressed', 'true');
+  await page.screencast.stop();
+  await page.reload(); await login('owner');
+  await page.screencast.start({ path: 'test-results/live-software-compact-restored.webm', size: { width: 390, height: 844 } });
+  await expect(card.getByRole('button', { name: 'Убрать из избранного: Software relay' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(state).toHaveText('Включено');
   await new Promise(resolve => setTimeout(resolve, 1200));
   await page.screencast.stop();
+  // Restore only this test's preference before independent account-isolation tests.
+  await card.getByRole('button', { name: 'Убрать из избранного: Software relay' }).click();
+  await expect(card.getByRole('button', { name: 'Добавить в избранное: Software relay' })).toBeEnabled();
   await page.getByRole('link', { name: /Room.*Устройств/ }).click();
   await page.screenshot({ path: 'test-results/live-software-room-composition.png', fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -252,9 +279,9 @@ test('LIVE create scene and rename definitions without running devices', async (
   await page.getByRole('button', { name: 'Сохранить сценарий' }).click();
   const scene = page.getByRole('article', { name: 'Вечер дома', exact: true });
   await expect(scene).toBeVisible();
-  await scene.getByRole('button', { name: 'Изменить название' }).click();
-  await scene.getByLabel('Новое название').fill('Вечер с семьёй');
-  await scene.getByRole('button', { name: 'Сохранить название' }).click();
+  await scene.getByRole('button', { name: 'Изменить действия или создать копию' }).click();
+  await scene.getByLabel('Название сценария', { exact: true }).fill('Вечер с семьёй');
+  await scene.getByRole('button', { name: 'Сохранить сценарий', exact: true }).click();
   await expect(page.getByRole('article', { name: 'Вечер с семьёй', exact: true })).toBeVisible();
   await page.locator('.mobile-more summary').click();
   await page.getByRole('link', { name: 'Правила', exact: true }).click();
@@ -311,6 +338,9 @@ test('LIVE independent editors, atomic 409 and legacy ABA preserve drafts withou
   }
   const baseline = await control('definition-evidence');
   for (const kind of ['scenes', 'automations'] as const) {
+    const field = kind === 'scenes' ? 'Название сценария' : 'Новое название';
+    const openLabel = kind === 'scenes' ? 'Изменить действия или создать копию' : 'Изменить название';
+    const saveLabel = kind === 'scenes' ? 'Сохранить сценарий' : 'Сохранить название';
     const contexts = await Promise.all([browser.newContext(), browser.newContext()]);
     try {
       const pages = await Promise.all(contexts.map(context => context.newPage()));
@@ -321,7 +351,7 @@ test('LIVE independent editors, atomic 409 and legacy ABA preserve drafts withou
         await page.getByLabel('Пароль', { exact: true }).press('Enter');
         await page.getByRole('button', { name: 'Fixture', exact: true }).click();
         await page.getByRole('link', { name: kind === 'scenes' ? 'Сценарии' : 'Правила', exact: true }).click();
-        await page.getByRole('button', { name: 'Изменить название' }).click();
+        await page.getByRole('button', { name: openLabel, exact: true }).click();
       }));
       let arrived = 0; let release!: () => void;
       const bothReady = new Promise<void>(resolve => { release = resolve; });
@@ -336,46 +366,47 @@ test('LIVE independent editors, atomic 409 and legacy ABA preserve drafts withou
         }
         await route.continue();
       })));
-      pages.forEach(page => page.on('response', r => {
-        if (r.request().method() === 'PATCH' && r.url().includes(`/core-api/${kind}/`)) statuses.push(r.status());
+      const pageStatuses: number[] = [];
+      pages.forEach((page, index) => page.on('response', r => {
+        if (r.request().method() === 'PATCH' && r.url().includes(`/core-api/${kind}/`)) { statuses.push(r.status()); pageStatuses[index] = r.status(); }
       }));
       await Promise.all(pages.map(async (page, i) => {
-        await page.getByLabel('Новое название').fill(`Concurrent ${kind} ${i}`);
-        await page.getByRole('button', { name: 'Сохранить название' }).click();
+        await page.getByLabel(field, { exact: true }).fill(`Concurrent ${kind} ${i}`);
+        await page.getByRole('button', { name: saveLabel, exact: true }).click();
       }));
       await expect.poll(() => statuses.length).toBe(2);
       expect([...statuses].sort()).toEqual([200, 409]);
       expect(attempts).toHaveLength(2); expect(attempts[0]!.expected_revision).toBe(attempts[1]!.expected_revision);
-      await expect.poll(async () => (await pages[0]!.getByLabel('Новое название').count()) + (await pages[1]!.getByLabel('Новое название').count())).toBe(1);
-      const failed = (await pages[0]!.getByLabel('Новое название').count()) ? 0 : 1;
+      const failed = pageStatuses.findIndex(status => status === 409); expect(failed).toBeGreaterThanOrEqual(0);
       const loser = pages[failed]!;
       await expect(loser.getByRole('alert')).toContainText('Черновик и его исходная версия сохранены');
-      await expect(loser.getByLabel('Новое название')).toHaveValue(`Concurrent ${kind} ${failed}`);
+      await expect(loser.getByLabel(field, { exact: true })).toHaveValue(`Concurrent ${kind} ${failed}`);
       if (kind === 'automations') await loser.setViewportSize({ width: 390, height: 844 });
       await loser.getByRole('link', { name: 'Комнаты', exact: true }).click();
       const leaveDialog = loser.getByRole('dialog', { name: 'Есть несохранённые изменения' });
       await expect(leaveDialog).toBeVisible();
       await loser.screenshot({ path: `test-results/live-software-${kind}-draft-guard.png` });
       await leaveDialog.getByRole('button', { name: 'Остаться', exact: true }).click();
-      await expect(loser.getByLabel('Новое название')).toHaveValue(`Concurrent ${kind} ${failed}`);
+      await expect(loser.getByLabel(field, { exact: true })).toHaveValue(`Concurrent ${kind} ${failed}`);
       expect(attempts).toHaveLength(2);
-      await loser.getByRole('button', { name: 'Обновить список без сброса черновика' }).click();
-      await expect(loser.getByRole('button', { name: 'Я сравнил изменения — использовать текущую версию' })).toBeVisible();
-      await expect(loser.getByLabel('Новое название')).toHaveValue(`Concurrent ${kind} ${failed}`);
+      await loser.getByRole('button', { name: kind === 'scenes' ? 'Сравнить сценарий с Core' : 'Обновить список без сброса черновика', exact: true }).click();
+      await expect(loser.getByRole('button', { name: kind === 'scenes' ? 'Оставить мои изменения для новой версии' : 'Я сравнил изменения — использовать текущую версию', exact: true })).toBeVisible();
+      await expect(loser.getByLabel(field, { exact: true })).toHaveValue(`Concurrent ${kind} ${failed}`);
       expect(attempts).toHaveLength(2); // refresh must never submit or replace the captured revision
       if (kind === 'automations') await loser.setViewportSize({ width: 390, height: 844 });
       await loser.screenshot({ path: `test-results/live-software-${kind}-revision-conflict.png`, fullPage: true });
-      await loser.getByRole('button', { name: 'Я сравнил изменения — использовать текущую версию' }).click();
-      await loser.getByRole('button', { name: 'Сохранить название' }).click();
-      await expect(loser.getByLabel('Новое название')).toHaveCount(0);
+      await loser.getByRole('button', { name: kind === 'scenes' ? 'Оставить мои изменения для новой версии' : 'Я сравнил изменения — использовать текущую версию', exact: true }).click();
+      await loser.getByRole('button', { name: saveLabel, exact: true }).click();
+      if (kind === 'scenes') await expect(loser.getByText('Название и действия сохранены и прочитаны из Core. Команды не отправлялись.')).toBeVisible();
+      else await expect(loser.getByLabel(field, { exact: true })).toHaveCount(0);
       expect(attempts).toHaveLength(3); expect(attempts[2]!.expected_revision).toBe(attempts[0]!.expected_revision + 1);
-      await loser.getByRole('button', { name: 'Изменить название' }).click();
-      await loser.getByLabel('Новое название').fill('Draft survives legacy ABA');
+      if (kind !== 'scenes') await loser.getByRole('button', { name: openLabel, exact: true }).click();
+      await loser.getByLabel(field, { exact: true }).fill('Draft survives legacy ABA');
       const aba = await control('legacy-definition-aba', { kind });
       expect(aba.stale_status).toBe(409);
-      await loser.getByRole('button', { name: 'Сохранить название' }).click();
+      await loser.getByRole('button', { name: saveLabel, exact: true }).click();
       await expect(loser.getByRole('alert')).toContainText('Черновик и его исходная версия сохранены');
-      await expect(loser.getByLabel('Новое название')).toHaveValue('Draft survives legacy ABA');
+      await expect(loser.getByLabel(field, { exact: true })).toHaveValue('Draft survives legacy ABA');
       expect(attempts).toHaveLength(3); // ABA detected by revision even though name is unchanged
     } finally { await Promise.all(contexts.map(context => context.close())); }
   }

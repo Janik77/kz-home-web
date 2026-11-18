@@ -308,3 +308,86 @@
 .automation-history summary { cursor: pointer; padding-block: .5rem; }
 .automation-card code, .automation-comparison { overflow-wrap: anywhere; }
 @media (max-width: 640px) { .automation-fields { grid-template-columns: 1fr; } }
+/* A full plan editor needs the same readable canvas as an expanded run. */
+.app-shell--everyday .scene-grid--detailed .scene-card:has(.scene-management form) { grid-column: 1 / -1; }
+.app-shell--everyday .scene-management { min-width: 0; width: 100%; }
+
+/* Compact everyday layout: one real device is a complete home, not an empty grid. */
+.everyday-page { gap: 20px; }
+.everyday-heading h1 { margin-block: 2px 6px; overflow-wrap: anywhere; }
+.everyday-connection { max-width: 100%; }
+.everyday-section-title { justify-content: flex-start; gap: 16px; margin-bottom: 10px; }
+.everyday-section-title h2 { min-width: 0; }
+.everyday-section-title a { flex-shrink: 0; }
+.everyday-home .everyday-home-grid { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.everyday-home .everyday-devices, .everyday-home .everyday-overview,
+.everyday-home .everyday-events { grid-column: auto; }
+.everyday-home .everyday-overview { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.everyday-home .device-grid { align-items: start; }
+.everyday-home .device-card > [lang] { margin-top: 0; }
+.everyday-page .device-card__top { flex-wrap: nowrap; }
+.everyday-page .device-card__identity { min-width: 0; overflow-wrap: anywhere; }
+.everyday-page .device-card__icon { flex-shrink: 0; }
+.device-card .favorite-button--corner { flex-shrink: 0; width: 44px; padding: 10px; margin: -2px -4px 0 0; }
+.device-card .favorite-button--corner span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.everyday-events .everyday-empty { padding: 0; border: 0; }
+.everyday-room strong { overflow-wrap: anywhere; }
+.rooms-toolbar { display: flex; align-items: start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.rooms-toolbar .page-heading { flex: 1 1 260px; }
+.rooms-toolbar .space-create { margin: 0; flex: 0 1 auto; }
+.rooms-toolbar:has(form) .space-create { flex-basis: 100%; }
+.floor-actions { display: flex; align-items: start; flex-wrap: wrap; gap: 8px 20px; }
+.floor-actions details { min-width: 0; max-width: 100%; }
+.floor-actions summary, .room-management > summary { min-height: 44px; padding-block: 12px; cursor: pointer; color: var(--color-muted); font-size: 14px; overflow-wrap: anywhere; }
+.floor-actions details[open] { flex-basis: 100%; }
+.rooms-page .room-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); align-items: start; }
+.rooms-page .room-grid:has(> :only-child) { grid-template-columns: minmax(0, 420px); }
+.everyday-room-page .everyday-devices--single .device-card--core { display: block; max-width: 480px; }
+.everyday-room-page .everyday-devices--single .device-card__state { margin-block: 16px 10px; }
+@media (min-width: 760px) {
+ .everyday-home:not(.everyday-home--sparse) .everyday-home-grid { grid-template-columns: minmax(0, 1.65fr) minmax(260px, 1fr); }
+ .everyday-home.everyday-home--sparse .everyday-home-grid { grid-template-columns: minmax(300px, 420px) minmax(260px, 1fr); }
+ .everyday-home.everyday-home--sparse .device-grid { grid-template-columns: minmax(0, 1fr); }
+ .everyday-home .everyday-overview { max-width: 560px; }
+}
+@media (min-width: 1200px) {
+ .everyday-home.everyday-home--pair .everyday-home-grid { grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); }
+ .everyday-home:not(.everyday-home--sparse) .device-grid { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+ .everyday-home:not(.everyday-home--sparse) .device-card__top, .everyday-home:not(.everyday-home--sparse) .device-card__state { min-height: 0; }
+}
+@media (max-width: 650px) {
+ .everyday-page { gap: 18px; }
+ .everyday-heading__actions { flex-direction: row; }
+ .everyday-heading { grid-template-columns: minmax(0, 1fr) auto; }
+ .everyday-heading__actions { gap: 4px; }
+ .everyday-connection span { display: none; }
+ .everyday-page .device-card { padding: 18px; }
+ .everyday-room-heading .everyday-heading h1 { font-size: 26px; }
+ .everyday-room-page .everyday-devices--single .device-card--core { max-width: none; }
+}
+
+.rooms-page .room-card > div { min-width: 0; }
+.rooms-page .room-card h2 { overflow-wrap: anywhere; }
+
+/* Visual QA: keep the only room above the fold instead of stacking heading gaps. */
+.rooms-page { gap: 12px; }
+.rooms-toolbar .page-heading { border-bottom: 0; padding-bottom: 0; }
+.rooms-toolbar .page-heading__description { margin-top: 6px; }
+.main-content:has(.rooms-page) > .connection-bar { padding-bottom: 8px; margin-bottom: 14px; }
+@media (min-width: 651px) and (max-width: 1199px) {
+ .app-shell--everyday .sidebar .nav-item span { white-space: nowrap; }
+}
+@media (min-width: 651px) and (max-width: 900px) {
+ .everyday-heading__actions .button { width: 44px; height: 44px; padding: 8px; font-size: 0; }
+ .everyday-heading__actions .button svg { display: block; flex-shrink: 0; }
+ .everyday-connection span { display: none; }
+}
+@media (min-width: 760px) {
+ .everyday-home:not(.everyday-home--sparse) .everyday-devices,
+ .everyday-home:not(.everyday-home--sparse) .everyday-overview { grid-column: auto; }
+}
+@media (min-width: 1200px) {
+ .everyday-home:not(.everyday-home--sparse) .device-grid { align-items: stretch; }
+ .everyday-home:not(.everyday-home--sparse) .device-card > [lang] { margin-top: auto; }
+}
+.everyday-room-page { gap: 16px; }

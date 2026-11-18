@@ -35,6 +35,7 @@ export function DeviceCard({ everyday = false, details = false, device, roomName
   return <article id={`device-${device.id}`} className={`device-card ${everyday ? 'device-card--everyday' : ''} ${active ? 'device-card--active' : ''} ${offline ? 'device-card--offline' : ''} ${operation === 'pending' ? 'device-card--pending' : ''} ${readOnly ? 'device-card--core' : ''}`}
     aria-label={`${device.name} · ${roomName}`} tabIndex={-1}>
     <div className="device-card__top"><span className="device-card__icon"><Icon size={23} aria-hidden="true" /></span><div className="device-card__identity"><h3>{device.name}</h3><p className="device-card__room">{roomName}{device.kind === 'other' && ` · ${device.typeLabel}`}</p></div>
+      {readOnly && <FavoriteButton className="favorite-button--corner" id={device.id} name={device.name} />}
       {!readOnly && (device.kind === 'light' || device.kind === 'relay') && <Switch checked={device.on} label={`${device.name} · ${roomName}`} disabled={offline} busy={busy}
         onChange={(on) => onCommand({ type: 'set-power', deviceId: device.id, on })} />}
       {(readOnly || device.kind === 'curtain' || device.kind === 'sensor' || device.kind === 'other') && <span className="device-card__type">{device.kind === 'other' ? device.typeLabel : labels[device.kind]}</span>}
@@ -42,8 +43,6 @@ export function DeviceCard({ everyday = false, details = false, device, roomName
 
     {(!device.numericReadings?.length || device.kind !== 'other' || device.readings.length > 0) && <p className="device-card__state">{readOnly ? `${offline ? 'Не в сети · последнее: ' : ''}${stateRu(device)}` : device.kind === 'light' && !offline && device.brightness !== null ? (device.on ? 'Включено' : 'Выключено') : describeDevice(device)}</p>}
     <NumericReadings device={device} />
-    {/* CSS exposes exactly one favorite in its natural reading/tab order; relay stays mounted on resize. */}
-    {readOnly && <FavoriteButton className="favorite-button--desktop" id={device.id} name={device.name} />}
     {readOnly && (!everyday || details) && <CoreControlNotice device={device} locale="ru" />}
     {readOnly && <ConfirmedRelayControl key={device.id} device={device} everyday={everyday} explicitPower={details} />}
     {device.kind === 'light' && device.brightness !== null && !readOnly && !offline && <RangeControl label="Яркость" accessibleLabel={`${device.name} · яркость · ${roomName}`} value={device.brightness} disabled={busy} revision={revision}
@@ -54,7 +53,6 @@ export function DeviceCard({ everyday = false, details = false, device, roomName
 
     {device.kind === 'sensor' && !offline && <p className="device-card__footnote">Измерено · {new Date(device.measuredAt).toLocaleString('ru-RU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>}
     {offline && <p className="device-card__footnote">Последнее состояние: {describeDevice({ ...device, connection: 'online' })}.{!readOnly && ' Управление станет доступно после восстановления связи.'}</p>}
-    {readOnly && <FavoriteButton className="favorite-button--default" id={device.id} name={device.name} />}
     {details && <Link className="device-details-link" to={`/devices/${device.id}`}>Подробнее</Link>}
     <div className="device-card__feedback">
       {!readOnly && operation === 'pending' && <Feedback tone="pending" message="Обновляем симуляцию…" />}

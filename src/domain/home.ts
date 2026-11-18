@@ -43,6 +43,7 @@ export type DeviceCommand =
   | { type: 'set-position'; deviceId: string; position: number };
 
 export interface Scene {
+  isDraft?: boolean;
   revision?: number | undefined;
   id: string;
   name: string;
