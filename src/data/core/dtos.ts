@@ -61,10 +61,12 @@ export function decodeScene(value: unknown): CoreScene {
   const item = object(value);
   return { ...decodeHouse(item), ...(item.is_draft === undefined ? {} : { is_draft: boolean(item.is_draft) }), revision: decodeRevision(item.revision), house_id: string(item.house_id), actions: list(item.actions, (value) => {
     const action = object(value);
-    if(action.type === 'durable_wait') return decodeDurableWait(action);
-    if(action.type === 'delay') return {type:'delay' as const,seconds:number(action.seconds)};
-    if (action.type !== 'device_state') return {type:'unsupported' as const,originalType:string(action.type)};
-    return { type: 'device_state', device_id: string(action.device_id), state: object(action.state), ...(Object.keys(action).some(key=>!['type','device_id','state'].includes(key)) ? {unsupported:true} : {}) };
+    try {
+      if(action.type === 'durable_wait') return decodeDurableWait(action);
+      if(action.type === 'delay') return {type:'delay' as const,seconds:number(action.seconds)};
+      if (action.type === 'device_state') return { type: 'device_state' as const, device_id: string(action.device_id), state: object(action.state), ...(Object.keys(action).some(key=>!['type','device_id','state'].includes(key)) ? {unsupported:true} : {}) };
+    } catch { /* One unsupported definition must not make the whole home unreadable. */ }
+    return {type:'unsupported' as const,originalType:typeof action.type === 'string' ? action.type : 'неизвестный тип'};
   }) };
 }
 export function decodeTokens(value: unknown): TokenPair {

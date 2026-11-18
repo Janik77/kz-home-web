@@ -36,7 +36,7 @@ describe('Core DTO boundary', () => {
   it('runtime-validates all consumed response fields', () => {
     expect(() => decodeDevice({ ...coreDevice, online: 'true' })).toThrow();
     expect(() => decodeDevice({ ...coreDevice, state: null })).toThrow();
-    expect(() => decodeScene({ ...coreScene, actions: [{ type: 'delay' }] })).toThrow();
+    expect(decodeScene({ ...coreScene, actions: [{ type: 'delay' }] }).actions).toEqual([{ type: 'unsupported', originalType: 'delay' }]);
     expect(() => decodeTokens({ token_type: 'cookie', expires_in: 900 })).toThrow();
     expect(() => decodeUser({ ...coreUser, is_active: false })).toThrow();
   });

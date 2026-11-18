@@ -1,3 +1,5 @@
+import { decodeScene } from './dtos';
+import { mapHome } from './mapping';
 import { expect, it, vi } from 'vitest';
 import { createServices } from '../create-services';
 import { coreResponses, coreDevice } from '../../test/core-fixtures';
@@ -30,3 +32,5 @@ it('stale source rejects before mutation',async()=>{const t=await setup(),base=a
 it('lost management permission fails closed',async()=>{const t=await setup({permissions:['scene.read']}),base=await t.api.read('s',signal());await expect(t.api.duplicate(base,'copy','Копия',signal())).rejects.toMatchObject({kind:'forbidden'});expect(t.writes).toHaveLength(0);});
 it('old Core cannot acquire guessed lifecycle support',async()=>{const t=await setup();delete t.rows['/scenes/s']!.is_draft;const base=await t.api.read('s',signal());await expect(t.api.save(base,'Новый',base.plan!,signal())).rejects.toMatchObject({kind:'read-only'});expect(t.writes).toHaveLength(0);});
 it.each([{actions:[{...plan[0],future_constraint:true}]},{actions:[{type:'delay',seconds:2}]},{future_constraint:true}])('unknown definitions stay readonly: %j',extra=>{expect(decodeEditableScene({id:'s',house_id:'house-a',name:'x',revision:1,is_draft:false,actions:plan,...extra}).plan).toBeNull();});
+
+it.each([{type:'durable_wait',seconds:5,future_constraint:true},{future_constraint:true},{type:null},{type:'device_state',state:{on:true}}])('unsupported raw action %j leaves home scene readable but not executable',action=>{const raw={id:'s',house_id:'house-a',name:'x',revision:1,is_draft:false,actions:[action]};expect(decodeEditableScene(raw).plan).toBeNull();const mapped=mapHome({id:'house-a',name:'Home'},[],[],[],[decodeScene(raw)]).scenes[0]!;expect(mapped.readActions?.[0]?.unsupported).toBe(true);expect(mapped.actions).toEqual([]);});
