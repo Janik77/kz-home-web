@@ -48,9 +48,26 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
     expect(receipt.house_id).toBe('fixture_house'); expect(receipt.requested_on).toBe(value);
     receipts.push(receipt); return receipt;
   }
+  // Exact one-room/one-relay stand, not injected presentation fixtures.
+  for (const width of [390, 768, 1366, 1920]) for (const theme of ['light', 'dark']) {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
+    if (await page.locator('html').getAttribute('data-theme') !== theme) await page.getByRole('button', { name: theme === 'dark' ? 'Включить тёмную тему' : 'Включить светлую тему' }).click();
+    await page.getByRole('link', { name: 'Главная', exact: true }).click();
+    await expect(page.getByRole('article')).toHaveCount(1);
+    await expect(page.locator('.everyday-room')).toHaveCount(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const compactCard = (await card.boundingBox())!; expect(compactCard.width).toBeGreaterThanOrEqual(250); expect(compactCard.height).toBeLessThan(450);
+    await page.screenshot({ path: `test-results/live-software-compact-home-${width}-${theme}.png`, fullPage: true });
+    await page.getByRole('link', { name: 'Комнаты', exact: true }).click();
+    await expect(page.locator('.room-grid > *')).toHaveCount(1);
+    await page.screenshot({ path: `test-results/live-software-compact-rooms-${width}-${theme}.png`, fullPage: true });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('link', { name: 'Главная', exact: true }).click();
   // Native browser capture starts after sign-in and stops before any account changes.
   await page.screencast.start({ path: 'test-results/live-software-home-control.webm', size: { width: 390, height: 844 } });
+  await page.getByRole('link', { name: /Room.*Устройств/ }).click();
   await new Promise(resolve => setTimeout(resolve, 800));
   const initialHeight=(await card.boundingBox())!.height;
   await control('mode', { mode: 'hold' });
@@ -64,8 +81,18 @@ test('LIVE confirmed relay lifecycle with PostgreSQL and MQTT TLS', async ({ pag
   await control('release');
   await expect(status).toHaveText('Выполнено · состояние обновлено'); await expect(state).toHaveText('Включено');
   expect(Math.abs((await card.boundingBox())!.height-initialHeight)).toBeLessThanOrEqual(1);
+  await card.getByRole('button', { name: 'Добавить в избранное: Software relay' }).click();
+  await expect(card.getByRole('button', { name: 'Убрать из избранного: Software relay' })).toHaveAttribute('aria-pressed', 'true');
+  await page.screencast.stop();
+  await page.reload(); await login('owner');
+  await page.screencast.start({ path: 'test-results/live-software-compact-restored.webm', size: { width: 390, height: 844 } });
+  await expect(card.getByRole('button', { name: 'Убрать из избранного: Software relay' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(state).toHaveText('Включено');
   await new Promise(resolve => setTimeout(resolve, 1200));
   await page.screencast.stop();
+  // Restore only this test's preference before independent account-isolation tests.
+  await card.getByRole('button', { name: 'Убрать из избранного: Software relay' }).click();
+  await expect(card.getByRole('button', { name: 'Добавить в избранное: Software relay' })).toBeEnabled();
   await page.getByRole('link', { name: /Room.*Устройств/ }).click();
   await page.screenshot({ path: 'test-results/live-software-room-composition.png', fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 });

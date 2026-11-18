@@ -113,3 +113,22 @@ Verification is split deliberately:
   Strict receipt evidence verification is unchanged. No physical hardware.
 
 No main merge, production deployment or persistent-stand update is performed.
+
+## Compact-home acceptance (follow-up)
+
+The accepted palette/components and bottom navigation remain. Home uses one
+adaptive device/room grid with a bounded single-relay card; each card has one
+keyboard-accessible favorite in its header. Rooms keeps creation by its heading,
+floor filters above the list and each floor's metadata in its own actions.
+Changing a floor filter is guarded against unsaved/pending metadata. Room
+controls precede the collapsed metadata section. No command or CAS semantics
+change.
+
+`playwright.compact-home.config.ts` covers 390/768/1366/1920 px, both themes,
+single/populated/empty/offline contract fixtures, long unchanged names, bounded
+cards and overflow. The existing confirmed-live runner separately captures the
+actual one-room/one-software-relay home and rooms at those sizes, then verifies
+room ON → ACK plus state → favorite → reload/sign-in persistence. Recording is
+stopped before credential entry. Live receipts and all negative assertions remain
+required. CI artifacts are acceptance evidence only after that exact run passes;
+these instructions do not assert owner-PC setup or physical-device testing.

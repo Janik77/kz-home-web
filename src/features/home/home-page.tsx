@@ -13,7 +13,7 @@ export function HomePage() {
       <EverydayHeader home={home} title={home.house.name} subtitle="Ваше пространство" />
       <QuickScenes home={home} />
       <div className="everyday-home-grid"><section className="everyday-devices"><SectionTitle title={core && !saved.length ? 'Устройства дома' : 'Избранное'} to="/devices" link="Все устройства" />
-        {core && stored?.known && !saved.length && home.devices.length>0 && <p className="quiet-note">Избранное пока пусто. Отметьте нужные устройства звёздочкой — они появятся здесь.</p>}
+        {core && stored?.known && !saved.length && home.devices.length>0 && <p className="quiet-note">Нажмите звёздочку, чтобы сохранить избранное.</p>}
         {favorites.length ? <DeviceGrid devices={favorites} rooms={home.rooms} everyday /> : <p className="everyday-empty">{home.devices.length ? 'Избранных устройств пока нет. Все устройства доступны в общем списке.' : 'Устройств пока нет.'}</p>}
       </section><aside className="everyday-overview"><EverydayRooms home={home} /><RecentEvents home={home} /></aside></div>
     </div>;
