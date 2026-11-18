@@ -51,9 +51,9 @@ function MetadataForm({ service, original, parents }: { service: Metadata; origi
     finally { if (!current.signal.aborted) setBusy(false); if (task.current === current) task.current = null; }
   }
   const parentName = (id: string | null) => parents.find(p => p.id === id)?.name ?? 'Размещение недоступно';
-  return <><form onSubmit={e => { e.preventDefault(); void save(); }}><fieldset disabled={busy}><legend>Название {labels[base.kind]}{moves ? ' и размещение' : ''}</legend>
+  return <><form onSubmit={e => { e.preventDefault(); void save(); }}><fieldset disabled={busy}><legend className="sr-only">Название {labels[base.kind]}{moves ? ' и размещение' : ''}</legend>
     <label>Название<input value={name} onChange={e => setName(e.target.value)} autoComplete="off" /></label>
-    {moves && <label>{base.kind === 'room' ? 'Этаж' : 'Комната'}<select value={parentId ?? ''} onChange={e => setParentId(e.target.value)}>{!parentValid && <option value={parentId ?? ''}>Текущее размещение недоступно</option>}{parents.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>}
+    {moves && <label>{base.kind === 'room' ? 'Этаж' : 'Комната'}<select aria-label={base.kind === 'room' ? 'Этаж' : 'Комната'} value={parentId ?? ''} onChange={e => setParentId(e.target.value)}>{!parentValid && <option value={parentId ?? ''}>Текущее размещение недоступно</option>}{parents.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>}
     {moves && <p className="quiet-note">Перемещение только внутри этого дома. Состояние устройства не меняется, команды не отправляются.</p>}
     {!validName(name) && <p role="alert">Введите название от 1 до 255 символов.</p>}
     <div className="metadata-actions"><Button type="submit" disabled={!dirty || !validName(name) || !parentValid || blocked}>{busy ? 'Сохраняем…' : 'Сохранить изменения'}</Button><Button variant="quiet" disabled={!dirty || blocked} onClick={() => discard(() => reset(base))}>Отменить изменения</Button></div>
