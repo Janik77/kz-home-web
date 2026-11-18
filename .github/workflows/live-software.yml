@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 50
     env:
       PLAYWRIGHT_CHANNEL: chrome
-      CORE_BASE_SHA: 0cba7cf3ac956648f57e7eb3a2aa5ea063f32ba9
+      CORE_BASE_SHA: fc232035f78c99171fd72ac82c78eb1b5bb657fa
       BASELINE_WEB_SOURCE: ${{ github.workspace }}/web-before
       PYTHONDONTWRITEBYTECODE: '1'
       LIVE_CORE_SOURCE: ${{ github.workspace }}/core
@@ -107,6 +107,9 @@ jobs:
         with:
           name: live-software-evidence
           path: |
+            web/test-results/metadata-live-evidence.json
+            web/test-results/metadata-live/
+            web/test-results/live-metadata-*.png
             web/test-results/durable-live-evidence.json
             web/test-results/durable-live/
             web/test-results/live-durable-*.png
