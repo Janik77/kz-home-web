@@ -29,6 +29,7 @@ def sha(path):
 async def acceptance(values):
     config, seed, ids, api, sql, migration = values
     await provision(api, ids, seed)
+    durable_mode = os.environ.get('LIVE_DURABLE_ONLY') == '1'
     numeric_mode = os.environ.get('LIVE_NUMERIC_ONLY') == '1'
     schedule_mode = os.environ.get('LIVE_SCHEDULE_ONLY') == '1'
     if numeric_mode:
@@ -150,13 +151,17 @@ async def acceptance(values):
                    'RELAY_CONTROL_URL': f'http://127.0.0.1:{server.sockets[0].getsockname()[1]}',
                    'RELAY_CONTROL_KEY': key, 'RELAY_OWNER_PASSWORD': seed['password']}
             result = await asyncio.to_thread(subprocess.run,
-                ['npx', 'playwright', 'test', '--config', 'playwright.schedule-live.config.ts' if schedule_mode else 'playwright.numeric-live.config.ts' if numeric_mode else 'playwright.state-live.config.ts' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'playwright.automation-live.config.ts'],
+                ['npx', 'playwright', 'test', '--config', 'playwright.durable-live.config.ts' if durable_mode else 'playwright.schedule-live.config.ts' if schedule_mode else 'playwright.numeric-live.config.ts' if numeric_mode else 'playwright.state-live.config.ts' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'playwright.automation-live.config.ts'],
                 cwd=WEB, env=env, timeout=300)
             proof = await asyncio.to_thread(evidence)
             proof['browser_exit'] = result.returncode
-            (WEB / 'test-results' / ('schedule-live-evidence.json' if schedule_mode else 'numeric-live-evidence.json' if numeric_mode else 'state-live-evidence.json' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'automation-live-evidence.json')).write_text(json.dumps(proof, indent=2))
+            (WEB / 'test-results' / ('durable-live-evidence.json' if durable_mode else 'schedule-live-evidence.json' if schedule_mode else 'numeric-live-evidence.json' if numeric_mode else 'state-live-evidence.json' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'automation-live-evidence.json')).write_text(json.dumps(proof, indent=2))
             # Browser scenarios prescribe one confirmed run, one refused ACK, one unknown.
-            if numeric_mode or schedule_mode:
+            if durable_mode:
+                assert result.returncode == 0, 'Durable live browser checks failed'
+                assert proof['physical_devices'] == '0'
+                proof['verification'] = verify(proof, {'applied': 3})
+            elif numeric_mode or schedule_mode:
                 assert result.returncode == 0, 'Schedule/numeric live browser checks failed'
                 assert proof['physical_devices'] == '0'
                 proof['verification'] = verify(proof, {'applied': 1})
@@ -169,7 +174,7 @@ async def acceptance(values):
                 (WEB / 'test-results' / 'state-live-evidence.json').write_text(json.dumps(proof, indent=2))
             else:
                 proof['verification'] = verify(proof, {'applied': 1, 'failed': 1, 'timed_out': 1})
-            (WEB / 'test-results' / ('schedule-live-evidence.json' if schedule_mode else 'numeric-live-evidence.json' if numeric_mode else 'state-live-evidence.json' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'automation-live-evidence.json')).write_text(json.dumps(proof, indent=2))
+            (WEB / 'test-results' / ('durable-live-evidence.json' if durable_mode else 'schedule-live-evidence.json' if schedule_mode else 'numeric-live-evidence.json' if numeric_mode else 'state-live-evidence.json' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'automation-live-evidence.json')).write_text(json.dumps(proof, indent=2))
             assert not receiver.done(), 'Software receiver stopped'
         finally:
             server.close()

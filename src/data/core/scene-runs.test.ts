@@ -1,4 +1,5 @@
 import { expect, it, vi } from 'vitest';
+import type { RelayRunAction } from './scene-runs';
 import { checkRun, createSceneRuns, decodeSceneRun } from './scene-runs';
 import { CoreSession } from './session';
 import { HttpClient } from './http-client';
@@ -20,7 +21,7 @@ it.each(['ready', 'running', 'stopped', 'unknown', 'expired'])('preserves aggreg
 it('rejects immutable snapshot, receipt correlation and deadline substitution', () => {
   const before = decodeSceneRun({ ...ready(), status: 'succeeded', actions: [{ ...ready().actions[0], status: 'applied', receipt: receipt() }] });
   for (const after of [{ ...before, scene_revision: 4 }, { ...before, dispatch_deadline: '2026-11-13T00:06:00Z' },
-    { ...before, actions: [{ ...before.actions[0]!, receipt: { ...receipt(), correlation_id: 'different', status: 'applied' as const } }] }]) {
+    { ...before, actions: [{ ...(before.actions[0]! as RelayRunAction), receipt: { ...receipt(), correlation_id: 'different', status: 'applied' as const } }] }]) {
     expect(() => checkRun(before, after)).toThrow();
   }
 });

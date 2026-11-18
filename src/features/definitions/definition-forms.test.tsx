@@ -25,3 +25,12 @@ it('labels dynamic selects exactly and submits the ordered draft once', async ()
     { deviceId: 'living-main', on: true }, { deviceId: 'living-main', on: false },
   ] });
 });
+
+it('creates explicit relay wait relay scene, never executes it, blocks orphan wait',async()=>{
+ const createScene=vi.fn<Definitions['createScene']>(async()=>undefined);
+ renderHome({...createMockHomeRepository(initialHome,0),definitions:{permissions:async()=>['scene.read','scene.manage'],createScene,rename:vi.fn()}},()=> <CreateScene home={initialHome}/>);
+ await userEvent.click(await screen.findByRole('button',{name:'Создать сценарий'})); await userEvent.type(screen.getByLabelText('Название сценария'),'Пауза');
+ await userEvent.selectOptions(screen.getByLabelText('Устройство 1'),'living-main'); await userEvent.click(screen.getByRole('button',{name:'Добавить действие'})); await userEvent.selectOptions(screen.getByLabelText('Устройство 2'),'living-main');
+ await userEvent.click(screen.getByRole('button',{name:'Добавить паузу после шага 1'})); expect(screen.getByLabelText('Пауза 2: секунды')).toHaveValue(5);
+ await userEvent.click(screen.getByRole('button',{name:'Сохранить сценарий'})); expect(createScene).toHaveBeenCalledTimes(1);expect(createScene.mock.calls[0]?.[0].actions).toEqual([{deviceId:'living-main',on:false},{type:'durable_wait',seconds:5},{deviceId:'living-main',on:false}]);
+});

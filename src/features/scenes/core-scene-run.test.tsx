@@ -8,14 +8,14 @@ import { initialHome } from '../../data/mock/fixtures';
 import { createSceneIntents } from '../../data/core/scene-intents';
 import { createRunHistory } from '../../data/core/run-history';
 import { CoreError } from '../../data/core/errors';
-import type { SceneRun, SceneRuns } from '../../data/core/scene-runs';
+import type { SceneRun, SceneRuns, RelayRunAction } from '../../data/core/scene-runs';
 const scene = { ...initialHome.scenes[0]!, revision: 1 };
-function run(status: SceneRun['status'] = 'refused'): SceneRun {
+function run(status: SceneRun['status'] = 'refused'): Omit<SceneRun,'actions'> & {actions:RelayRunAction[]} {
   return { id: 'run', house_id: initialHome.house.id, scene_id: scene.id, scene_revision: 1, execution_mode: 'server', execution_error: null, status,
     created_at: new Date().toISOString(), dispatch_deadline: new Date(Date.now() + 300000).toISOString(),
     actions: [{ position: 0, device_id: 'relay', requested_on: true, status: status === 'unknown' ? 'dispatch_unknown' : 'ready', receipt: null, failure_code: null }] };
 }
-function harness(initial = run()) {
+function harness(initial:SceneRun = run()) {
   const service: SceneRuns = { history: createRunHistory(), intents: createSceneIntents(), lookup: vi.fn(async () => initial), permissions: vi.fn(async () => ['scene.read', 'scene.run', 'device.read', 'device.control']),
     create: vi.fn(async () => initial), read: vi.fn(async () => initial), dispatch: vi.fn(async () => initial) };
   const repository = { ...createMockHomeRepository({ ...initialHome, scenes: [scene] }, 0), sceneRuns: service };
@@ -158,4 +158,13 @@ it('observes server execution to completion with GET only', async () => {
   await waitFor(() => expect(start).toBeEnabled()); await userEvent.click(start);
   await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Все действия подтверждены'), { timeout: 2500 });
   expect(h.service.create).toHaveBeenCalledTimes(1); expect(h.service.read).toHaveBeenCalledTimes(1); expect(h.service.dispatch).not.toHaveBeenCalled();
+});
+
+it('cancels remaining steps only after explicit confirmation at persisted wait',async()=>{
+ const initial:SceneRun={...run('waiting'),plan_deadline:'2026-11-18T10:00:00Z',wait_due_at:'2026-11-18T09:59:00Z',resume_deadline:'2026-11-18T09:59:30Z',actions:[{position:0,type:'durable_wait',device_id:null,requested_on:null,seconds:5,due_at:'2026-11-18T09:59:00Z',resume_deadline:'2026-11-18T09:59:30Z',status:'waiting',receipt:null,failure_code:null}]};
+ const h=harness(initial);h.service.cancel=vi.fn(async()=>({...initial,status:'cancelled' as const,cancelled_at:'2026-11-18T09:59:01Z'}));
+ const start=await screen.findByRole('button',{name:'Запустить сценарий'});await waitFor(()=>expect(start).toBeEnabled());await userEvent.click(start);
+ await userEvent.click(await screen.findByRole('button',{name:'Отменить оставшиеся шаги'}));expect(h.service.cancel).not.toHaveBeenCalled();
+ await userEvent.click(screen.getByRole('button',{name:'Подтвердить отмену оставшихся шагов'})); await waitFor(()=>expect(h.service.cancel).toHaveBeenCalledTimes(1));
+ expect(await screen.findByRole('status')).toHaveTextContent('Оставшиеся шаги отменены');expect(h.service.dispatch).not.toHaveBeenCalled();
 });

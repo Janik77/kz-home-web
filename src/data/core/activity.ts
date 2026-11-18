@@ -1,3 +1,4 @@
+import { decodeDurableWait } from './durable';
 import { scheduleDescription } from './schedules';
 import { isNumericField, numericFields, thresholdExplanation, validNumericTest, type NumericTrigger } from './numeric';
 import type { HomeActivity, AutomationRule, HomeEvent } from '../../domain/activity';
@@ -32,6 +33,7 @@ export function decodeAutomation(value: unknown): AutomationRule & { houseId: st
     }),
     actions: list(v.actions, value => {
       const a = object(value);
+      if (a.type === 'durable_wait') return `Сохранённая пауза: ${decodeDurableWait(a).seconds} с после подтверждения`;
       if (a.type === 'delay') {
         const seconds = number(a.seconds);
         if (seconds <= 0 || seconds > 86400) throw new CoreError('protocol');

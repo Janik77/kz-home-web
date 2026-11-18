@@ -49,7 +49,7 @@ export interface Scene {
   description: string;
   icon: 'sunrise' | 'sofa' | 'moon' | 'away' | 'scene';
   actions: DeviceCommand[];
-  readActions?: { deviceId: string; description: string }[];
+  readActions?: { deviceId: string; description: string; waitSeconds?: number; unsupported?: boolean }[];
 }
 
 export interface HomeSnapshot {
