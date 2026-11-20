@@ -76,3 +76,22 @@ it('rejects inconsistent partial/refused aggregate evidence', () => {
   expect(() => decodeSceneRun({...ready(), status:'partial'})).toThrow();
   expect(() => decodeSceneRun({...ready(), status:'refused', actions:[{...ready().actions[0], status:'applied', receipt:receipt()}]})).toThrow();
 });
+
+it('accepts the same scene and receipt after a PostgreSQL UTC+05 readback, not changed microseconds', async () => {
+  const h = await harness(), signal = new AbortController().signal;
+  const original = { ...ready(), status: 'running', created_at: '2026-11-13T00:00:00.000431Z', dispatch_deadline: '2026-11-13T00:05:00.000431Z' };
+  h.set(original);
+  const accepted = await h.service.create('scene', 3, 'same-intent-key-123', signal);
+  const result = { ...original, status: 'succeeded', created_at: '2026-11-13T05:00:00.000431+05:00', dispatch_deadline: '2026-11-13T05:05:00.000431+05:00',
+    actions: [{ ...original.actions[0]!, status: 'applied', receipt: { ...receipt(), expires_at: '2026-11-13T00:00:30.654321Z' } }] };
+  h.set(result);
+  const finished = await h.service.read('run', signal, accepted);
+  expect(finished.status).toBe('succeeded');
+  h.set({ ...result, actions: [{ ...result.actions[0]!, receipt: { ...result.actions[0]!.receipt, expires_at: '2026-11-13T05:00:30.654321+05:00' } }] });
+  await expect(h.service.read('run', signal, finished)).resolves.toMatchObject({ status: 'succeeded' });
+  h.set({ ...result, created_at: '2026-11-13T05:00:00.000432+05:00' });
+  await expect(h.service.read('run', signal, accepted)).rejects.toMatchObject({ kind: 'protocol' });
+  h.set({ ...result, actions: [{ ...result.actions[0]!, receipt: { ...result.actions[0]!.receipt, expires_at: '2026-11-13T05:00:30.654322+05:00' } }] });
+  await expect(h.service.read('run', signal, finished)).rejects.toMatchObject({ kind: 'protocol' });
+  expect(h.posts()).toHaveLength(1);
+});

@@ -3,6 +3,7 @@ import { createSceneIntents } from './scene-intents';
 import { createRunHistory, type RunHistory } from './run-history';
 import { boolean, list, object, string } from './dtos';
 import { CoreError } from './errors';
+import { sameCoreInstant } from './instant';
 import { readHousePermissions } from './permissions';
 import { decodeReceipt, type Receipt } from './relay-control';
 import type { CoreSession } from './session';
@@ -34,24 +35,24 @@ export function decodeSceneRun(value: unknown): SceneRun {
   });
   const durable = decodeDurableRunFields(v); validateDurableRun(v,actions,durable); const hasWait = actions.some(a => 'type' in a);
   if(hasWait && !durable.plan_deadline || !hasWait && durable.plan_deadline || (v.status==='waiting'&&(!hasWait||!durable.wait_due_at)) || (v.status==='cancelled'&&(!hasWait||!durable.cancelled_at))) throw new CoreError('protocol');
-  if(durable.plan_deadline && durable.plan_deadline!==deadline)throw new CoreError('protocol');
+  if(durable.plan_deadline && !sameCoreInstant(durable.plan_deadline, deadline))throw new CoreError('protocol');
   if (!actions.length || actions.length > 16 || actions.some((a, i) => a.position !== i) ||
     new Set(actions.flatMap(a => a.receipt ? [a.receipt.command_id] : [])).size !== actions.filter(a => a.receipt).length ||
     (v.status === 'succeeded' && actions.some(a => a.status !== 'applied' && a.status !== 'completed')) ||
     (v.status === 'partial' && (!actions.some(a => a.status === 'applied') || actions.every(a => a.status === 'applied' || a.status === 'completed'))) ||
     (v.status === 'refused' && actions.some(a => a.status === 'applied'))) throw new CoreError('protocol');
-  return { ...decodeDurableRunFields(v), id: string(v.id), house_id: house, scene_id: string(v.scene_id), scene_revision: integer(v.scene_revision, 1), created_at: created, dispatch_deadline: deadline, status: v.status as SceneRun['status'], execution_mode: v.execution_mode, execution_error: v.execution_error === null ? null : string(v.execution_error), actions };
+  return { ...durable, id: string(v.id), house_id: house, scene_id: string(v.scene_id), scene_revision: integer(v.scene_revision, 1), created_at: created, dispatch_deadline: deadline, status: v.status as SceneRun['status'], execution_mode: v.execution_mode, execution_error: v.execution_error === null ? null : string(v.execution_error), actions };
 }
 export function checkRun(previous: SceneRun, next: SceneRun) {
-  for (const key of ['id', 'house_id', 'scene_id', 'scene_revision', 'created_at', 'dispatch_deadline', 'execution_mode'] as const) if (next[key] !== previous[key]) throw new CoreError('protocol');
-  if(previous.plan_deadline!==next.plan_deadline) throw new CoreError('protocol');
+  for (const key of ['id', 'house_id', 'scene_id', 'scene_revision', 'execution_mode'] as const) if (next[key] !== previous[key]) throw new CoreError('protocol');
+  for (const key of ['created_at', 'dispatch_deadline', 'plan_deadline'] as const) if (!sameCoreInstant(previous[key], next[key])) throw new CoreError('protocol');
   if (next.actions.length !== previous.actions.length) throw new CoreError('protocol');
   previous.actions.forEach((a, i) => {
     const b = next.actions[i]!;
     if(('type' in a)!==('type' in b)) throw new CoreError('protocol');
-    if('type' in a && 'type' in b && (a.seconds!==b.seconds || (a.due_at!==null && (a.due_at!==b.due_at || a.resume_deadline!==b.resume_deadline)))) throw new CoreError('protocol');
+    if('type' in a && 'type' in b && (a.seconds!==b.seconds || (a.due_at!==null && (!sameCoreInstant(a.due_at, b.due_at) || !sameCoreInstant(a.resume_deadline, b.resume_deadline))))) throw new CoreError('protocol');
     if (a.device_id !== b.device_id || a.requested_on !== b.requested_on || (a.receipt && (!b.receipt ||
-      a.receipt.command_id !== b.receipt.command_id || a.receipt.correlation_id !== b.receipt.correlation_id || a.receipt.expires_at !== b.receipt.expires_at))) throw new CoreError('protocol');
+      a.receipt.command_id !== b.receipt.command_id || a.receipt.correlation_id !== b.receipt.correlation_id || !sameCoreInstant(a.receipt.expires_at, b.receipt.expires_at)))) throw new CoreError('protocol');
   });
 }
 export interface SceneRuns {

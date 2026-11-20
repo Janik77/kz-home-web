@@ -1,4 +1,5 @@
 import { CoreError } from './errors';
+import { sameCoreInstant } from './instant';
 export interface DurableWait { type: 'durable_wait'; seconds: number }
 export function isDurableWait(value: { type?: string | undefined }): value is DurableWait { return value.type === 'durable_wait'; }
 export function decodeDurableWait(value: unknown): DurableWait {
@@ -37,8 +38,8 @@ export function decodeDurableRunFields(v:Record<string,unknown>):DurableRunField
 export function validateDurableRun(v:Record<string,unknown>,actions:({status:string;receipt:unknown;type?:string;due_at?:string|null;resume_deadline?:string|null})[],fields:DurableRunFields){
  const waits=actions.filter(a=>a.type==='durable_wait');
  if(Boolean(waits.length)!==Boolean(fields.plan_deadline))throw new CoreError('protocol');
- if(fields.plan_deadline&&v.dispatch_deadline!==undefined&&fields.plan_deadline!==v.dispatch_deadline)throw new CoreError('protocol');
- if(v.status==='waiting'&&(!fields.wait_due_at||!waits.some(a=>a.status==='waiting'&&a.due_at===fields.wait_due_at&&a.resume_deadline===fields.resume_deadline)))throw new CoreError('protocol');
+ if(fields.plan_deadline&&v.dispatch_deadline!==undefined&&(typeof v.dispatch_deadline!=='string'||!sameCoreInstant(fields.plan_deadline,v.dispatch_deadline)))throw new CoreError('protocol');
+ if(v.status==='waiting'&&(!fields.wait_due_at||!waits.some(a=>a.status==='waiting'&&sameCoreInstant(a.due_at,fields.wait_due_at)&&sameCoreInstant(a.resume_deadline,fields.resume_deadline))))throw new CoreError('protocol');
  if(v.status!=='waiting'&&(fields.wait_due_at||fields.resume_deadline))throw new CoreError('protocol');
  if(v.status==='cancelled'&&!fields.cancelled_at)throw new CoreError('protocol');
  if(actions.some(a=>a.type!=='durable_wait'&&['cancelled','expired'].includes(a.status)&&(!fields.plan_deadline||a.receipt!==null)))throw new CoreError('protocol');

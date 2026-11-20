@@ -1,5 +1,6 @@
 import { boolean, decodeDevice, list, object, string } from './dtos';
 import { CoreError } from './errors';
+import { sameCoreInstant } from './instant';
 import type { CoreSession } from './session';
 import { readHousePermissions } from './permissions';
 
@@ -60,7 +61,7 @@ export function createRelayControl(session: CoreSession, houseId: string): Relay
       const check = (r: Receipt) => {
         signal.throwIfAborted();
         if (r.house_id !== houseId || r.device_id !== deviceId || r.requested_on !== on ||
-          r.command_id !== identity.command_id || r.correlation_id !== identity.correlation_id || r.expires_at !== identity.expires_at) throw new CoreError('protocol');
+          r.command_id !== identity.command_id || r.correlation_id !== identity.correlation_id || !sameCoreInstant(r.expires_at, identity.expires_at)) throw new CoreError('protocol');
       };
       check(receipt); update(receipt);
       // Server deadline is authoritative. One final GET at deadline materializes timeout.
