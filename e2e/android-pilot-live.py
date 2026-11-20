@@ -135,6 +135,28 @@ def close_ime():
     time.sleep(.8)
 
 
+def fixture_network_state():
+    state = adb('shell','cmd','wifi','status')
+    associated = bool(re.search(r'connected to.*AndroidWifi', state, re.IGNORECASE))
+    connectivity = adb('shell','dumpsys','connectivity')
+    active = re.search(r'^Active default network:\s*(\d+)\s*$', connectivity, re.MULTILINE)
+    default_wifi = bool(active and re.search(
+        rf'NetworkAgentInfo.*network\{{{active[1]}\}}[^\n]*Transports: WIFI\b', connectivity))
+    return associated, bool(active), default_wifi
+
+
+def wait_fixture_offline(name):
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        associated, default_present, default_wifi = fixture_network_state()
+        if not associated and not default_present and not default_wifi:
+            (OUT / name).write_text('AndroidWifi associated=false; active default present=false; Wi-Fi=false\n')
+            return
+        time.sleep(1)
+    (OUT / name).write_text(f'AndroidWifi associated={associated}; active default present={default_present}; Wi-Fi={default_wifi}\n')
+    raise AssertionError('Android OS did not transition to no active default network')
+
+
 def connect_fixture_wifi():
     # Synthetic emulator network only. Prevent cellular from being the default.
     adb('shell','svc','data','disable')
@@ -144,17 +166,12 @@ def connect_fixture_wifi():
     deadline = time.monotonic()+45
     associated = default_wifi = False
     while time.monotonic()<deadline:
-        state = adb('shell','cmd','wifi','status')
-        associated = bool(re.search(r'connected to.*AndroidWifi', state, re.IGNORECASE))
-        connectivity = adb('shell','dumpsys','connectivity')
-        active = re.search(r'^Active default network:\s*(\d+)\s*$', connectivity, re.MULTILINE)
-        default_wifi = bool(active and re.search(
-            rf'NetworkAgentInfo.*network\{{{active[1]}\}}[^\n]*Transports: WIFI\b', connectivity))
+        associated, default_present, default_wifi = fixture_network_state()
         if associated and default_wifi:
             return
         time.sleep(1)
     (OUT/'fixture-wifi-status.txt').write_text(
-        f'AndroidWifi associated={associated}; active default parsed={bool(active)}; active is Wi-Fi={default_wifi}\n')
+        f'AndroidWifi associated={associated}; active default present={default_present}; active is Wi-Fi={default_wifi}\n')
     raise AssertionError('Emulator did not establish a current AndroidWifi default network')
 
 
@@ -235,6 +252,8 @@ async def acceptance(values):
     received = []
     release_first_ack = asyncio.Event()
     first_mqtt = asyncio.Event()
+    release_second_ack = asyncio.Event()
+    second_mqtt = asyncio.Event()
     async with aiomqtt.Client(hostname=config.host, port=config.port, username=config.username,
                              password=config.password, identifier=config.client_id,
                              tls_context=ssl.create_default_context(cafile=config.ca_file)) as mqtt:
@@ -250,6 +269,9 @@ async def acceptance(values):
                 if len(received) == 1:
                     first_mqtt.set()
                     await asyncio.wait_for(release_first_ack.wait(), 25)
+                elif len(received) == 2:
+                    second_mqtt.set()
+                    await asyncio.wait_for(release_second_ack.wait(), 25)
                 await relay.handle(str(item.topic), bytes(item.payload), item.retain)
         task = asyncio.create_task(receive())
         await relay.send(TopicKind.STATUS, relay.status(True))
@@ -322,20 +344,20 @@ async def acceptance(values):
                         '/data/local/tmp/kz-pilot.mp4'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                     recorder_cleanup.callback(lambda: recorder.terminate() if recorder.poll() is None else None)
                     await asyncio.to_thread(tap, 'Включить', scroll=1)
-                    # Hold one real software MQTT ACK until after the Android client
-                    # backgrounds and loses Wi-Fi; Core keeps authoritative state.
+                    # Normal ON: preserve verified native and desktop evidence before
+                    # later interruption checks can fail independently.
                     await asyncio.wait_for(first_mqtt.wait(), 10)
                     await asyncio.to_thread(node, 'Ожидаем подтверждение', prefix=True, scroll=1)
                     assert len(received) == 1
                     await asyncio.to_thread(screenshot, 'android-pending.png')
-                    await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '3')
-                    await asyncio.to_thread(adb, 'shell', 'svc', 'wifi', 'disable')
                     release_first_ack.set()
                     await wait_value(api, True)
-                    await asyncio.to_thread(adb, 'shell', 'am', 'start', '-n', f'{PACKAGE}/.MainActivity')
-                    await asyncio.to_thread(node, 'Нет связи с домом. Подключитесь к домашнему Wi‑Fi.')
-                    await asyncio.to_thread(connect_fixture_wifi)
+                    assert sql("SELECT count(*) FROM device_commands WHERE status='applied' AND ack_status='applied' "
+                               "AND requested_on IS TRUE AND reported_on IS TRUE AND ack_received_at IS NOT NULL "
+                               "AND state_received_at IS NOT NULL") == '1'
                     await asyncio.to_thread(node, 'Включено', scroll=-1)
+                    await asyncio.to_thread(screenshot, 'android-ack.png')
+                    print('Android ON: one real MQTT command; Core DB ACK and state applied; native UI ON', flush=True)
                     assert len(received) == 1
                     assert mutations.count(('POST', '/v1/devices/fixture_relay/commands')) == 1
                     await page.get_by_role('link', name='Главная', exact=True).click()
@@ -344,7 +366,13 @@ async def acceptance(values):
                     await expect(card.get_by_text('Включено', exact=True)).to_be_visible(timeout=15_000)
                     print('Phone command confirmed, desktop observed same state', flush=True)
                     await page.screenshot(path=OUT/'desktop-same-ack.png')
-                    await asyncio.to_thread(screenshot, 'android-ack.png')
+                    (OUT/'on-proof.json').write_text(json.dumps({
+                        'core': os.environ['KZ_PILOT_CORE_SHA'],
+                        'web': subprocess.check_output(['git','rev-parse','HEAD'], cwd=WEB, text=True).strip(),
+                        'device': 'isolated MQTT software relay', 'native_http_posts': 1, 'mqtt_commands': 1,
+                        'before': False, 'confirmed': True, 'core_ack_received': True, 'core_state_received': True,
+                        'native_confirmed': True, 'desktop_confirmed': True,
+                    }, indent=2))
                     if recorder.poll() is None:
                         await asyncio.to_thread(adb, 'shell', 'pkill', '-INT', 'screenrecord')
                     await asyncio.to_thread(recorder.wait, 10)
@@ -354,8 +382,28 @@ async def acceptance(values):
                     await page.get_by_role('link', name='Главная', exact=True).click()
                     await page.get_by_role('button', name='Обновить данные').click()
                     await expect(page.get_by_role('button', name='Убрать из избранного: Software relay')).to_be_visible()
+                    # OFF uses a separate interrupted flow; no extra request may
+                    # be generated when Wi-Fi returns.
                     await asyncio.to_thread(tap, 'Выключить', scroll=1)
+                    await asyncio.wait_for(second_mqtt.wait(), 10)
+                    await asyncio.to_thread(node, 'Ожидаем подтверждение', prefix=True, scroll=1)
+                    await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '3')
+                    await asyncio.to_thread(adb, 'shell', 'svc', 'wifi', 'disable')
+                    try:
+                        await asyncio.to_thread(wait_fixture_offline, 'android-interruption-network.txt')
+                    finally:
+                        release_second_ack.set()
                     await wait_value(api, False)
+                    await asyncio.to_thread(adb, 'shell', 'am', 'start', '-n', f'{PACKAGE}/.MainActivity')
+                    try:
+                        await asyncio.to_thread(node, 'Нет связи с домом. Подключитесь к домашнему Wi‑Fi.')
+                    finally:
+                        await asyncio.to_thread(screenshot, 'android-interruption-offline.png')
+                    await asyncio.to_thread(connect_fixture_wifi)
+                    await asyncio.to_thread(node, 'Выключено', scroll=-1)
+                    assert len(received) == 2
+                    assert mutations.count(('POST', '/v1/devices/fixture_relay/commands')) == 2
+                    print('Android OFF while backgrounded and Wi-Fi disabled: state recovered, no second POST', flush=True)
                     await asyncio.to_thread(tap, 'Сценарии')
                     await asyncio.to_thread(tap, 'Запуск и результат', scroll=1)
                     await asyncio.to_thread(tap, 'Запустить сценарий', scroll=1)
