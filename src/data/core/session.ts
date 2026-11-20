@@ -10,7 +10,14 @@ export interface SessionSnapshot {
   message: string | null;
 }
 
-/** Per-tab memory only. Passwords/tokens never enter React state, Query, or storage. */
+export interface RefreshVault {
+  /** Atomically remove the persisted refresh token before returning it. */
+  take(): Promise<string | null>;
+  save(token: string): Promise<void>;
+  clear(): Promise<void>;
+}
+
+/** Browser: memory only. Android can persist only the rotating token through its native vault. */
 export class CoreSession {
   private tokens: TokenPair | null = null;
   private expiresAt = 0;
@@ -19,7 +26,7 @@ export class CoreSession {
   private refreshInFlight: Promise<void> | null = null;
   private snapshot: SessionSnapshot = { status: 'anonymous', user: null, message: null };
   private listeners = new Set<() => void>();
-  constructor(private readonly http: HttpClient, private readonly now = Date.now) {}
+  constructor(private readonly http: HttpClient, private readonly now = Date.now, private readonly vault?: RefreshVault) {}
   getSnapshot = () => this.snapshot;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   private publish(snapshot: SessionSnapshot) { this.snapshot = snapshot; for (const listener of this.listeners) listener(); }
@@ -29,6 +36,31 @@ export class CoreSession {
     this.publish({ status: 'anonymous', user: null, message });
   }
   private accept(tokens: TokenPair) { this.tokens = tokens; this.expiresAt = this.now() + tokens.expires_in * 1000; }
+
+  private async saveRefresh(tokens: TokenPair) {
+    // Keystore unavailable: this session still works in memory and requires login after restart.
+    try { await this.vault?.save(tokens.refresh_token); } catch { /* fail closed */ }
+  }
+
+  async resume(): Promise<void> {
+    if (!this.vault || this.snapshot.status !== 'anonymous') return;
+    const revision = ++this.revision;
+    this.lifetime = new AbortController();
+    this.publish({ status: 'authenticating', user: null, message: null });
+    try {
+      const token = await this.vault.take();
+      if (!token) { this.forget(null); return; }
+      const pair = await this.http.request('/auth/refresh', decodeTokens, { method: 'POST', body: { refresh_token: token } });
+      const user = await this.http.request('/auth/me', decodeUser, { token: pair.access_token });
+      if (revision !== this.revision) return;
+      await this.saveRefresh(pair);
+      this.accept(pair); this.publish({ status: 'authenticated', user, message: null });
+    } catch (error) {
+      if (revision === this.revision) this.forget(error instanceof CoreError && error.kind === 'network'
+        ? 'Не удалось восстановить сеанс. Подключитесь к домашнему Wi‑Fi и войдите снова.'
+        : 'Сохранённый сеанс недоступен. Войдите снова.');
+    }
+  }
 
   async login(email: string, password: string): Promise<void> {
     if (this.snapshot.status !== 'anonymous') return;
@@ -40,6 +72,7 @@ export class CoreSession {
       pair = await this.http.request('/auth/login', decodeTokens, { method: 'POST', body: { email, password } });
       const user = await this.http.request('/auth/me', decodeUser, { token: pair.access_token });
       if (revision !== this.revision) return;
+      if (this.vault) await this.saveRefresh(pair);
       this.accept(pair); this.publish({ status: 'authenticated', user, message: null });
     } catch (error) {
       if (pair) {
@@ -55,8 +88,13 @@ export class CoreSession {
     if (!this.tokens) return Promise.reject(new CoreError('unauthorized'));
     const revision = this.revision;
     const refreshToken = this.tokens.refresh_token;
-    const operation = this.http.request('/auth/refresh', decodeTokens, { method: 'POST', body: { refresh_token: refreshToken } })
-      .then((pair) => { if (revision === this.revision) this.accept(pair); else throw new CoreError('unauthorized'); })
+    const rotate = () => this.http.request('/auth/refresh', decodeTokens, { method: 'POST', body: { refresh_token: refreshToken } });
+    const operation = (this.vault ? this.vault.clear().then(rotate) : rotate())
+      .then(async (pair) => {
+        if (revision !== this.revision) throw new CoreError('unauthorized');
+        if (this.vault && this.snapshot.status === 'authenticated') await this.saveRefresh(pair);
+        this.accept(pair);
+      })
       .catch((error: unknown) => {
         // Never retry a rotating refresh after a lost response: the old token may be consumed.
         if (revision === this.revision) this.forget(error instanceof CoreError && error.kind === 'unauthorized'
@@ -96,7 +134,7 @@ export class CoreSession {
         return result;
       } catch (retryError) {
         if (retryError instanceof CoreError && retryError.kind === 'unauthorized' && revision === this.revision) {
-          this.forget('Сеанс истёк. Войдите снова.');
+          await this.clearAndExpire();
         }
         throw retryError;
       }
@@ -118,7 +156,7 @@ export class CoreSession {
       if (revision !== this.revision) throw new CoreError('unauthorized');
       return result;
     } catch (error) {
-      if (error instanceof CoreError && error.kind === 'unauthorized' && revision === this.revision) this.forget('Сеанс истёк. Войдите снова.');
+      if (error instanceof CoreError && error.kind === 'unauthorized' && revision === this.revision) await this.clearAndExpire();
       throw error;
     }
   }
@@ -138,9 +176,15 @@ export class CoreSession {
       if (revision !== this.revision) throw new CoreError('unauthorized');
       return result;
     } catch (error) {
-      if (error instanceof CoreError && error.kind === 'unauthorized' && revision === this.revision) this.forget('Сеанс истёк. Войдите снова.');
+      if (error instanceof CoreError && error.kind === 'unauthorized' && revision === this.revision) await this.clearAndExpire();
       throw error;
     }
+  }
+
+  private async clearAndExpire() {
+    const revision = this.revision;
+    try { await this.vault?.clear(); } catch { /* Native store makes deletion fail closed. */ }
+    if (revision === this.revision && this.snapshot.status === 'authenticated') this.forget('Сеанс истёк. Войдите снова.');
   }
 
   async logout(): Promise<void> {
@@ -152,9 +196,10 @@ export class CoreSession {
     const token = this.tokens?.refresh_token;
     this.revision++; this.tokens = null; this.expiresAt = 0;
     let message: string | null = null;
+    try { await this.vault?.clear(); } catch { message = 'Не удалось удалить сохранённый сеанс. Очистите данные приложения.'; }
     if (token) {
       try { await this.http.request('/auth/logout', () => undefined, { method: 'POST', body: { refresh_token: token } }); }
-      catch (error) { if (!(error instanceof CoreError && error.kind === 'unauthorized')) message = 'Signed out on this device. Core couldn’t confirm session revocation.'; }
+      catch (error) { if (!(error instanceof CoreError && error.kind === 'unauthorized')) message ??= 'Signed out on this device. Core couldn’t confirm session revocation.'; }
     }
     this.publish({ status: 'anonymous', user: null, message });
   }
