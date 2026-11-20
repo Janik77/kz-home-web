@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRepository } from '../../app/services';
 import { Button } from '../../components/ui/button';
-import { CoreError } from '../../data/core/errors';
+import { CoreError, coreErrorMessage } from '../../data/core/errors';
 import type { SceneRun, RunAction } from '../../data/core/scene-runs';
 import type { Scene, HomeSnapshot } from '../../domain/home';
 import type { RunReference } from '../../data/core/run-history';
@@ -19,6 +19,7 @@ const labels: Record<RunAction['status'], string> = {
 const summaries: Record<SceneRun['status'], string> = { waiting:'Core сохраняет ожидание', cancelled:'Оставшиеся шаги отменены', ready: 'Ожидает исполнения Core', running: 'Core выполняет сценарий', succeeded: 'Все действия подтверждены', stopped: 'Запуск остановлен', partial: 'Выполнено частично', refused: 'В выполнении отказано', unknown: 'Результат неизвестен', expired: 'Срок отправки истёк' };
 function errorMessage(error: unknown) {
   if (error instanceof CoreError) {
+    if (error.kind === 'command-clock') return coreErrorMessage(error);
     if (error.kind === 'conflict') return 'Конфликт версии или состояния запуска. Для нового намерения выберите «Обновить сценарий для нового запуска». Автоматического повтора нет.';
     if (error.kind === 'forbidden') return 'Нет прав или Core запретил действие. Физические ограничения не обходятся.';
     if (error.kind === 'not-found') return 'Запуск не найден или эта версия Core не поддерживает серверный запуск. Новая команда не отправляется автоматически.';

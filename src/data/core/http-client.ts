@@ -32,6 +32,14 @@ export class HttpClient {
         const kind = response.status === 401 ? 'unauthorized' : response.status === 403 ? 'forbidden'
           : response.status === 404 ? 'not-found' : response.status === 409 ? 'conflict'
           : response.status === 422 ? 'validation' : response.status === 429 ? 'rate-limit' : response.status >= 500 ? 'server' : 'protocol';
+        // Recognize only this documented, non-sensitive Core diagnostic. Never
+        // retain/display arbitrary response text or infer that an earlier send failed.
+        if (response.status === 503 && response.headers.get('content-type')?.includes('application/json')) {
+          let detail: unknown;
+          try { detail = await response.json(); } catch { /* Keep the ordinary server error. */ }
+          if (typeof detail === 'object' && detail !== null && 'detail' in detail
+            && detail.detail === 'Command clock is unavailable') throw new CoreError('command-clock', response.status);
+        }
         throw new CoreError(kind, response.status);
       }
       if (options.expectedStatus !== undefined && response.status !== options.expectedStatus) throw new CoreError('protocol');
