@@ -21,23 +21,31 @@ function usePhoneLifecycle() {
     let disposed = false;
     let active = true;
     let previousWifi: boolean | undefined;
+    let foregroundRefreshPending = false;
     let networkRevision = 0;
     const handles: PluginListenerHandle[] = [];
     const keep = (promise: Promise<PluginListenerHandle>) => {
       void promise.then(handle => { if (disposed) return handle.remove(); handles.push(handle); }).catch(() => undefined);
     };
-    const sync = (status: Awaited<ReturnType<typeof Network.getStatus>>, resume = false) => {
+    const sync = (status: Awaited<ReturnType<typeof Network.getStatus>>) => {
       if (disposed) return;
       const ready = status.connected && status.connectionType === 'wifi';
-      if (ready && active && (resume || previousWifi === false)) window.dispatchEvent(new Event(mobileReadRefresh));
+      const returnedToWifi = previousWifi === false;
       previousWifi = ready;
       setWifi(ready);
+      if (ready && active && (foregroundRefreshPending || returnedToWifi)) {
+        foregroundRefreshPending = false;
+        window.dispatchEvent(new Event(mobileReadRefresh));
+      }
     };
     keep(Network.addListener('networkStatusChange', status => { networkRevision++; sync(status); }));
     const refreshStatus = (resume: boolean) => {
+      // Android may deliver a fresh capabilities event before this getStatus resolves.
+      // That fresh event can satisfy the foreground intent; never trust the stale promise.
+      if (resume) foregroundRefreshPending = true;
       const revision = networkRevision;
       void Network.getStatus().then(status => {
-        if (revision === networkRevision) sync(status, resume);
+        if (revision === networkRevision) sync(status);
       }).catch(() => {
         if (!disposed && revision === networkRevision) setWifi(false);
       });
