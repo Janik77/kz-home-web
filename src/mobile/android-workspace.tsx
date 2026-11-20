@@ -12,7 +12,7 @@ import { nativeCoreFetcher } from './transport';
 import { forgetEndpoint, nativeRefreshVault, rememberedHome, rememberHome } from './store';
 import type { RememberedHome } from './store';
 import { mobileReadRefresh } from './read-refresh';
-import { checkCoreHealth, createStoredSessionResume } from './stored-session-resume';
+import { checkCoreHealth, checkCoreReadiness, createStoredSessionResume } from './stored-session-resume';
 import './android.css';
 
 function usePhoneLifecycle() {
@@ -169,7 +169,7 @@ function AndroidHome({ connection, restore, wifi, onChange, remembered, onRememb
     };
     const services = createServices({ mode: 'core', apiUrl: connection.origin }, network, nativeRefreshVault(connection.origin));
     const resumeStored = services.mode === 'core' ? createStoredSessionResume(
-      () => checkCoreHealth(new HttpClient(connection.origin, network)), () => services.session.resume(),
+      () => checkCoreReadiness(new HttpClient(connection.origin, network)), () => services.session.resume(),
     ) : null;
     return { services, resumeStored };
   });

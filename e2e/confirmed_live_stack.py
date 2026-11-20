@@ -242,11 +242,12 @@ log_type all
 
 
 @asynccontextmanager
-async def stack(core):
+async def stack(core, *, postgres_gate=None):
     from alembic import command
     from alembic.config import Config as AlembicConfig
     from alembic.script import ScriptDirectory
     from sqlalchemy import create_engine, text
+    from sqlalchemy.engine import make_url
     from sqlalchemy.orm import Session
     from app.core import Settings
     from app.repositories import UserRepository
@@ -284,12 +285,18 @@ async def stack(core):
                     f"{role}@example.test", password
                 ).id
             session.commit()
+        # The Android test can sever only Core's TCP path to this disposable
+        # database. Provisioning, comparison queries and cleanup stay direct.
+        app_db_url = services.url
+        if postgres_gate is not None:
+            gate_port = postgres_gate.start(services.pg_port)
+            app_db_url = make_url(services.url).set(port=gate_port).render_as_string(hide_password=False)
         # Production-mode validation avoids loading .env; this is an owned test
         # process/database, not a production installation. No fake transport.
         environment = dict(os.environ)
         try:
             os.environ.clear()
-            os.environ.update(APP_ENV="production", DATABASE_URL=services.url,
+            os.environ.update(APP_ENV="production", DATABASE_URL=app_db_url,
                 MQTT_ENABLED="true", MQTT_TLS_ENABLED="true", MQTT_HOST="localhost",
                 MQTT_PORT=str(services.mqtt_port), MQTT_CLIENT_ID="unused-import-app",
                 AUTH_JWT_SECRET=jwt_secret)
@@ -297,7 +304,7 @@ async def stack(core):
         finally:
             os.environ.clear()
             os.environ.update(environment)
-        settings = Settings(database_url=services.url, app_env="production",
+        settings = Settings(database_url=app_db_url, app_env="production",
             auth_jwt_secret=jwt_secret, mqtt_enabled=True, mqtt_host="localhost",
             mqtt_port=services.mqtt_port, mqtt_tls_enabled=True,
             mqtt_client_id=services.name + "-core", mqtt_username="core_lab",

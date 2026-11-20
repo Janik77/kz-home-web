@@ -27,6 +27,7 @@ PACKAGE = 'kz.kzhome.pilot'
 ORIGIN = 'https://10.0.2.2:8443'
 sys.path[:0] = [str(CORE), str(CORE / 'tests')]
 from confirmed_live_stack import stack, provision  # noqa: E402
+from postgres_fixture_gate import LoopbackPostgresGate  # noqa: E402
 from simulator.mqtt_relay import Relay  # noqa: E402
 from app.transports.mqtt_topics import TopicKind  # noqa: E402
 from app.transports.mqtt_models import CommandEnvelope  # noqa: E402
@@ -235,10 +236,11 @@ def tls_proxy(baseurl):
     upstream = urlsplit(baseurl)
     mutations = []
     health_events = []
+    readiness_events = []
     authenticated_reads = []
-    restore_faults = {'health_unavailable': False, 'drop_refresh_response': False}
+    restore_faults = {'drop_refresh_response': False}
     withheld_refresh_statuses = []
-    anonymous_health_violation = []
+    anonymous_probe_violation = []
     class Proxy(BaseHTTPRequestHandler):
         def log_message(self, *_):
             pass
@@ -251,15 +253,9 @@ def tls_proxy(baseurl):
             path = urlsplit(self.path).path
             if self.command not in ('GET', 'HEAD'):
                 mutations.append((self.command, path))
-            if self.command == 'GET' and path == '/health':
+            if self.command == 'GET' and path in ('/health', '/ready'):
                 if incoming or 'Authorization' in self.headers or 'Cookie' in self.headers:
-                    anonymous_health_violation.append(True)
-                if restore_faults['health_unavailable']:
-                    # Only the disposable loopback TLS proxy simulates unavailable Core.
-                    self.send_error(503)
-                    self.wfile.flush()
-                    health_events.append(503)
-                    return
+                    anonymous_probe_violation.append(True)
             connection = http.client.HTTPConnection(upstream.hostname, upstream.port, timeout=12)
             try:
                 connection.request(self.command, self.path, self.rfile.read(incoming) if incoming else None,
@@ -268,6 +264,8 @@ def tls_proxy(baseurl):
                 response = connection.getresponse()
                 if self.command == 'GET' and path == '/health':
                     health_events.append(response.status)
+                elif self.command == 'GET' and path == '/ready':
+                    readiness_events.append(response.status)
                 elif self.command == 'GET' and path in ('/auth/me', '/houses'):
                     authenticated_reads.append((path, response.status))
                 data = response.read()
@@ -278,7 +276,7 @@ def tls_proxy(baseurl):
                     self.close_connection = True
                     return
                 self.send_response(response.status)
-                for name in ('Content-Type', 'Retry-After'):
+                for name in ('Content-Type', 'Retry-After', 'Cache-Control'):
                     if response.getheader(name):
                         self.send_header(name, response.getheader(name))
                 self.send_header('Content-Length', str(len(data)))
@@ -295,7 +293,7 @@ def tls_proxy(baseurl):
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
-        yield mutations, health_events, authenticated_reads, restore_faults, withheld_refresh_statuses, anonymous_health_violation
+        yield mutations, health_events, readiness_events, authenticated_reads, restore_faults, withheld_refresh_statuses, anonymous_probe_violation
     finally:
         server.shutdown()
         server.server_close()
@@ -343,50 +341,67 @@ async def wait_for_fixture_foreground(wanted):
     raise AssertionError(f'Disposable Android app foreground transition did not reach {wanted}')
 
 
-async def verify_cold_restore(mutations, health_events, authenticated_reads, faults, withheld, violations):
+async def verify_cold_restore(api, postgres_gate, mutations, readiness_events, authenticated_reads, faults, withheld, violations):
     def refresh_count():
         return mutations.count(('POST', '/auth/refresh'))
 
     refresh_before = refresh_count()
-    health_before = len(health_events)
+    ready_before = len(readiness_events)
     vault = await fixture_vault()
     original_ciphertext = vault.findtext("./string[@name='refresh']")
     assert original_ciphertext
     assert await asyncio.to_thread(has_validated_fixture_wifi), 'Current default is not validated synthetic Wi-Fi'
-    faults['health_unavailable'] = True
-    await asyncio.to_thread(adb, 'shell', 'am', 'force-stop', PACKAGE)
-    for attempt in range(1, 3):
-        print(f'Starting native unavailable-Core health attempt {attempt}', flush=True)
+    def core_probe(path):
+        core = urlsplit(api.base)
+        connection = http.client.HTTPConnection(core.hostname, core.port, timeout=6)
         try:
-            await asyncio.to_thread(adb, 'shell', 'am', 'start', '-W', '-n', f'{PACKAGE}/.MainActivity')
-            await wait_for_fixture_foreground(True)
-            await wait_for_evidence(lambda: len(health_events) >= health_before + attempt,
-                                    f'APK did not issue anonymous health GET on unavailable attempt {attempt}')
-            # The sign-in UI is context only, never the proof of eligibility or a probe.
-            await asyncio.to_thread(node, 'Вход в дом')
-            assert health_events[health_before:] == [503] * attempt
-            assert refresh_count() == refresh_before
-            assert (await fixture_vault()).findtext("./string[@name='refresh']") == original_ciphertext
-            assert await asyncio.to_thread(has_validated_fixture_wifi), 'Wi-Fi changed during backend fault'
-            await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '3')
-            await wait_for_fixture_foreground(False)
-        except AssertionError:
-            facts = {
-                'attempt': attempt, 'health_statuses': health_events[health_before:],
-                'refresh_posts': refresh_count() - refresh_before,
-                'validated_wifi': await asyncio.to_thread(has_validated_fixture_wifi),
-                'app_in_foreground': await asyncio.to_thread(fixture_app_at_front),
-                'same_encrypted_refresh': (await fixture_vault()).findtext("./string[@name='refresh']") == original_ciphertext,
-            }
-            (OUT/'android-cold-fault.json').write_text(json.dumps(facts, indent=2))
-            await asyncio.to_thread(screenshot, 'android-cold-fault.png')
-            print(f'Native cold-start failure evidence: {facts}', flush=True)
-            raise
-    faults['health_unavailable'] = False
+            connection.request('GET', path)
+            reply = connection.getresponse()
+            return reply.status, json.loads(reply.read())
+        finally:
+            connection.close()
+
+    postgres_gate.block()
+    try:
+        healthy_status, health = await asyncio.to_thread(core_probe, '/health')
+        assert healthy_status == 200 and health['status'] == 'ok'
+        assert await asyncio.to_thread(core_probe, '/ready') == (
+            503, {'status': 'not_ready', 'reason': 'database_unavailable'})
+        await asyncio.to_thread(adb, 'shell', 'am', 'force-stop', PACKAGE)
+        for attempt in range(1, 3):
+            print(f'Starting native database-unavailable readiness attempt {attempt}', flush=True)
+            try:
+                await asyncio.to_thread(adb, 'shell', 'am', 'start', '-W', '-n', f'{PACKAGE}/.MainActivity')
+                await wait_for_fixture_foreground(True)
+                await wait_for_evidence(lambda: len(readiness_events) >= ready_before + attempt,
+                                        f'APK did not issue anonymous readiness GET on unavailable attempt {attempt}')
+                # The sign-in UI is context only, never the proof of eligibility or a probe.
+                await asyncio.to_thread(node, 'Вход в дом')
+                assert readiness_events[ready_before:] == [503] * attempt
+                assert refresh_count() == refresh_before
+                assert (await fixture_vault()).findtext("./string[@name='refresh']") == original_ciphertext
+                assert await asyncio.to_thread(has_validated_fixture_wifi), 'Wi-Fi changed during backend fault'
+                await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '3')
+                await wait_for_fixture_foreground(False)
+            except AssertionError:
+                facts = {
+                    'attempt': attempt, 'readiness_statuses': readiness_events[ready_before:],
+                    'refresh_posts': refresh_count() - refresh_before,
+                    'validated_wifi': await asyncio.to_thread(has_validated_fixture_wifi),
+                    'app_in_foreground': await asyncio.to_thread(fixture_app_at_front),
+                    'same_encrypted_refresh': (await fixture_vault()).findtext("./string[@name='refresh']") == original_ciphertext,
+                }
+                (OUT/'android-cold-fault.json').write_text(json.dumps(facts, indent=2))
+                await asyncio.to_thread(screenshot, 'android-cold-fault.png')
+                print(f'Native cold-start failure evidence: {facts}', flush=True)
+                raise
+    finally:
+        postgres_gate.unblock()
+    assert await asyncio.to_thread(core_probe, '/ready') == (200, {'status': 'ready'})
     await asyncio.to_thread(adb, 'shell', 'am', 'start', '-W', '-n', f'{PACKAGE}/.MainActivity')
     await wait_for_fixture_foreground(True)
     await asyncio.to_thread(node, 'Комнаты')
-    assert health_events[health_before:] == [503, 503, 200]
+    assert readiness_events[ready_before:] == [503, 503, 200]
     assert refresh_count() == refresh_before + 1
     rotated = await fixture_vault()
     for key in ('refresh', 'home'):
@@ -410,9 +425,9 @@ async def verify_cold_restore(mutations, health_events, authenticated_reads, fau
     await asyncio.to_thread(adb, 'shell', 'am', 'start', '-W', '-n', f'{PACKAGE}/.MainActivity')
     await asyncio.to_thread(node, 'Вход в дом', scroll=-1)
     assert refresh_count() == refresh_before + 2
-    assert health_events[health_before:] == [503, 503, 200, 200]
+    assert readiness_events[ready_before:] == [503, 503, 200, 200]
     assert withheld == [200]
-    assert not violations, 'A health probe carried credentials'
+    assert not violations, 'An anonymous probe carried credentials'
 
 
 async def wait_value(api, wanted):
@@ -424,7 +439,7 @@ async def wait_value(api, wanted):
     raise AssertionError('Core did not confirm expected relay state')
 
 
-async def acceptance(values):
+async def acceptance(values, postgres_gate):
     config, seed, ids, api, sql, schema = values
     assert schema == '0018_scene_drafts'
     await provision(api, ids, seed)
@@ -465,7 +480,7 @@ async def acceptance(values):
                           'CORE_DEV_PROXY_TARGET': api.base}, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
             with tls_proxy(api.base) as (
-                mutations, health_events, authenticated_reads, restore_faults, withheld, health_violations
+                mutations, health_events, readiness_events, authenticated_reads, restore_faults, withheld, probe_violations
             ), contextlib.ExitStack() as recorder_cleanup:
                 async with async_playwright() as playwright:
                     browser = await playwright.chromium.launch(channel='chrome', chromium_sandbox=True)
@@ -608,8 +623,8 @@ async def acceptance(values):
                     assert mutations.count(('POST', '/v1/devices/fixture_relay/commands')) == 2
                     assert mutations.count(('POST', '/v1/houses/fixture_house/scene-runs/execute')) == 1
                     assert sql("SELECT count(*) FROM device_commands WHERE ack_received_at IS NOT NULL AND state_received_at IS NOT NULL") == '3'
-                    await verify_cold_restore(mutations, health_events, authenticated_reads,
-                                              restore_faults, withheld, health_violations)
+                    await verify_cold_restore(api, postgres_gate, mutations, readiness_events, authenticated_reads,
+                                              restore_faults, withheld, probe_violations)
                     print('Native cold start: [503, 503] preserved ciphertext; one recovery refresh; '
                           'one lost Core-accepted response was not retried', flush=True)
                     await browser.close()
@@ -622,8 +637,9 @@ async def acceptance(values):
                         'active_command_background_wifi_reconnect_without_replay': True,
                         'desktop_same_state_and_favorite': True, 'native_scene_confirmed': True, 'native_journal_opened': True,
                         'wifi_reconnect_no_additional_command': True, 'native_refresh_after_process_restart': True,
-                        'cold_start_unavailable_health_statuses': [503, 503],
-                        'no_vault_consumption_before_successful_health': True,
+                        'core_health_with_database_disconnected': 200,
+                        'cold_start_database_unavailable_readiness_statuses': [503, 503],
+                        'no_vault_consumption_before_successful_readiness': True,
                         'recovery_refresh_posts': 1, 'ambiguous_refresh_posts': 1,
                         'no_refresh_retry_after_ambiguous_response': True,
                     }, indent=2))
@@ -638,8 +654,9 @@ async def acceptance(values):
 async def main():
     OUT.mkdir(parents=True, exist_ok=True)
     assert subprocess.check_output(['git','rev-parse','HEAD'], cwd=CORE, text=True).strip() == os.environ['KZ_PILOT_CORE_SHA']
-    async with stack(CORE) as values:
-        await acceptance(values)
+    with LoopbackPostgresGate() as postgres_gate:
+        async with stack(CORE, postgres_gate=postgres_gate) as values:
+            await acceptance(values, postgres_gate)
 
 
 if __name__ == '__main__':
