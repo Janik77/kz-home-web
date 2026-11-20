@@ -179,6 +179,57 @@ def screenshot(name):
     (OUT / name).write_bytes(adb('exec-out', 'screencap', '-p', binary=True))
 
 
+async def offline_banner(page, name):
+    # Android WebView omits this visually rendered aria-live region from
+    # UIAutomator. Decode *native screenshot bytes* with the fixture browser,
+    # never use its DOM as a substitute for the Android display.
+    pattern = '''
+      async image => {
+        const bmp = await createImageBitmap(await (await fetch(image)).blob());
+        if (bmp.width !== 320 || bmp.height !== 640) return false;
+        const canvas = new OffscreenCanvas(bmp.width, bmp.height);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(bmp, 0, 0);
+        const { data } = ctx.getImageData(0, 0, 320, 110);
+        const color = (x,y) => data.subarray(4*(320*y+x), 4*(320*y+x)+3);
+        const background = (x,y) => color(x,y).every((v,i) => Math.abs(v-[248,241,229][i]) <= 4);
+        const ink = (x,y) => {
+          const [r,g,b] = color(x,y);
+          return r < 188 && g < 148 && b < 108 && r-g > 33 && r-g < 52;
+        };
+        // Reference horizontal ink profiles of both Cyrillic lines from
+        // the reviewed 8cfad37 offline PNG. Tolerate rasterization drift.
+        const reference = [
+          [14,22,14,11,13,25,14,15,13,7,6,24,20,7,10,13,18,10,16,13,16,24,13,22,13,5,21,14,21,13,10,4,4,0,0,0],
+          [12,20,20,18,17,22,12,22,19,14,11,14,14,12,19,9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        ];
+        return [-3,-2,-1,0,1,2,3].some(dy => {
+          let backgroundCount = 0;
+          for (let y=27+dy; y<92+dy; y++) for (const x of [3,10,309,316]) backgroundCount += background(x,y);
+          if (backgroundCount < 230) return false;
+          return [[40,56],[63,81]].every(([top,bottom],i) => {
+            const measured = Array.from({length:36},(_,j) => {
+              let count = 0;
+              for (let x=16+8*j;x<24+8*j;x++) for (let y=top+dy;y<bottom+dy;y++) count += ink(x,y);
+              return count;
+            });
+            const error = measured.reduce((sum,n,j) => sum+Math.abs(n-reference[i][j]),0);
+            const inkTotal = reference[i].reduce((sum,n) => sum+n,0);
+            return error < .27*inkTotal;
+          });
+        });
+      }
+    '''
+    for _ in range(16):
+        raw = await asyncio.to_thread(adb, 'exec-out', 'screencap', '-p', binary=True)
+        (OUT / name).write_bytes(raw)
+        data_url = 'data:image/png;base64,' + base64.b64encode(raw).decode('ascii')
+        if await page.evaluate(pattern, data_url):
+            return
+        await asyncio.sleep(.5)
+    raise AssertionError('Expected two-line offline alert was not visible in native Android screenshots')
+
+
 @contextlib.contextmanager
 def tls_proxy(baseurl):
     upstream = urlsplit(baseurl)
@@ -395,10 +446,7 @@ async def acceptance(values):
                         release_second_ack.set()
                     await wait_value(api, False)
                     await asyncio.to_thread(adb, 'shell', 'am', 'start', '-n', f'{PACKAGE}/.MainActivity')
-                    try:
-                        await asyncio.to_thread(node, 'Нет связи с домом. Подключитесь к домашнему Wi‑Fi.')
-                    finally:
-                        await asyncio.to_thread(screenshot, 'android-interruption-offline.png')
+                    await offline_banner(page, 'android-interruption-offline.png')
                     await asyncio.to_thread(connect_fixture_wifi)
                     await asyncio.to_thread(node, 'Выключено', scroll=-1)
                     assert len(received) == 2
@@ -415,8 +463,9 @@ async def acceptance(values):
                     await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '4')
                     await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '3')
                     await asyncio.to_thread(adb, 'shell', 'svc', 'wifi', 'disable')
+                    await asyncio.to_thread(wait_fixture_offline, 'android-journal-offline-network.txt')
                     await asyncio.to_thread(adb, 'shell', 'am', 'start', '-n', f'{PACKAGE}/.MainActivity')
-                    await asyncio.to_thread(node, 'Нет связи с домом. Подключитесь к домашнему Wi‑Fi.')
+                    await offline_banner(page, 'android-journal-offline.png')
                     command_count = len(received)
                     await asyncio.to_thread(connect_fixture_wifi)
                     await asyncio.sleep(3)
