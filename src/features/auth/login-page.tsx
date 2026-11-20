@@ -40,6 +40,6 @@ export function LoginPage({ session, snapshot }: { session: CoreSession; snapsho
       <div className="login-field"><label htmlFor="login-password">Пароль</label><div className="password-field"><input id="login-password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" required maxLength={256} disabled={busy} /><button type="button" className="password-field__toggle" aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'} aria-pressed={showPassword} disabled={busy} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}</button></div></div>
       <Button type="submit" aria-disabled={busy}>{busy ? 'Входим…' : 'Войти'}</Button>
     </form>
-    <div className="session-security"><LockKeyhole size={17} aria-hidden="true" /><p className="quiet-note">Сеанс хранится только в памяти вкладки. После перезагрузки потребуется повторный вход. Создание и восстановление учётной записи выполняются вне Web.</p></div>
+    <div className="session-security"><LockKeyhole size={17} aria-hidden="true" /><p className="quiet-note">Сеанс хранится только в памяти вкладки. После перезагрузки потребуется повторный вход. Адрес открытого экрана сохраняется: после входа и выбора дома вы вернётесь к нему. Команды автоматически не повторяются. Создание и восстановление учётной записи выполняются вне Web.</p></div>
   </div></main>;
 }

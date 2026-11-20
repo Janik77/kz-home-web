@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { coreErrorMessage, CoreError } from './errors';
 import { HttpClient } from './http-client';
 
 describe('Core HTTP transport', () => {
@@ -25,6 +26,22 @@ describe('Core HTTP transport', () => {
     const client = new HttpClient('/core-api', vi.fn<typeof fetch>().mockResolvedValue(Response.json({ detail: 'private-input' }, { status })));
     await expect(client.request('/houses', (value) => value)).rejects.toMatchObject({ kind, status });
     await expect(client.request('/houses', (value) => value)).rejects.not.toHaveProperty('detail');
+  });
+  it('recognizes only the exact unavailable command-clock diagnostic without replay', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ detail: 'Command clock is unavailable' }, { status: 503 }));
+    const client = new HttpClient('/core-api', fetcher);
+    await expect(client.request('/v1/devices/light/commands', value => value, { method: 'POST', body: { on: true } })).rejects.toMatchObject({ kind: 'command-clock', status: 503 });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(coreErrorMessage(new CoreError('command-clock'))).toContain('часы сервера');
+    expect(coreErrorMessage(new CoreError('command-clock'))).toContain('Автоматического повтора команд нет');
+  });
+  it.each([
+    Response.json({ detail: 'Command clock is unavailable, private extra' }, { status: 503 }),
+    Response.json({ detail: 'Command clock is unavailable' }, { status: 500 }),
+    new Response('{', { status: 503, headers: { 'Content-Type': 'application/json' } }),
+  ])('keeps unexpected errors generic', async response => {
+    const client = new HttpClient('/core-api', vi.fn<typeof fetch>().mockResolvedValue(response));
+    await expect(client.request('/houses', value => value)).rejects.toMatchObject({ kind: 'server' });
   });
   it('handles 204, malformed JSON, non-JSON, network failures and abort distinctly', async () => {
     const fetcher = vi.fn<typeof fetch>()

@@ -41,6 +41,13 @@ export function EventsPage() {
   return <div className="page everyday-page"><PageHeading eyebrow="ИСТОРИЯ ДОМА" title="Журнал событий" description={demo ? 'Примеры событий, а не история настоящего дома.' : 'Последние события вашего дома. Время показано в вашем часовом поясе.'} />
     <label className="journal-search">Найти в загруженных событиях<input type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Событие или устройство" /></label>
     {!demo && <p className="quiet-note">Показаны последние 100 доступных записей, это не полная история команд. Начало сценария и ответ устройства сами по себе не подтверждают выполнение.</p>}
-    <Resource<HomeEvent> name="events" read={activity && (signal => activity.events(signal))}>{events => <><p className="quiet-note" role="status">Найдено: {events.filter(event=>`${eventLabel(event.type)} ${entityName(event.entityId)}`.toLocaleLowerCase('ru-RU').includes(search.trim().toLocaleLowerCase('ru-RU'))).length}</p><ol className="event-list">{events.filter(event=>`${eventLabel(event.type)} ${entityName(event.entityId)}`.toLocaleLowerCase('ru-RU').includes(search.trim().toLocaleLowerCase('ru-RU'))).map(event => <li key={event.id}><time dateTime={event.createdAt}>{new Date(event.createdAt).toLocaleString('ru-RU')}</time><div><strong>{eventLabel(event.type)}</strong><p>{entityName(event.entityId)}</p><details className="diagnostics"><summary>Технические сведения</summary><p>{event.type} · {event.entityId ?? '—'}</p></details></div></li>)}</ol></>}</Resource>
+    <Resource<HomeEvent> name="events" read={activity && (signal => activity.events(signal))}>{events => {
+      const match = search.trim().toLocaleLowerCase('ru-RU');
+      const powerLabel = (event: HomeEvent) => event.reportedPower === undefined ? '' : event.reportedPower ? 'Питание включено' : 'Питание выключено';
+      const filtered = events.filter(event => `${eventLabel(event.type)} ${entityName(event.entityId)} ${powerLabel(event)}`.toLocaleLowerCase('ru-RU').includes(match));
+      return <><p className="quiet-note" role="status">Найдено: {filtered.length}</p><ol className="event-list">{filtered.map(event => <li key={event.id}>
+        <time dateTime={event.createdAt}>{new Date(event.createdAt).toLocaleString('ru-RU')}</time><div><strong>{eventLabel(event.type)}</strong><p>{entityName(event.entityId)}{powerLabel(event) && ` · ${powerLabel(event)}`}</p><details className="diagnostics"><summary>Технические сведения</summary><p>{event.type} · {event.entityId ?? '—'}</p></details></div>
+      </li>)}</ol></>;
+    }}</Resource>
   </div>;
 }

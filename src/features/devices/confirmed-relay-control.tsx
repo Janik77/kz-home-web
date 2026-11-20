@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRepository } from '../../app/services';
 import type { Device } from '../../domain/home';
-import { CoreError } from '../../data/core/errors';
+import { CoreError, coreErrorMessage } from '../../data/core/errors';
 import type { Receipt } from '../../data/core/relay-control';
 import { homeKey, useHome } from '../home/use-home';
 import { Button } from '../../components/ui/button';
@@ -18,6 +18,7 @@ function message(r: Receipt) {
 function errorMessage(error: unknown) {
   if (!(error instanceof CoreError)) return 'Нет подтверждения — состояние неизвестно';
   switch (error.kind) {
+    case 'command-clock': return coreErrorMessage(error);
     case 'forbidden': return 'Недостаточно подтверждённых прав для управления';
     case 'unauthorized': return 'Сессия истекла';
     case 'not-found': return 'Устройство или команда недоступны';
@@ -32,7 +33,7 @@ export function ConfirmedRelayControl({ device, everyday = false, explicitPower 
   const home = useHome();
   const control = repository.relayControl;
   const client = useQueryClient();
-  const eligibility = useQuery({ queryKey: ['relay-eligibility'], queryFn: ({ signal }) => control!.eligible(signal), enabled: !!control, retry: false, staleTime: 0 });
+  const eligibility = useQuery({ queryKey: ['relay-eligibility'], queryFn: ({ signal }) => control!.eligible(signal), enabled: !!control && device.connection === 'online' && !home.isError, retry: false, staleTime: 0 });
   const running = useRef<AbortController | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');

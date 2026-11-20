@@ -23,6 +23,16 @@ it.each([
 ])('rejects incompatible automation responses', invalid => {
   expect(() => decodeAutomation(invalid)).toThrow();
 });
+it('keeps only the observed boolean power from a matching device event', () => {
+  const changed = { ...event, event_type: 'device_state_changed' };
+  const payload = { house_id: event.house_id, device_id: event.entity_id, state: { on: false }, private: 'never shown' };
+  expect(decodeEvent({ ...changed, payload })).toEqual({ id: event.id, houseId: event.house_id, type: changed.event_type, entityId: event.entity_id, createdAt: event.created_at, reportedPower: false });
+  expect(decodeEvent({ ...changed, payload: { ...payload, state: { on: true } } })).toHaveProperty('reportedPower', true);
+  for (const candidate of [payload.state, { ...payload, device_id: 'another' }, { ...payload, house_id: 'another' }, { ...payload, state: { on: 'false' } }, null]) {
+    expect(decodeEvent({ ...changed, payload: candidate })).not.toHaveProperty('reportedPower');
+  }
+  expect(decodeEvent({ ...event, payload })).not.toHaveProperty('reportedPower');
+});
 it('rejects invalid event dates', () => {
   expect(() => decodeEvent({ ...event, created_at: 'yesterday' })).toThrow();
 });

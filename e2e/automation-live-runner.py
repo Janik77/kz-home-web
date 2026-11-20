@@ -29,6 +29,9 @@ def sha(path):
 async def acceptance(values):
     config, seed, ids, api, sql, migration = values
     await provision(api, ids, seed)
+    home_flow_mode = os.environ.get('LIVE_HOME_FLOW_ONLY') == '1'
+    held = []
+    holding = False
     scene_edit_mode = os.environ.get('LIVE_SCENE_EDIT_ONLY') == '1'
     metadata_mode = os.environ.get('LIVE_METADATA_ONLY') == '1'
     durable_mode = os.environ.get('LIVE_DURABLE_ONLY') == '1'
@@ -57,7 +60,9 @@ async def acceptance(values):
                 command = CommandEnvelope.model_validate_json(bytes(item.payload))
                 received.append({'command_id': command.command_id, 'correlation_id': command.correlation_id,
                                  'on': command.state['on'], 'topic': str(item.topic), 'qos': item.qos, 'retain': item.retain})
-                if mode == 'apply':
+                if holding:
+                    held.append(item)
+                elif mode == 'apply':
                     await relay.handle(str(item.topic), bytes(item.payload), item.retain)
                 elif mode == 'fail':
                     await relay.send(TopicKind.ACK, AckEnvelope(command_id=command.command_id,
@@ -72,7 +77,7 @@ async def acceptance(values):
                     'core_sha': sha(CORE), 'web_sha': sha(WEB)}
 
         async def control(reader, writer):
-            nonlocal mode
+            nonlocal mode, holding
             try:
                 raw = (await asyncio.wait_for(reader.readuntil(b'\r\n\r\n'), 5)).decode('ascii').split('\r\n')
                 method, path, _ = raw[0].split()
@@ -82,7 +87,13 @@ async def acceptance(values):
                 assert 0 <= size <= 1024
                 data = json.loads(await reader.readexactly(size))
                 result = {}
-                if path == '/numeric':
+                if path == '/clear-test-favorite':
+                    assert home_flow_mode
+                    async with httpx.AsyncClient(base_url=api.base) as client:
+                        response = await client.delete('/v1/houses/fixture_house/me/device-favorites/fixture_relay',
+                            headers={'Authorization': 'Bearer ' + api.token})
+                        assert response.status_code == 204
+                elif path == '/numeric':
                     assert numeric_mode and data['field'] in ('temperature', 'humidity', 'illuminance')
                     from datetime import datetime, timedelta, timezone
                     timestamp = utc_now() if not data.get('stale') else datetime.now(timezone.utc) - timedelta(seconds=180)
@@ -91,7 +102,7 @@ async def acceptance(values):
                     await mqtt.publish(relay.topic(TopicKind.STATE), frame.model_dump_json(), qos=1, retain=False)
                     result = {'correlation_id': frame.correlation_id}
                 elif path == '/refresh':
-                    assert schedule_mode or scene_edit_mode
+                    assert schedule_mode or scene_edit_mode or home_flow_mode
                     # Freshness reports are source observations, not command receipts.
                     frame = StateEnvelope(timestamp=utc_now(), correlation_id='schedule-fresh-' + uuid4().hex, state={'on': relay.on})
                     triggers.append(frame.model_dump(mode='json'))
@@ -109,6 +120,27 @@ async def acceptance(values):
                 elif path == '/mode':
                     assert data['mode'] in ('apply', 'fail', 'drop')
                     mode = data['mode']
+                elif path == '/clock-fault':
+                    assert home_flow_mode
+                    # Test-process-only injected wall jump, exercising the real guard.
+                    # Never disable/reset the fault or change its tolerance.
+                    from app.services.command_clock import command_clock
+                    from datetime import timedelta
+                    command_clock.now()
+                    original_wall = command_clock.wall
+                    command_clock.wall = lambda: original_wall() + timedelta(seconds=2)
+                elif path == '/hold':
+                    assert home_flow_mode and not holding and not held
+                    holding = True
+                elif path == '/release':
+                    assert home_flow_mode and holding
+                    holding = False
+                    for item in held:
+                        await relay.handle(str(item.topic), bytes(item.payload), item.retain)
+                    held.clear()
+                elif path in ('/offline', '/online'):
+                    assert home_flow_mode
+                    await relay.send(TopicKind.STATUS, relay.status(path == '/online'))
                 elif path == '/evidence':
                     result = await asyncio.to_thread(evidence)
                 elif path == '/device':
@@ -154,13 +186,19 @@ async def acceptance(values):
                    'RELAY_CONTROL_URL': f'http://127.0.0.1:{server.sockets[0].getsockname()[1]}',
                    'RELAY_CONTROL_KEY': key, 'RELAY_OWNER_PASSWORD': seed['password']}
             result = await asyncio.to_thread(subprocess.run,
-                ['npx', 'playwright', 'test', '--config', 'playwright.scene-edit-live.config.ts' if scene_edit_mode else 'playwright.metadata-live.config.ts' if metadata_mode else 'playwright.durable-live.config.ts' if durable_mode else 'playwright.schedule-live.config.ts' if schedule_mode else 'playwright.numeric-live.config.ts' if numeric_mode else 'playwright.state-live.config.ts' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'playwright.automation-live.config.ts'],
+                ['npx', 'playwright', 'test', '--config', 'playwright.home-flow-live.config.ts' if home_flow_mode else 'playwright.scene-edit-live.config.ts' if scene_edit_mode else 'playwright.metadata-live.config.ts' if metadata_mode else 'playwright.durable-live.config.ts' if durable_mode else 'playwright.schedule-live.config.ts' if schedule_mode else 'playwright.numeric-live.config.ts' if numeric_mode else 'playwright.state-live.config.ts' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'playwright.automation-live.config.ts'],
                 cwd=WEB, env=env, timeout=300)
             proof = await asyncio.to_thread(evidence)
             proof['browser_exit'] = result.returncode
-            (WEB / 'test-results' / ('scene-edit-live-evidence.json' if scene_edit_mode else 'metadata-live-evidence.json' if metadata_mode else 'durable-live-evidence.json' if durable_mode else 'schedule-live-evidence.json' if schedule_mode else 'numeric-live-evidence.json' if numeric_mode else 'state-live-evidence.json' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'automation-live-evidence.json')).write_text(json.dumps(proof, indent=2))
+            (WEB / 'test-results' / ('home-flow-live-evidence.json' if home_flow_mode else 'scene-edit-live-evidence.json' if scene_edit_mode else 'metadata-live-evidence.json' if metadata_mode else 'durable-live-evidence.json' if durable_mode else 'schedule-live-evidence.json' if schedule_mode else 'numeric-live-evidence.json' if numeric_mode else 'state-live-evidence.json' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'automation-live-evidence.json')).write_text(json.dumps(proof, indent=2))
             # Browser scenarios prescribe one confirmed run, one refused ACK, one unknown.
-            if scene_edit_mode:
+            if home_flow_mode:
+                assert result.returncode == 0, 'Five-minute home flow failed'
+                assert proof['physical_devices'] == '0'
+                proof['database_timezone'] = sql('SHOW timezone')
+                assert proof['database_timezone'] == 'Asia/Almaty'
+                proof['verification'] = verify(proof, {'applied': 4})
+            elif scene_edit_mode:
                 assert result.returncode == 0, 'Scene edit/copy browser checks failed'
                 assert proof['physical_devices'] == '0'
                 proof['verification'] = verify(proof, {'applied': 1})
@@ -186,7 +224,7 @@ async def acceptance(values):
                 (WEB / 'test-results' / 'state-live-evidence.json').write_text(json.dumps(proof, indent=2))
             else:
                 proof['verification'] = verify(proof, {'applied': 1, 'failed': 1, 'timed_out': 1})
-            (WEB / 'test-results' / ('scene-edit-live-evidence.json' if scene_edit_mode else 'metadata-live-evidence.json' if metadata_mode else 'durable-live-evidence.json' if durable_mode else 'schedule-live-evidence.json' if schedule_mode else 'numeric-live-evidence.json' if numeric_mode else 'state-live-evidence.json' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'automation-live-evidence.json')).write_text(json.dumps(proof, indent=2))
+            (WEB / 'test-results' / ('home-flow-live-evidence.json' if home_flow_mode else 'scene-edit-live-evidence.json' if scene_edit_mode else 'metadata-live-evidence.json' if metadata_mode else 'durable-live-evidence.json' if durable_mode else 'schedule-live-evidence.json' if schedule_mode else 'numeric-live-evidence.json' if numeric_mode else 'state-live-evidence.json' if os.environ.get('LIVE_STATE_ONLY') == '1' else 'automation-live-evidence.json')).write_text(json.dumps(proof, indent=2))
             assert not receiver.done(), 'Software receiver stopped'
         finally:
             server.close()

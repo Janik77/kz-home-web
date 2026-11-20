@@ -44,11 +44,21 @@ export function decodeAutomation(value: unknown): AutomationRule & { houseId: st
     }),
   };
 }
+function eventFields(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
 export function decodeEvent(value: unknown): HomeEvent & { houseId: string | null } {
   const v = object(value), createdAt = string(v.created_at);
   if (!Number.isFinite(Date.parse(createdAt))) throw new CoreError('protocol');
-  return { id: string(v.id), houseId: v.house_id === null ? null : string(v.house_id),
-    type: string(v.event_type), entityId: v.entity_id === null ? null : string(v.entity_id), createdAt };
+  const houseId = v.house_id === null ? null : string(v.house_id);
+  const entityId = v.entity_id === null ? null : string(v.entity_id);
+  const type = string(v.event_type);
+  // Project only the validated power bit, never arbitrary event payloads.
+  const payload = eventFields(v.payload);
+  const on = eventFields(payload.state).on;
+  return { id: string(v.id), houseId, type, entityId, createdAt,
+    ...(type === 'device_state_changed' && houseId !== null && entityId !== null &&
+      payload.house_id === houseId && payload.device_id === entityId && typeof on === 'boolean' ? { reportedPower: on } : {}) };
 }
 /** Reads are independent of the home snapshot: denied audit access must not hide rooms. */
 export function createHomeActivity(session: CoreSession, houseId: string): HomeActivity {

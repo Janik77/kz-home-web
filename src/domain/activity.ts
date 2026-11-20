@@ -5,7 +5,7 @@ export interface AutomationRule {
   trigger: string; conditions: string[]; actions: string[];
 }
 export interface HomeEvent {
-  id: string; type: string; entityId: string | null; createdAt: string;
+  id: string; type: string; entityId: string | null; createdAt: string; reportedPower?: boolean;
 }
 export interface HomeActivity {
   automations(signal?: AbortSignal): Promise<AutomationRule[]>;

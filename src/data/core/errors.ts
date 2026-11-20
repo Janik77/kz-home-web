@@ -1,4 +1,4 @@
-export type CoreErrorKind = 'unauthorized' | 'forbidden' | 'not-found' | 'validation' | 'conflict' | 'server' | 'network' | 'protocol' | 'read-only' | 'rate-limit';
+export type CoreErrorKind = 'unauthorized' | 'forbidden' | 'not-found' | 'validation' | 'conflict' | 'server' | 'network' | 'protocol' | 'read-only' | 'rate-limit' | 'command-clock';
 
 export class CoreError extends Error {
   constructor(public readonly kind: CoreErrorKind, public readonly status?: number) {
@@ -10,6 +10,7 @@ export class CoreError extends Error {
 export function coreErrorMessage(error: unknown): string {
   if (!(error instanceof CoreError)) return 'Попробуйте ещё раз немного позже.';
   switch (error.kind) {
+    case 'command-clock': return 'Core временно остановил управление: часы сервера нестабильны. Проверьте синхронизацию времени сервера. Автоматического повтора команд нет.';
     case 'rate-limit': return 'Слишком много запросов. Подождите перед повтором.';
     case 'network': return 'Нет соединения с Core. Проверьте сеть и доступность сервера.';
     case 'server': return 'Core временно недоступен. Повторите позже.';
