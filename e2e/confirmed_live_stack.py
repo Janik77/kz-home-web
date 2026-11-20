@@ -147,6 +147,7 @@ log_type all
             "-p",
             "127.0.0.1::5432",
             "postgres:17-bookworm@sha256:665dc7b37ac52a17e298511414c21d23ffa4e6a6ef6225b3e5d59c7afb35e994",
+            *(("-c", "timezone=Asia/Almaty") if os.environ.get("LIVE_HOME_FLOW_ONLY") == "1" else ()),
         )
         mqtt = self.name + "-mqtt"
         self.containers.append(mqtt)

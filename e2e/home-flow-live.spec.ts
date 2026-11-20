@@ -16,7 +16,7 @@ test('LIVE room → delayed light → favorite → F5 → scene → journal, wit
     if (!(await link.isVisible()) && await page.locator('.mobile-more summary').isVisible()) await page.locator('.mobile-more summary').click();
     await link.click();
   }
-  await control('online'); await control('state', { on: false }); await control('hold');
+  await control('clear-test-favorite'); await control('online'); await control('state', { on: false }); await control('hold');
   const before = (await control('evidence')).received.length;
   const sends: string[] = [];
   page.on('request', r => { if (r.method() === 'POST' && /\/commands$|\/scene-runs\/execute$/.test(new URL(r.url()).pathname)) sends.push(r.url()); });
@@ -32,7 +32,7 @@ test('LIVE room → delayed light → favorite → F5 → scene → journal, wit
   await control('release');
   await expect(page.getByText('Выполнено · состояние обновлено', { exact: true })).toBeVisible();
   const add = page.getByRole('button', { name: 'Добавить в избранное: Software relay', exact: true });
-  if (await add.count()) await add.click();
+  await add.click();
   await expect(page.getByRole('button', { name: 'Убрать из избранного: Software relay', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.reload(); await expect(page.getByRole('heading', { name: 'Вход в дом' })).toBeVisible();
   await expect(page.getByText(/Адрес открытого экрана сохраняется/)).toBeVisible();
@@ -57,10 +57,14 @@ test('LIVE room → delayed light → favorite → F5 → scene → journal, wit
   const proof = await control('evidence'); expect(proof.received).toHaveLength(before + 2);
   expect(proof.commands.slice(-2)).toEqual(expect.arrayContaining([expect.objectContaining({ status: 'applied', requested_on: true, reported_on: true }), expect.objectContaining({ status: 'applied', requested_on: false, reported_on: false })]));
   await page.screenshot({ path: `test-results/home-flow-${info.project.name}-scene.png`, fullPage: true });
+  await page.waitForTimeout(650); // Keep the result readable in the demonstration recording.
   await nav('Журнал'); await expect(page.getByRole('heading', { name: 'Журнал событий' })).toBeVisible();
   await expect(page.getByText('Состояние устройства изменилось', { exact: true }).first()).toBeVisible();
-  await expect(page.locator('.event-list')).toContainText('Software relay');
+  const powerOff = page.locator('.event-list li').filter({ hasText: 'Software relay · Питание выключено' }).first();
+  await expect(powerOff).toBeVisible();
+  await expect(powerOff).toContainText('Состояние устройства изменилось');
   await page.screenshot({ path: `test-results/home-flow-${info.project.name}-journal.png`, fullPage: true });
+  await page.waitForTimeout(650);
   expect(sends).toHaveLength(2); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   if (info.project.name === 'mobile') {
     await nav('Комнаты'); await page.locator('a[href="/rooms/fixture_room"]').first().click();

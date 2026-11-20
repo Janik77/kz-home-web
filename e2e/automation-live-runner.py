@@ -87,7 +87,13 @@ async def acceptance(values):
                 assert 0 <= size <= 1024
                 data = json.loads(await reader.readexactly(size))
                 result = {}
-                if path == '/numeric':
+                if path == '/clear-test-favorite':
+                    assert home_flow_mode
+                    async with httpx.AsyncClient(base_url=api.base) as client:
+                        response = await client.delete('/v1/houses/fixture_house/me/device-favorites/fixture_relay',
+                            headers={'Authorization': 'Bearer ' + api.token})
+                        assert response.status_code == 204
+                elif path == '/numeric':
                     assert numeric_mode and data['field'] in ('temperature', 'humidity', 'illuminance')
                     from datetime import datetime, timedelta, timezone
                     timestamp = utc_now() if not data.get('stale') else datetime.now(timezone.utc) - timedelta(seconds=180)
@@ -189,6 +195,8 @@ async def acceptance(values):
             if home_flow_mode:
                 assert result.returncode == 0, 'Five-minute home flow failed'
                 assert proof['physical_devices'] == '0'
+                proof['database_timezone'] = sql('SHOW timezone')
+                assert proof['database_timezone'] == 'Asia/Almaty'
                 proof['verification'] = verify(proof, {'applied': 4})
             elif scene_edit_mode:
                 assert result.returncode == 0, 'Scene edit/copy browser checks failed'
