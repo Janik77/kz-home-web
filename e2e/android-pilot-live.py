@@ -102,6 +102,22 @@ def enter(selector, text):
     adb('shell', 'input', 'text', text)
 
 
+def connect_fixture_wifi():
+    # Synthetic emulator network only. Prevent cellular from being the default.
+    adb('shell','svc','data','disable')
+    adb('shell','svc','wifi','enable')
+    time.sleep(1)
+    adb('shell','cmd','wifi','connect-network','AndroidWifi','open')
+    deadline = time.monotonic()+45
+    while time.monotonic()<deadline:
+        state = adb('shell','cmd','wifi','status')
+        if re.search(r'connected to.*AndroidWifi', state, re.IGNORECASE):
+            return
+        time.sleep(1)
+    (OUT/'fixture-wifi-status.txt').write_text(state)
+    raise AssertionError('Emulator did not associate with the AndroidWifi fixture access point')
+
+
 def screenshot(name):
     (OUT / name).write_bytes(adb('exec-out', 'screencap', '-p', binary=True))
 
@@ -211,7 +227,7 @@ async def acceptance(values):
                     await expect(card.get_by_text('Выключено', exact=True)).to_be_visible()
 
                     await asyncio.to_thread(adb, 'install', '-r', os.environ['KZ_PILOT_FIXTURE_APK'])
-                    await asyncio.to_thread(adb, 'shell', 'svc', 'wifi', 'enable')
+                    await asyncio.to_thread(connect_fixture_wifi)
                     await asyncio.to_thread(adb, 'shell', 'am', 'start', '-n', f'{PACKAGE}/.MainActivity')
                     try:
                         await asyncio.to_thread(node, 'Подключить дом')
@@ -223,7 +239,12 @@ async def acceptance(values):
                         raise
                     await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '4')  # close keyboard
                     await asyncio.to_thread(tap, 'Продолжить')
-                    await asyncio.to_thread(node, 'Вход в дом')
+                    try:
+                        await asyncio.to_thread(node, 'Вход в дом')
+                    except AssertionError:
+                        # Network/TLS failure capture precedes all credentials.
+                        await asyncio.to_thread(screenshot, 'android-prelogin-failure.png')
+                        raise
                     await asyncio.to_thread(enter, 'login-email', 'owner@example.test')
                     await asyncio.to_thread(enter, 'login-password', seed['password'])
                     await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '4')
@@ -268,7 +289,7 @@ async def acceptance(values):
                     await asyncio.to_thread(adb, 'shell', 'am', 'start', '-n', f'{PACKAGE}/.MainActivity')
                     await asyncio.to_thread(node, 'Нет связи с домом. Подключитесь к домашнему Wi‑Fi.')
                     command_count = len(received)
-                    await asyncio.to_thread(adb, 'shell', 'svc', 'wifi', 'enable')
+                    await asyncio.to_thread(connect_fixture_wifi)
                     await asyncio.sleep(3)
                     assert len(received) == command_count == 3
                     assert len(set(received)) == 3
