@@ -31,6 +31,7 @@ async def acceptance(values):
     await provision(api, ids, seed)
     home_flow_mode = os.environ.get('LIVE_HOME_FLOW_ONLY') == '1'
     held = []
+    holding = False
     scene_edit_mode = os.environ.get('LIVE_SCENE_EDIT_ONLY') == '1'
     metadata_mode = os.environ.get('LIVE_METADATA_ONLY') == '1'
     durable_mode = os.environ.get('LIVE_DURABLE_ONLY') == '1'
@@ -59,7 +60,7 @@ async def acceptance(values):
                 command = CommandEnvelope.model_validate_json(bytes(item.payload))
                 received.append({'command_id': command.command_id, 'correlation_id': command.correlation_id,
                                  'on': command.state['on'], 'topic': str(item.topic), 'qos': item.qos, 'retain': item.retain})
-                if mode == 'hold':
+                if holding:
                     held.append(item)
                 elif mode == 'apply':
                     await relay.handle(str(item.topic), bytes(item.payload), item.retain)
@@ -76,7 +77,7 @@ async def acceptance(values):
                     'core_sha': sha(CORE), 'web_sha': sha(WEB)}
 
         async def control(reader, writer):
-            nonlocal mode
+            nonlocal mode, holding
             try:
                 raw = (await asyncio.wait_for(reader.readuntil(b'\r\n\r\n'), 5)).decode('ascii').split('\r\n')
                 method, path, _ = raw[0].split()
@@ -111,7 +112,7 @@ async def acceptance(values):
                     assert triggers
                     await mqtt.publish(relay.topic(TopicKind.STATE), json.dumps(triggers[-1]), qos=1, retain=not numeric_mode)
                 elif path == '/mode':
-                    assert data['mode'] in ('apply', 'fail', 'drop', 'hold')
+                    assert data['mode'] in ('apply', 'fail', 'drop')
                     mode = data['mode']
                 elif path == '/clock-fault':
                     assert home_flow_mode
@@ -122,8 +123,12 @@ async def acceptance(values):
                     command_clock.now()
                     original_wall = command_clock.wall
                     command_clock.wall = lambda: original_wall() + timedelta(seconds=2)
+                elif path == '/hold':
+                    assert home_flow_mode and not holding and not held
+                    holding = True
                 elif path == '/release':
-                    assert home_flow_mode
+                    assert home_flow_mode and holding
+                    holding = False
                     for item in held:
                         await relay.handle(str(item.topic), bytes(item.payload), item.retain)
                     held.clear()

@@ -16,7 +16,7 @@ test('LIVE room → delayed light → favorite → F5 → scene → journal, wit
     if (!(await link.isVisible()) && await page.locator('.mobile-more summary').isVisible()) await page.locator('.mobile-more summary').click();
     await link.click();
   }
-  await control('online'); await control('state', { on: false }); await control('mode', { mode: 'hold' });
+  await control('online'); await control('state', { on: false }); await control('hold');
   const before = (await control('evidence')).received.length;
   const sends: string[] = [];
   page.on('request', r => { if (r.method() === 'POST' && /\/commands$|\/scene-runs\/execute$/.test(new URL(r.url()).pathname)) sends.push(r.url()); });
@@ -29,7 +29,7 @@ test('LIVE room → delayed light → favorite → F5 → scene → journal, wit
   await expect(page.getByText(/Ожидаем подтверждение/)).toBeVisible();
   await expect.poll(async () => (await control('evidence')).received.length).toBe(before + 1);
   await page.waitForTimeout(1200); expect(sends).toHaveLength(1);
-  await control('mode', { mode: 'apply' }); await control('release');
+  await control('release');
   await expect(page.getByText('Выполнено · состояние обновлено', { exact: true })).toBeVisible();
   const add = page.getByRole('button', { name: 'Добавить в избранное: Software relay', exact: true });
   if (await add.count()) await add.click();
