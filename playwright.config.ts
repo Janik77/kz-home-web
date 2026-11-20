@@ -4,7 +4,7 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:5173';
 
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: ['**/compact-home-ui.spec.ts', '**/metadata-live.spec.ts', '**/metadata-ui.spec.ts', '**/scene-edit-ui.spec.ts', '**/scene-edit-live.spec.ts', '**/durable-ui.spec.ts', '**/durable-live.spec.ts', '**/schedule-live.spec.ts', '**/schedule-ui.spec.ts', '**/numeric-live.spec.ts', '**/numeric-ui.spec.ts', '**/core.spec.ts', '**/live-core.spec.ts', '**/confirmed-live.spec.ts', '**/scene-live.spec.ts', '**/scene-visual.spec.ts', '**/automation-live.spec.ts', '**/state-live.spec.ts'],
+  testIgnore: ['**/home-flow-live.spec.ts', '**/compact-home-ui.spec.ts', '**/metadata-live.spec.ts', '**/metadata-ui.spec.ts', '**/scene-edit-ui.spec.ts', '**/scene-edit-live.spec.ts', '**/durable-ui.spec.ts', '**/durable-live.spec.ts', '**/schedule-live.spec.ts', '**/schedule-ui.spec.ts', '**/numeric-live.spec.ts', '**/numeric-ui.spec.ts', '**/core.spec.ts', '**/live-core.spec.ts', '**/confirmed-live.spec.ts', '**/scene-live.spec.ts', '**/scene-visual.spec.ts', '**/automation-live.spec.ts', '**/state-live.spec.ts'],
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 2 : 0,
