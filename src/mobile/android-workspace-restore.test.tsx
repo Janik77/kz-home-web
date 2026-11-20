@@ -95,9 +95,9 @@ describe('Android workspace starts only the appropriate vault restore', () => {
     expect(fixture.take).not.toHaveBeenCalled();
   });
 
-  it('foreground retries failed anonymous health before a single refresh, even in StrictMode', async () => {
-    fixture.fetcher.mockResolvedValueOnce(Response.json({ status: 'starting' }, { status: 503 }))
-      .mockResolvedValueOnce(Response.json({ status: 'ok' }))
+  it('foreground retries failed anonymous readiness before a single refresh, even in StrictMode', async () => {
+    fixture.fetcher.mockResolvedValueOnce(Response.json({ status: 'not_ready', reason: 'database_unavailable' }, { status: 503 }))
+      .mockResolvedValueOnce(Response.json({ status: 'ready' }))
       .mockResolvedValueOnce(Response.json(tokenPair))
       .mockResolvedValueOnce(Response.json(coreUser));
     render(<StrictMode><AndroidWorkspace /></StrictMode>);
@@ -108,15 +108,15 @@ describe('Android workspace starts only the appropriate vault restore', () => {
     await screen.findByText('authenticated');
     await resumeApp();
     expect(requests()).toEqual([
-      [origin + '/health', 'GET'], [origin + '/health', 'GET'],
+      [origin + '/ready', 'GET'], [origin + '/ready', 'GET'],
       [origin + '/auth/refresh', 'POST'], [origin + '/auth/me', 'GET'],
     ]);
     expect(fixture.take).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the foreground intent when Android reports unchanged Wi-Fi ahead of getStatus', async () => {
-    fixture.fetcher.mockResolvedValueOnce(Response.json({ status: 'starting' }, { status: 503 }))
-      .mockResolvedValueOnce(Response.json({ status: 'ok' }))
+    fixture.fetcher.mockResolvedValueOnce(Response.json({ status: 'not_ready', reason: 'database_unavailable' }, { status: 503 }))
+      .mockResolvedValueOnce(Response.json({ status: 'ready' }))
       .mockResolvedValueOnce(Response.json(tokenPair))
       .mockResolvedValueOnce(Response.json(coreUser));
     render(<StrictMode><AndroidWorkspace /></StrictMode>);
@@ -141,15 +141,15 @@ describe('Android workspace starts only the appropriate vault restore', () => {
       window.removeEventListener(mobileReadRefresh, readRefresh);
     }
     expect(requests()).toEqual([
-      [origin + '/health', 'GET'], [origin + '/health', 'GET'],
+      [origin + '/ready', 'GET'], [origin + '/ready', 'GET'],
       [origin + '/auth/refresh', 'POST'], [origin + '/auth/me', 'GET'],
     ]);
     expect(fixture.take).toHaveBeenCalledTimes(1);
   });
 
   it('does not probe on a stale online reply after a newer disconnect', async () => {
-    fixture.fetcher.mockResolvedValueOnce(Response.json({ status: 'starting' }, { status: 503 }))
-      .mockResolvedValueOnce(Response.json({ status: 'ok' }))
+    fixture.fetcher.mockResolvedValueOnce(Response.json({ status: 'not_ready', reason: 'database_unavailable' }, { status: 503 }))
+      .mockResolvedValueOnce(Response.json({ status: 'ready' }))
       .mockResolvedValueOnce(Response.json(tokenPair))
       .mockResolvedValueOnce(Response.json(coreUser));
     render(<StrictMode><AndroidWorkspace /></StrictMode>);
@@ -163,23 +163,23 @@ describe('Android workspace starts only the appropriate vault restore', () => {
       fixture.networks.forEach(listener => listener({ connected: false, connectionType: 'none' }));
       delayedStatus(wifi);
     });
-    expect(requests()).toEqual([[origin + '/health', 'GET']]);
+    expect(requests()).toEqual([[origin + '/ready', 'GET']]);
     expect(fixture.take).not.toHaveBeenCalled();
     await act(async () => fixture.networks.forEach(listener => listener(wifi)));
     await screen.findByText('authenticated');
     expect(fixture.take).toHaveBeenCalledTimes(1);
-    expect(requests().filter(([url]) => url === origin + '/health')).toHaveLength(2);
+    expect(requests().filter(([url]) => url === origin + '/ready')).toHaveLength(2);
   });
 
   it('an address change prevents late consumption after an in-flight probe', async () => {
-    let health!: (reply: Response) => void;
-    fixture.fetcher.mockImplementationOnce(() => new Promise(resolve => { health = resolve; }));
+    let probe!: (reply: Response) => void;
+    fixture.fetcher.mockImplementationOnce(() => new Promise(resolve => { probe = resolve; }));
     render(<StrictMode><AndroidWorkspace /></StrictMode>);
     await waitFor(() => expect(requests()).toHaveLength(1));
     fireEvent.click(screen.getByRole('button', { name: 'Сменить адрес' }));
     await screen.findByRole('heading', { name: 'Подключить дом' });
-    await act(async () => health(Response.json({ status: 'ok' })));
+    await act(async () => probe(Response.json({ status: 'ready' })));
     expect(fixture.take).not.toHaveBeenCalled();
-    expect(requests()).toEqual([[origin + '/health', 'GET']]);
+    expect(requests()).toEqual([[origin + '/ready', 'GET']]);
   });
 });

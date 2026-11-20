@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { HttpClient } from '../data/core/http-client';
 import { CoreSession, type RefreshVault } from '../data/core/session';
 import { coreUser, tokenPair } from '../test/core-fixtures';
-import { checkCoreHealth, createStoredSessionResume } from './stored-session-resume';
+import { checkCoreReadiness, createStoredSessionResume } from './stored-session-resume';
 
 const origin = 'https://192.168.4.2:8443';
 const json = (body: unknown, status = 200) => Response.json(body, { status });
@@ -18,7 +18,7 @@ function fixture() {
   const client = new HttpClient(origin, fetcher);
   const session = new CoreSession(client, Date.now, vault);
   const stillEligible = () => session.getSnapshot().status === 'anonymous';
-  const attempt = createStoredSessionResume(() => checkCoreHealth(client), () => session.resume());
+  const attempt = createStoredSessionResume(() => checkCoreReadiness(client), () => session.resume());
   return { client, fetcher, session, vault, stillEligible, attempt, kept: () => kept };
 }
 
@@ -47,7 +47,7 @@ describe('Android cold-start session gate', () => {
     const recovery = f.attempt(f.stillEligible);
     expect(f.attempt(f.stillEligible)).toBe(recovery);
     await Promise.resolve();
-    ready(json({ status: 'ok' }));
+    ready(json({ status: 'ready' }));
     await recovery;
     await f.attempt(f.stillEligible);
     expect(f.vault.take).toHaveBeenCalledTimes(1);
@@ -55,7 +55,7 @@ describe('Android cold-start session gate', () => {
     expect(f.session.getSnapshot().status).toBe('authenticated');
     const calls = f.fetcher.mock.calls;
     expect(calls.map(([url, init]) => [url, init?.method])).toEqual([
-      [origin + '/health', 'GET'], [origin + '/health', 'GET'], [origin + '/health', 'GET'],
+      [origin + '/ready', 'GET'], [origin + '/ready', 'GET'], [origin + '/ready', 'GET'],
       [origin + '/auth/refresh', 'POST'], [origin + '/auth/me', 'GET'],
     ]);
     for (const [, init] of calls.slice(0, 3)) {
@@ -68,7 +68,7 @@ describe('Android cold-start session gate', () => {
 
   it('never retries a refresh POST whose response was lost, even on later lifecycle events', async () => {
     const f = fixture();
-    f.fetcher.mockResolvedValueOnce(json({ status: 'ok' }))
+    f.fetcher.mockResolvedValueOnce(json({ status: 'ready' }))
       .mockRejectedValueOnce(new TypeError('POST may already have reached Core'));
     await f.attempt(f.stillEligible);
     expect(f.session.getSnapshot().status).toBe('anonymous');
@@ -76,21 +76,26 @@ describe('Android cold-start session gate', () => {
     expect(f.vault.take).toHaveBeenCalledTimes(1);
     expect(f.vault.save).not.toHaveBeenCalled();
     await Promise.all([f.attempt(f.stillEligible), f.attempt(f.stillEligible)]);
-    expect(f.fetcher.mock.calls.map(([url]) => url)).toEqual([origin + '/health', origin + '/auth/refresh']);
+    expect(f.fetcher.mock.calls.map(([url]) => url)).toEqual([origin + '/ready', origin + '/auth/refresh']);
   });
 
   it('does not touch the vault if the selected connection ceases to be eligible before probing finishes', async () => {
     const f = fixture();
     let allowed = true;
-    f.fetcher.mockImplementationOnce(async () => { allowed = false; return json({ status: 'ok' }); });
+    f.fetcher.mockImplementationOnce(async () => { allowed = false; return json({ status: 'ready' }); });
     await f.attempt(() => allowed);
     expect(f.vault.take).not.toHaveBeenCalled();
     expect(f.kept()).toBe('synthetic-old-refresh');
   });
 
-  it('does not arm the vault boundary for the wrong service even with HTTP 200', async () => {
+  it.each([
+    ['healthy-only JSON', () => json({ status: 'ok' })],
+    ['SPA fallback', () => new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } })],
+    ['unrouted path', () => json({ detail: 'Not Found' }, 404)],
+    ['wrong schema revision', () => json({ status: 'not_ready', reason: 'schema_revision_mismatch' }, 503)],
+  ])('preserves the token on an invalid readiness response: %s', async (_name, reply) => {
     const f = fixture();
-    f.fetcher.mockResolvedValueOnce(json({ status: 'offline' }));
+    f.fetcher.mockResolvedValueOnce(reply());
     await f.attempt(f.stillEligible);
     expect(f.vault.take).not.toHaveBeenCalled();
   });
