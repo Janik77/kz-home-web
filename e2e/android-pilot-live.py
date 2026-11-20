@@ -142,13 +142,20 @@ def connect_fixture_wifi():
     time.sleep(1)
     adb('shell','cmd','wifi','connect-network','AndroidWifi','open')
     deadline = time.monotonic()+45
+    associated = default_wifi = False
     while time.monotonic()<deadline:
         state = adb('shell','cmd','wifi','status')
-        if re.search(r'connected to.*AndroidWifi', state, re.IGNORECASE):
+        associated = bool(re.search(r'connected to.*AndroidWifi', state, re.IGNORECASE))
+        connectivity = adb('shell','dumpsys','connectivity')
+        active = re.search(r'^Active default network:\s*(\d+)\s*$', connectivity, re.MULTILINE)
+        default_wifi = bool(active and re.search(
+            rf'NetworkAgentInfo.*network\{{{active[1]}\}}[^\n]*Transports: WIFI\b', connectivity))
+        if associated and default_wifi:
             return
         time.sleep(1)
-    (OUT/'fixture-wifi-status.txt').write_text(state)
-    raise AssertionError('Emulator did not associate with the AndroidWifi fixture access point')
+    (OUT/'fixture-wifi-status.txt').write_text(
+        f'AndroidWifi associated={associated}; active default parsed={bool(active)}; active is Wi-Fi={default_wifi}\n')
+    raise AssertionError('Emulator did not establish a current AndroidWifi default network')
 
 
 def screenshot(name):
@@ -270,6 +277,7 @@ async def acceptance(values):
                     await page.get_by_role('link', name='Устройства', exact=True).click()
                     card = page.get_by_role('article', name='Software relay · Room')
                     await expect(card.get_by_text('Выключено', exact=True)).to_be_visible()
+                    await page.screenshot(path=OUT/'desktop-before.png')
 
                     await asyncio.to_thread(adb, 'install', '-r', os.environ['KZ_PILOT_FIXTURE_APK'])
                     await asyncio.to_thread(connect_fixture_wifi)
@@ -283,14 +291,19 @@ async def acceptance(values):
                         await asyncio.to_thread(screenshot, 'android-first-use-failure.png')
                         raise
                     await asyncio.to_thread(close_ime)
-                    await asyncio.to_thread(tap, 'Продолжить', stable=True)
-                    try:
-                        await asyncio.to_thread(node, 'Вход в дом')
-                    except AssertionError:
-                        # Network/TLS failure capture precedes all credentials.
-                        await asyncio.to_thread(screenshot, 'android-prelogin-failure.png')
-                        print(f'Native synthetic HTTPS health response codes before timeout: {health_events}', flush=True)
-                        raise
+                    for attempt in range(1, 3):
+                        await asyncio.to_thread(tap, 'Продолжить', stable=True)
+                        try:
+                            await asyncio.to_thread(node, 'Вход в дом', timeout=21)
+                            break
+                        except AssertionError:
+                            # Diagnostic and one explicit fixture-only GET retry before any credentials.
+                            # Never retry an API mutation, TLS validation, or an answered health request.
+                            await asyncio.to_thread(screenshot, f'android-prelogin-attempt-{attempt}.png')
+                            print(f'Native HTTPS health response codes after attempt {attempt}: {health_events}', flush=True)
+                            if health_events or attempt == 2:
+                                raise
+                            await asyncio.to_thread(connect_fixture_wifi)
                     assert health_events == [200], health_events
                     print('Native APK completed TLS health verification; login screen is visible', flush=True)
                     await asyncio.to_thread(enter, 'login-email', 'owner@example.test')
@@ -312,7 +325,7 @@ async def acceptance(values):
                     # Hold one real software MQTT ACK until after the Android client
                     # backgrounds and loses Wi-Fi; Core keeps authoritative state.
                     await asyncio.wait_for(first_mqtt.wait(), 10)
-                    await asyncio.to_thread(node, 'Ожидаем подтверждение', prefix=True)
+                    await asyncio.to_thread(node, 'Ожидаем подтверждение', prefix=True, scroll=1)
                     assert len(received) == 1
                     await asyncio.to_thread(screenshot, 'android-pending.png')
                     await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '3')
@@ -322,7 +335,7 @@ async def acceptance(values):
                     await asyncio.to_thread(adb, 'shell', 'am', 'start', '-n', f'{PACKAGE}/.MainActivity')
                     await asyncio.to_thread(node, 'Нет связи с домом. Подключитесь к домашнему Wi‑Fi.')
                     await asyncio.to_thread(connect_fixture_wifi)
-                    await asyncio.to_thread(node, 'Включено')
+                    await asyncio.to_thread(node, 'Включено', scroll=-1)
                     assert len(received) == 1
                     assert mutations.count(('POST', '/v1/devices/fixture_relay/commands')) == 1
                     await page.get_by_role('link', name='Главная', exact=True).click()

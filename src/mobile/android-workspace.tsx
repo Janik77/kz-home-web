@@ -119,6 +119,7 @@ export function AndroidWorkspace() {
 
   return <div className="kz-native">
     {wifi === false && <p role="status" className="kz-native__offline">Нет связи с домом. Подключитесь к домашнему Wi‑Fi.</p>}
+    {connection && error && <p className="kz-native__connection-error kz-native__connection-error--top" role="alert">{error}</p>}
     {connection === undefined ? <main className="session-page"><p role="status">Проверяем подключение…</p></main>
       : connection ? <AndroidHome key={connection.origin} connection={connection} wifi={wifi} onChange={change}
           onRemember={(accountId, houseId) => {
@@ -130,6 +131,7 @@ export function AndroidWorkspace() {
           <div className="session-card__brand"><p className="eyebrow">KZ HOME</p><ThemeToggle /></div>
           <h1>Подключить дом</h1>
           <p>Укажите HTTPS-адрес Core. ПК и телефон должны быть подключены к домашней сети.</p>
+          {error && <p className="kz-native__connection-error" role="alert">{error}</p>}
           <form className="login-form" onSubmit={event => { event.preventDefault(); void connect(); }}>
             <label htmlFor="core-address">Адрес Core
               <input id="core-address" type="url" autoCapitalize="off" autoComplete="off" placeholder="https://192.168.1.20:8443" required value={address} onChange={event => setAddress(event.target.value)} />
@@ -137,7 +139,6 @@ export function AndroidWorkspace() {
             <Button type="submit" disabled={busy}>{busy ? 'Подключаем…' : 'Продолжить'}</Button>
           </form>
         </div></main>}
-    {error && <p className="kz-native__connection-error" role="alert">{error}</p>}
   </div>;
 }
 
