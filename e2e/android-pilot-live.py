@@ -37,10 +37,11 @@ def adb(*args, binary=False):
                                    text=not binary, timeout=20)
 
 
-def node(selector, timeout=25, field=None, stable=False, prefix=False):
+def node(selector, timeout=25, field=None, stable=False, prefix=False, scroll=0, for_tap=False):
     end = time.monotonic() + timeout
     last_structure = []
     previous_center = None
+    misses = swipes = 0
     labels = {'core-address': 'Адрес Core', 'login-email': 'Электронная почта', 'login-password': 'Пароль'}
     while time.monotonic() < end:
         try:
@@ -49,7 +50,7 @@ def node(selector, timeout=25, field=None, stable=False, prefix=False):
             data = adb('shell', 'cat', remote)
             adb('shell', 'rm', remote)
             elements = [element.attrib for element in ET.fromstring(data).iter('node')]
-            last_structure = [{name: item.get(name, '') for name in ('class','resource-id','package','bounds','password')}
+            last_structure = [{name: item.get(name, '') for name in ('class','resource-id','package','bounds','password','enabled','clickable')}
                               for item in elements]
             def center(item):
                 numbers = [int(n) for n in re.findall(r'\d+', item['bounds'])]
@@ -57,6 +58,12 @@ def node(selector, timeout=25, field=None, stable=False, prefix=False):
                     return ((numbers[0] + numbers[2]) // 2, (numbers[1] + numbers[3]) // 2)
                 return None
 
+            if not elements:
+                continue
+            screen = [int(n) for n in re.findall(r'\d+', elements[0]['bounds'])]
+            if len(screen) != 4:
+                continue
+            width, height = screen[-2:]
             candidates = []
             for item in elements:
                 if item.get('package') != PACKAGE or field is not None and not item.get('class','').endswith('EditText'):
@@ -64,12 +71,13 @@ def node(selector, timeout=25, field=None, stable=False, prefix=False):
                 description = item.get('content-desc', '')
                 resource = item.get('resource-id', '').rsplit('/',1)[-1]
                 accessible = (item.get('text', ''), description)
-                matches = selector in (*accessible, resource) or prefix and any(value.startswith(selector + ' ') for value in accessible)
+                matches = selector in (*accessible, resource) or prefix and any(value.startswith((selector + ' ', selector + '.', selector + ':')) for value in accessible)
                 if field is not None:
                     label = labels[selector]
                     matches = matches or any((value or '').startswith(label) for value in (description, item.get('text')))
                 result = center(item)
-                if matches and result:
+                if (matches and result and (not for_tap or item.get('enabled') != 'false')
+                        and (not scroll or result[1] <= height - 120)):
                     candidates.append((item.get('clickable') == 'true', result))
             if candidates:
                 result = max(candidates, key=lambda item: item[0])[1]
@@ -78,6 +86,14 @@ def node(selector, timeout=25, field=None, stable=False, prefix=False):
                 previous_center = result
             else:
                 previous_center = None
+                misses += 1
+                if scroll and misses % 2 == 0 and swipes < 4:
+                    # Use a real content gesture, leaving the fixed bottom navigation alone.
+                    x, y1, y2 = int(width*.72), int(height*.73), int(height*.40)
+                    if scroll < 0:
+                        y1, y2 = y2, y1
+                    adb('shell', 'input', 'swipe', str(x), str(y1), str(x), str(y2), '350')
+                    swipes += 1
             # Some WebView versions omit DOM IDs and label the form but not
             # individual nodes. Only choose in a known, separately checked app screen.
             if field is not None:
@@ -97,8 +113,8 @@ def node(selector, timeout=25, field=None, stable=False, prefix=False):
     raise AssertionError(f'Visible Android UI element not found: {selector}')
 
 
-def tap(selector, stable=False, prefix=False):
-    x, y = node(selector, stable=stable, prefix=prefix)
+def tap(selector, stable=False, prefix=False, scroll=0):
+    x, y = node(selector, stable=stable, prefix=prefix, scroll=scroll, for_tap=True)
     adb('shell', 'input', 'tap', str(x), str(y))
 
 
@@ -144,6 +160,7 @@ def tls_proxy(baseurl):
     upstream = urlsplit(baseurl)
     mutations = []
     health_events = []
+    authenticated_reads = []
     class Proxy(BaseHTTPRequestHandler):
         def log_message(self, *_):
             pass
@@ -161,8 +178,11 @@ def tls_proxy(baseurl):
                     {h: self.headers[h] for h in ('Authorization', 'Content-Type', 'Idempotency-Key', 'Accept')
                      if h in self.headers})
                 response = connection.getresponse()
-                if self.command == 'GET' and urlsplit(self.path).path == '/health':
+                path = urlsplit(self.path).path
+                if self.command == 'GET' and path == '/health':
                     health_events.append(response.status)
+                elif self.command == 'GET' and path in ('/auth/me', '/houses'):
+                    authenticated_reads.append((path, response.status))
                 data = response.read()
                 self.send_response(response.status)
                 for name in ('Content-Type', 'Retry-After'):
@@ -182,7 +202,7 @@ def tls_proxy(baseurl):
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
-        yield mutations, health_events
+        yield mutations, health_events, authenticated_reads
     finally:
         server.shutdown()
         server.server_close()
@@ -206,6 +226,8 @@ async def acceptance(values):
         'actions': [{'type': 'device_state', 'device_id': 'fixture_relay', 'state': {'on': False}}],
     })
     received = []
+    release_first_ack = asyncio.Event()
+    first_mqtt = asyncio.Event()
     async with aiomqtt.Client(hostname=config.host, port=config.port, username=config.username,
                              password=config.password, identifier=config.client_id,
                              tls_context=ssl.create_default_context(cafile=config.ca_file)) as mqtt:
@@ -218,6 +240,9 @@ async def acceptance(values):
                 envelope = CommandEnvelope.model_validate_json(bytes(item.payload))
                 assert not item.retain
                 received.append(envelope.command_id)
+                if len(received) == 1:
+                    first_mqtt.set()
+                    await asyncio.wait_for(release_first_ack.wait(), 25)
                 await relay.handle(str(item.topic), bytes(item.payload), item.retain)
         task = asyncio.create_task(receive())
         await relay.send(TopicKind.STATUS, relay.status(True))
@@ -227,7 +252,7 @@ async def acceptance(values):
             cwd=WEB, env={**os.environ, 'VITE_DATA_MODE': 'core', 'VITE_API_URL': '/core-api',
                           'CORE_DEV_PROXY_TARGET': api.base}, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
-            with tls_proxy(api.base) as (mutations, health_events), contextlib.ExitStack() as recorder_cleanup:
+            with tls_proxy(api.base) as (mutations, health_events, authenticated_reads), contextlib.ExitStack() as recorder_cleanup:
                 async with async_playwright() as playwright:
                     browser = await playwright.chromium.launch(channel='chrome', chromium_sandbox=True)
                     page = await browser.new_page(viewport={'width': 1060, 'height': 800})
@@ -275,15 +300,31 @@ async def acceptance(values):
                     await asyncio.to_thread(close_ime)
                     await asyncio.to_thread(tap, 'Войти', stable=True)
                     await asyncio.to_thread(node, 'Комнаты')
-                    print('Native APK authenticated to Core and displayed the selected home', flush=True)
+                    assert ('POST', '/auth/login') in mutations
+                    assert authenticated_reads[:2] == [('/auth/me', 200), ('/houses', 200)], authenticated_reads
+                    print('Native APK authenticated, received Core 200 for /auth/me and /houses, and displayed the selected home', flush=True)
                     await asyncio.to_thread(tap, 'Комнаты')
-                    await asyncio.to_thread(tap, 'Room', prefix=True)
+                    await asyncio.to_thread(tap, 'Room', prefix=True, scroll=1)
                     recorder = subprocess.Popen(['adb','shell','screenrecord','--time-limit','90',
                         '/data/local/tmp/kz-pilot.mp4'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                     recorder_cleanup.callback(lambda: recorder.terminate() if recorder.poll() is None else None)
-                    await asyncio.to_thread(tap, 'Включить')
+                    await asyncio.to_thread(tap, 'Включить', scroll=1)
+                    # Hold one real software MQTT ACK until after the Android client
+                    # backgrounds and loses Wi-Fi; Core keeps authoritative state.
+                    await asyncio.wait_for(first_mqtt.wait(), 10)
+                    await asyncio.to_thread(node, 'Ожидаем подтверждение', prefix=True)
+                    assert len(received) == 1
+                    await asyncio.to_thread(screenshot, 'android-pending.png')
+                    await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '3')
+                    await asyncio.to_thread(adb, 'shell', 'svc', 'wifi', 'disable')
+                    release_first_ack.set()
                     await wait_value(api, True)
+                    await asyncio.to_thread(adb, 'shell', 'am', 'start', '-n', f'{PACKAGE}/.MainActivity')
+                    await asyncio.to_thread(node, 'Нет связи с домом. Подключитесь к домашнему Wi‑Fi.')
+                    await asyncio.to_thread(connect_fixture_wifi)
                     await asyncio.to_thread(node, 'Включено')
+                    assert len(received) == 1
+                    assert mutations.count(('POST', '/v1/devices/fixture_relay/commands')) == 1
                     await page.get_by_role('link', name='Главная', exact=True).click()
                     await page.get_by_role('button', name='Обновить данные', exact=True).click()
                     await page.get_by_role('link', name='Устройства', exact=True).click()
@@ -295,17 +336,17 @@ async def acceptance(values):
                         await asyncio.to_thread(adb, 'shell', 'pkill', '-INT', 'screenrecord')
                     await asyncio.to_thread(recorder.wait, 10)
                     await asyncio.to_thread(adb, 'pull', '/data/local/tmp/kz-pilot.mp4', str(OUT/'android-same-home.mp4'))
-                    await asyncio.to_thread(tap, 'Добавить в избранное: Software relay')
+                    await asyncio.to_thread(tap, 'Добавить в избранное: Software relay', scroll=-1)
                     await asyncio.to_thread(node, 'Убрать из избранного: Software relay')
                     await page.get_by_role('link', name='Главная', exact=True).click()
                     await page.get_by_role('button', name='Обновить данные').click()
                     await expect(page.get_by_role('button', name='Убрать из избранного: Software relay')).to_be_visible()
-                    await asyncio.to_thread(tap, 'Выключить')
+                    await asyncio.to_thread(tap, 'Выключить', scroll=1)
                     await wait_value(api, False)
                     await asyncio.to_thread(tap, 'Сценарии')
-                    await asyncio.to_thread(tap, 'Запуск и результат')
-                    await asyncio.to_thread(tap, 'Запустить сценарий')
-                    await asyncio.to_thread(node, 'Все действия подтверждены')
+                    await asyncio.to_thread(tap, 'Запуск и результат', scroll=1)
+                    await asyncio.to_thread(tap, 'Запустить сценарий', scroll=1)
+                    await asyncio.to_thread(node, 'Все действия подтверждены', prefix=True, scroll=1)
                     await asyncio.to_thread(screenshot, 'android-scene.png')
                     await asyncio.to_thread(tap, 'Ещё')
                     await asyncio.to_thread(tap, 'Журнал')
@@ -320,6 +361,8 @@ async def acceptance(values):
                     await asyncio.sleep(3)
                     assert len(received) == command_count == 3
                     assert len(set(received)) == 3
+                    assert mutations.count(('POST', '/v1/devices/fixture_relay/commands')) == 2
+                    assert mutations.count(('POST', '/v1/houses/fixture_house/scene-runs/execute')) == 1
                     assert sql("SELECT count(*) FROM device_commands WHERE ack_received_at IS NOT NULL AND state_received_at IS NOT NULL") == '3'
                     await asyncio.to_thread(adb, 'shell', 'am', 'force-stop', PACKAGE)
                     await asyncio.to_thread(adb, 'shell', 'am', 'start', '-n', f'{PACKAGE}/.MainActivity')
@@ -336,6 +379,8 @@ async def acceptance(values):
                         'web': subprocess.check_output(['git','rev-parse','HEAD'], cwd=WEB, text=True).strip(),
                         'apk_kind': 'separately built test fixture CA overlay; not for owner delivery',
                         'schema': schema, 'mqtt_commands': 3, 'ack_and_state': 3,
+                        'native_auth_me_and_houses_200': True, 'no_extra_native_command_posts': True,
+                        'active_command_background_wifi_reconnect_without_replay': True,
                         'desktop_same_state_and_favorite': True, 'native_scene_confirmed': True, 'native_journal_opened': True,
                         'wifi_reconnect_no_additional_command': True, 'native_refresh_after_process_restart': True,
                     }, indent=2))
