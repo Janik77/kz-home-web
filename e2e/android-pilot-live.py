@@ -236,6 +236,9 @@ def tls_proxy(baseurl):
     mutations = []
     health_events = []
     authenticated_reads = []
+    restore_faults = {'health_unavailable': False, 'drop_refresh_response': False}
+    withheld_refresh_statuses = []
+    anonymous_health_violation = []
     class Proxy(BaseHTTPRequestHandler):
         def log_message(self, *_):
             pass
@@ -245,20 +248,35 @@ def tls_proxy(baseurl):
             if not self.path.startswith('/') or self.path.startswith('//') or incoming > 1_000_000:
                 self.send_error(400)
                 return
+            path = urlsplit(self.path).path
             if self.command not in ('GET', 'HEAD'):
-                mutations.append((self.command, urlsplit(self.path).path))
+                mutations.append((self.command, path))
+            if self.command == 'GET' and path == '/health':
+                if incoming or 'Authorization' in self.headers or 'Cookie' in self.headers:
+                    anonymous_health_violation.append(True)
+                if restore_faults['health_unavailable']:
+                    # Only the disposable loopback TLS proxy simulates unavailable Core.
+                    self.send_error(503)
+                    self.wfile.flush()
+                    health_events.append(503)
+                    return
             connection = http.client.HTTPConnection(upstream.hostname, upstream.port, timeout=12)
             try:
                 connection.request(self.command, self.path, self.rfile.read(incoming) if incoming else None,
                     {h: self.headers[h] for h in ('Authorization', 'Content-Type', 'Idempotency-Key', 'Accept')
                      if h in self.headers})
                 response = connection.getresponse()
-                path = urlsplit(self.path).path
                 if self.command == 'GET' and path == '/health':
                     health_events.append(response.status)
                 elif self.command == 'GET' and path in ('/auth/me', '/houses'):
                     authenticated_reads.append((path, response.status))
                 data = response.read()
+                if self.command == 'POST' and path == '/auth/refresh' and restore_faults['drop_refresh_response']:
+                    # Core has already handled the actual POST. Do not send any
+                    # status/header/body to the APK, including rotated credentials.
+                    withheld_refresh_statuses.append(response.status)
+                    self.close_connection = True
+                    return
                 self.send_response(response.status)
                 for name in ('Content-Type', 'Retry-After'):
                     if response.getheader(name):
@@ -277,10 +295,124 @@ def tls_proxy(baseurl):
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
-        yield mutations, health_events, authenticated_reads
+        yield mutations, health_events, authenticated_reads, restore_faults, withheld_refresh_statuses, anonymous_health_violation
     finally:
         server.shutdown()
         server.server_close()
+
+
+async def wait_for_evidence(predicate, description, seconds=18):
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        if predicate():
+            return
+        await asyncio.sleep(.1)
+    raise AssertionError(description)
+
+
+async def fixture_vault():
+    # Ciphertext remains in memory; do not print it or persist it as evidence.
+    raw = await asyncio.to_thread(adb, 'exec-out', 'run-as', PACKAGE, 'cat', 'shared_prefs/kzhome.vault.v1.xml')
+    return ET.fromstring(raw)
+
+
+def has_validated_fixture_wifi():
+    associated, default_present, default_wifi = fixture_network_state()
+    if not (associated and default_present and default_wifi):
+        return False
+    connectivity = adb('shell', 'dumpsys', 'connectivity')
+    active = re.search(r'^Active default network:\s*(\d+)\s*$', connectivity, re.MULTILINE)
+    return bool(active and re.search(
+        rf'NetworkAgentInfo.*network\{{{active[1]}\}}[^\n]*Transports: WIFI[^\n]*(?<![A-Z_])VALIDATED\b',
+        connectivity))
+
+
+def fixture_app_at_front():
+    activities = adb('shell', 'dumpsys', 'activity', 'activities')
+    marker = next((line for line in activities.splitlines()
+                   if 'topResumedActivity=' in line or 'mResumedActivity:' in line), None)
+    return None if marker is None else PACKAGE + '/' in marker
+
+
+async def wait_for_fixture_foreground(wanted):
+    end = time.monotonic() + 8
+    while time.monotonic() < end:
+        if await asyncio.to_thread(fixture_app_at_front) is wanted:
+            return
+        await asyncio.sleep(.2)
+    raise AssertionError(f'Disposable Android app foreground transition did not reach {wanted}')
+
+
+async def verify_cold_restore(mutations, health_events, authenticated_reads, faults, withheld, violations):
+    def refresh_count():
+        return mutations.count(('POST', '/auth/refresh'))
+
+    refresh_before = refresh_count()
+    health_before = len(health_events)
+    vault = await fixture_vault()
+    original_ciphertext = vault.findtext("./string[@name='refresh']")
+    assert original_ciphertext
+    assert await asyncio.to_thread(has_validated_fixture_wifi), 'Current default is not validated synthetic Wi-Fi'
+    faults['health_unavailable'] = True
+    await asyncio.to_thread(adb, 'shell', 'am', 'force-stop', PACKAGE)
+    for attempt in range(1, 3):
+        print(f'Starting native unavailable-Core health attempt {attempt}', flush=True)
+        try:
+            await asyncio.to_thread(adb, 'shell', 'am', 'start', '-W', '-n', f'{PACKAGE}/.MainActivity')
+            await wait_for_fixture_foreground(True)
+            await wait_for_evidence(lambda: len(health_events) >= health_before + attempt,
+                                    f'APK did not issue anonymous health GET on unavailable attempt {attempt}')
+            # The sign-in UI is context only, never the proof of eligibility or a probe.
+            await asyncio.to_thread(node, 'Вход в дом')
+            assert health_events[health_before:] == [503] * attempt
+            assert refresh_count() == refresh_before
+            assert (await fixture_vault()).findtext("./string[@name='refresh']") == original_ciphertext
+            assert await asyncio.to_thread(has_validated_fixture_wifi), 'Wi-Fi changed during backend fault'
+            await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '3')
+            await wait_for_fixture_foreground(False)
+        except AssertionError:
+            facts = {
+                'attempt': attempt, 'health_statuses': health_events[health_before:],
+                'refresh_posts': refresh_count() - refresh_before,
+                'validated_wifi': await asyncio.to_thread(has_validated_fixture_wifi),
+                'app_in_foreground': await asyncio.to_thread(fixture_app_at_front),
+                'same_encrypted_refresh': (await fixture_vault()).findtext("./string[@name='refresh']") == original_ciphertext,
+            }
+            (OUT/'android-cold-fault.json').write_text(json.dumps(facts, indent=2))
+            await asyncio.to_thread(screenshot, 'android-cold-fault.png')
+            print(f'Native cold-start failure evidence: {facts}', flush=True)
+            raise
+    faults['health_unavailable'] = False
+    await asyncio.to_thread(adb, 'shell', 'am', 'start', '-W', '-n', f'{PACKAGE}/.MainActivity')
+    await wait_for_fixture_foreground(True)
+    await asyncio.to_thread(node, 'Комнаты')
+    assert health_events[health_before:] == [503, 503, 200]
+    assert refresh_count() == refresh_before + 1
+    rotated = await fixture_vault()
+    for key in ('refresh', 'home'):
+        encoded = rotated.findtext(f"./string[@name='{key}']")
+        assert encoded
+        data = base64.b64decode(encoded, validate=True)
+        assert data[0] == 1 and len(data) > 29
+    assert rotated.findtext("./string[@name='refresh']") != original_ciphertext
+
+    # Separate post-ambiguity case after one successful native restore.
+    faults['drop_refresh_response'] = True
+    reads_before_loss = len(authenticated_reads)
+    await asyncio.to_thread(adb, 'shell', 'am', 'force-stop', PACKAGE)
+    await asyncio.to_thread(adb, 'shell', 'am', 'start', '-W', '-n', f'{PACKAGE}/.MainActivity')
+    await wait_for_evidence(lambda: bool(withheld), 'Core did not handle a refresh before response loss')
+    await asyncio.to_thread(node, 'Войти', scroll=1)
+    assert withheld == [200]
+    assert (await fixture_vault()).findtext("./string[@name='refresh']") is None
+    assert len(authenticated_reads) == reads_before_loss
+    await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '3')
+    await asyncio.to_thread(adb, 'shell', 'am', 'start', '-W', '-n', f'{PACKAGE}/.MainActivity')
+    await asyncio.to_thread(node, 'Вход в дом', scroll=-1)
+    assert refresh_count() == refresh_before + 2
+    assert health_events[health_before:] == [503, 503, 200, 200]
+    assert withheld == [200]
+    assert not violations, 'A health probe carried credentials'
 
 
 async def wait_value(api, wanted):
@@ -332,7 +464,9 @@ async def acceptance(values):
             cwd=WEB, env={**os.environ, 'VITE_DATA_MODE': 'core', 'VITE_API_URL': '/core-api',
                           'CORE_DEV_PROXY_TARGET': api.base}, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
-            with tls_proxy(api.base) as (mutations, health_events, authenticated_reads), contextlib.ExitStack() as recorder_cleanup:
+            with tls_proxy(api.base) as (
+                mutations, health_events, authenticated_reads, restore_faults, withheld, health_violations
+            ), contextlib.ExitStack() as recorder_cleanup:
                 async with async_playwright() as playwright:
                     browser = await playwright.chromium.launch(channel='chrome', chromium_sandbox=True)
                     page = await browser.new_page(viewport={'width': 1060, 'height': 800})
@@ -474,15 +608,10 @@ async def acceptance(values):
                     assert mutations.count(('POST', '/v1/devices/fixture_relay/commands')) == 2
                     assert mutations.count(('POST', '/v1/houses/fixture_house/scene-runs/execute')) == 1
                     assert sql("SELECT count(*) FROM device_commands WHERE ack_received_at IS NOT NULL AND state_received_at IS NOT NULL") == '3'
-                    await asyncio.to_thread(adb, 'shell', 'am', 'force-stop', PACKAGE)
-                    await asyncio.to_thread(adb, 'shell', 'am', 'start', '-n', f'{PACKAGE}/.MainActivity')
-                    await asyncio.to_thread(node, 'Комнаты')
-                    assert ('POST', '/auth/refresh') in mutations
-                    vault = ET.fromstring(await asyncio.to_thread(adb, 'exec-out','run-as',PACKAGE,
-                                            'cat','shared_prefs/kzhome.vault.v1.xml'))
-                    for key in ('refresh','home'):
-                        data = base64.b64decode(vault.find(f"./string[@name='{key}']").text, validate=True)
-                        assert data[0] == 1 and len(data) > 29
+                    await verify_cold_restore(mutations, health_events, authenticated_reads,
+                                              restore_faults, withheld, health_violations)
+                    print('Native cold start: [503, 503] preserved ciphertext; one recovery refresh; '
+                          'one lost Core-accepted response was not retried', flush=True)
                     await browser.close()
                     (OUT/'report.json').write_text(json.dumps({
                         'core': os.environ['KZ_PILOT_CORE_SHA'],
@@ -493,6 +622,10 @@ async def acceptance(values):
                         'active_command_background_wifi_reconnect_without_replay': True,
                         'desktop_same_state_and_favorite': True, 'native_scene_confirmed': True, 'native_journal_opened': True,
                         'wifi_reconnect_no_additional_command': True, 'native_refresh_after_process_restart': True,
+                        'cold_start_unavailable_health_statuses': [503, 503],
+                        'no_vault_consumption_before_successful_health': True,
+                        'recovery_refresh_posts': 1, 'ambiguous_refresh_posts': 1,
+                        'no_refresh_retry_after_ambiguous_response': True,
                     }, indent=2))
         finally:
             vite.terminate()
