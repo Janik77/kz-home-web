@@ -37,24 +37,53 @@ def adb(*args, binary=False):
                                    text=not binary, timeout=20)
 
 
-def node(selector, timeout=25):
+def node(selector, timeout=25, field=None):
     end = time.monotonic() + timeout
+    last_structure = []
+    labels = {'core-address': 'Адрес Core', 'login-email': 'Электронная почта', 'login-password': 'Пароль'}
     while time.monotonic() < end:
         try:
             remote = '/data/local/tmp/kz-view.xml'
             adb('shell', 'uiautomator', 'dump', remote)
             data = adb('shell', 'cat', remote)
             adb('shell', 'rm', remote)
-            elements = ET.fromstring(data).iter('node')
-            for element in elements:
-                item = element.attrib
-                if selector in (item.get('text'), item.get('content-desc'), item.get('resource-id')):
-                    numbers = [int(n) for n in re.findall(r'\d+', item['bounds'])]
-                    if len(numbers) == 4 and numbers[2] > numbers[0] and numbers[3] > numbers[1]:
-                        return ((numbers[0] + numbers[2]) // 2, (numbers[1] + numbers[3]) // 2)
+            elements = [element.attrib for element in ET.fromstring(data).iter('node')]
+            last_structure = [{name: item.get(name, '') for name in ('class','resource-id','package','bounds','password')}
+                              for item in elements]
+            def center(item):
+                numbers = [int(n) for n in re.findall(r'\d+', item['bounds'])]
+                if len(numbers) == 4 and numbers[2] > numbers[0] and numbers[3] > numbers[1]:
+                    return ((numbers[0] + numbers[2]) // 2, (numbers[1] + numbers[3]) // 2)
+                return None
+
+            for item in elements:
+                if item.get('package') != PACKAGE or field is not None and not item.get('class','').endswith('EditText'):
+                    continue
+                description = item.get('content-desc', '')
+                resource = item.get('resource-id', '').rsplit('/',1)[-1]
+                matches = selector in (item.get('text'), description, resource)
+                if field is not None:
+                    label = labels[selector]
+                    matches = matches or any((value or '').startswith(label) for value in (description, item.get('text')))
+                result = center(item)
+                if matches and result:
+                    return result
+            # Some WebView versions omit DOM IDs and label the form but not
+            # individual nodes. Only choose in a known, separately checked app screen.
+            if field is not None:
+                edits = [item for item in elements if item.get('package') == PACKAGE
+                         and item.get('class','').endswith('EditText') and center(item)]
+                if field == 'address' and len(edits) == 1:
+                    return center(edits[0])
+                if field in ('email','password') and len(edits) == 2:
+                    wanted = [item for item in edits if (item.get('password') == 'true') == (field == 'password')]
+                    if len(wanted) == 1:
+                        return center(wanted[0])
         except (subprocess.SubprocessError, ET.ParseError):
             pass
         time.sleep(.2)
+    # Do not store raw XML: it may contain typed inputs. This file is shape only.
+    (OUT/'ui-failure-shape.json').write_text(json.dumps(last_structure, indent=2))
     raise AssertionError(f'Visible Android UI element not found: {selector}')
 
 
@@ -64,7 +93,9 @@ def tap(selector):
 
 
 def enter(selector, text):
-    tap(selector)
+    field = {'core-address':'address', 'login-email':'email', 'login-password':'password'}[selector]
+    x, y = node(selector, field=field)
+    adb('shell', 'input', 'tap', str(x), str(y))
     # All inputs here are synthetic and contain only shell-safe characters.
     if not re.fullmatch(r'[A-Za-z0-9_@.:/\-]+', text):
         raise AssertionError('Unexpected emulator fixture input')
@@ -182,9 +213,17 @@ async def acceptance(values):
                     await asyncio.to_thread(adb, 'install', '-r', os.environ['KZ_PILOT_FIXTURE_APK'])
                     await asyncio.to_thread(adb, 'shell', 'svc', 'wifi', 'enable')
                     await asyncio.to_thread(adb, 'shell', 'am', 'start', '-n', f'{PACKAGE}/.MainActivity')
-                    await asyncio.to_thread(enter, 'core-address', ORIGIN)
+                    try:
+                        await asyncio.to_thread(node, 'Подключить дом')
+                        await asyncio.to_thread(screenshot, 'android-first-use.png')
+                        await asyncio.to_thread(enter, 'core-address', ORIGIN)
+                    except AssertionError:
+                        # Still before any password or token was entered.
+                        await asyncio.to_thread(screenshot, 'android-first-use-failure.png')
+                        raise
                     await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '4')  # close keyboard
                     await asyncio.to_thread(tap, 'Продолжить')
+                    await asyncio.to_thread(node, 'Вход в дом')
                     await asyncio.to_thread(enter, 'login-email', 'owner@example.test')
                     await asyncio.to_thread(enter, 'login-password', seed['password'])
                     await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '4')
