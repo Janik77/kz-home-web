@@ -96,6 +96,14 @@ jobs:
           bash scripts/android-ci-sdk.sh emulator 'system-images;android-35;google_apis;x86_64'
           printf 'no\n' | "$ANDROID_HOME/cmdline-tools/19.0/bin/avdmanager" create avd -n kz-ci -k 'system-images;android-35;google_apis;x86_64' --force
           emulator="$ANDROID_HOME/emulator/emulator"
+          # The minimal runner lacks PulseAudio even for a headless no-audio boot.
+          qemu="$ANDROID_HOME/emulator/qemu/linux-x86_64/qemu-system-x86_64"
+          if ldd "$qemu" | grep -F 'libpulse.so.0 => not found'; then
+            sudo apt-get -o Acquire::Retries=2 update
+            sudo apt-get -o Acquire::Retries=2 install -y --no-install-recommends libpulse0
+          fi
+          missing="$(ldd "$qemu" | grep 'not found' || true)"
+          if [[ -n "$missing" ]]; then printf '%s\n' "$missing"; exit 1; fi
           "$emulator" -version
           "$emulator" -accel-check
           "$emulator" -list-avds
