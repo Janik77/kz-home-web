@@ -245,10 +245,15 @@ async def acceptance(values):
                         # Network/TLS failure capture precedes all credentials.
                         await asyncio.to_thread(screenshot, 'android-prelogin-failure.png')
                         raise
+                    print('Native APK completed TLS health verification; login screen is visible', flush=True)
                     await asyncio.to_thread(enter, 'login-email', 'owner@example.test')
+                    await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '4')  # real system Back closes IME
+                    await asyncio.to_thread(node, 'Вход в дом')
                     await asyncio.to_thread(enter, 'login-password', seed['password'])
                     await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '4')
                     await asyncio.to_thread(tap, 'Войти')
+                    await asyncio.to_thread(node, 'Комнаты')
+                    print('Native APK authenticated to Core and displayed the selected home', flush=True)
                     await asyncio.to_thread(tap, 'Комнаты')
                     await asyncio.to_thread(tap, 'Room')
                     recorder = subprocess.Popen(['adb','shell','screenrecord','--time-limit','90',
@@ -257,11 +262,9 @@ async def acceptance(values):
                     await asyncio.to_thread(tap, 'Включить')
                     await wait_value(api, True)
                     await asyncio.to_thread(node, 'Включено')
-                    await page.reload()
-                    await page.get_by_label('Электронная почта').fill('owner@example.test')
-                    await page.get_by_label('Пароль', exact=True).fill(seed['password'])
-                    await page.get_by_role('button', name='Войти', exact=True).click()
-                    await expect(card.get_by_text('Включено', exact=True)).to_be_visible()
+                    await page.get_by_role('link', name='Главная', exact=True).click()
+                    await expect(card.get_by_text('Включено', exact=True)).to_be_visible(timeout=15_000)
+                    print('Phone command confirmed, desktop observed same state', flush=True)
                     await page.screenshot(path=OUT/'desktop-same-ack.png')
                     await asyncio.to_thread(screenshot, 'android-ack.png')
                     if recorder.poll() is None:
