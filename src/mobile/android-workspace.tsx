@@ -12,6 +12,7 @@ import { nativeCoreFetcher } from './transport';
 import { forgetEndpoint, nativeRefreshVault, rememberedHome, rememberHome } from './store';
 import type { RememberedHome } from './store';
 import { mobileReadRefresh } from './read-refresh';
+import { checkCoreHealth, createStoredSessionResume } from './stored-session-resume';
 import './android.css';
 
 function usePhoneLifecycle() {
@@ -62,7 +63,7 @@ function usePhoneLifecycle() {
 }
 
 export function AndroidWorkspace() {
-  const [connection, setConnection] = useState<RememberedHome | null | undefined>(undefined);
+  const [connection, setConnection] = useState<(RememberedHome & { restore: boolean }) | null | undefined>(undefined);
   const [address, setAddress] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -72,8 +73,9 @@ export function AndroidWorkspace() {
     let current = true;
     void rememberedHome().then(home => {
       if (!current) return;
-      if (home) saved.current = { ...home, origin: parseLanCore(home.origin) };
-      setConnection(saved.current);
+      const verified = home ? { ...home, origin: parseLanCore(home.origin) } : null;
+      saved.current = verified;
+      setConnection(verified ? { ...verified, restore: true } : null);
     }).catch(() => {
       if (current) { setError('Не удалось открыть сохранённый дом. Укажите его адрес заново.'); setConnection(null); }
     });
@@ -92,9 +94,7 @@ export function AndroidWorkspace() {
         return;
       }
       try {
-        await new HttpClient(origin, nativeCoreFetcher(origin)).request('/health', value => {
-          if (value === null || typeof value !== 'object' || !('status' in value) || value.status !== 'ok') throw new Error('Unrecognized Core response');
-        });
+        await checkCoreHealth(new HttpClient(origin, nativeCoreFetcher(origin)));
       } catch {
         setError('Не удалось проверить Core. Проверьте адрес, домашний Wi‑Fi и сертификат HTTPS.');
         return;
@@ -102,7 +102,7 @@ export function AndroidWorkspace() {
       await forgetEndpoint();
       const next = { origin };
       await rememberHome(next);
-      saved.current = next; setConnection(next);
+      saved.current = next; setConnection({ ...next, restore: false });
     } catch (failure) {
       setError(failure instanceof Error && failure.message.startsWith('Введите') ? failure.message
         : 'Не удалось сохранить адрес. Проверьте адрес и защищённое хранилище Android.');
@@ -121,7 +121,8 @@ export function AndroidWorkspace() {
     {wifi === false && <p role="status" className="kz-native__offline">Нет связи с домом. Подключитесь к домашнему Wi‑Fi.</p>}
     {connection && error && <p className="kz-native__connection-error kz-native__connection-error--top" role="alert">{error}</p>}
     {connection === undefined ? <main className="session-page"><p role="status">Проверяем подключение…</p></main>
-      : connection ? <AndroidHome key={connection.origin} connection={connection} wifi={wifi} onChange={change}
+      : connection ? <AndroidHome key={connection.origin} connection={connection} restore={connection.restore}
+          wifi={wifi} onChange={change}
           onRemember={(accountId, houseId) => {
             if (saved.current?.origin !== connection.origin) return;
             const next = { origin: connection.origin, accountId, houseId };
@@ -142,14 +143,15 @@ export function AndroidWorkspace() {
   </div>;
 }
 
-function AndroidHome({ connection, wifi, onChange, remembered, onRemember }: {
+function AndroidHome({ connection, restore, wifi, onChange, remembered, onRemember }: {
   connection: RememberedHome;
+  restore: boolean;
   wifi: boolean | null;
   onChange: () => Promise<void>;
   remembered: () => RememberedHome | null;
   onRemember: (accountId: string, houseId: string) => void;
 }) {
-  const [services] = useState(() => {
+  const [{ services, resumeStored }] = useState(() => {
     const transport = nativeCoreFetcher(connection.origin);
     const network: typeof fetch = async (input, options) => {
       const status = await Network.getStatus();
@@ -157,17 +159,36 @@ function AndroidHome({ connection, wifi, onChange, remembered, onRemember }: {
       options?.signal?.throwIfAborted();
       return transport(input, options);
     };
-    return createServices({ mode: 'core', apiUrl: connection.origin }, network, nativeRefreshVault(connection.origin));
+    const services = createServices({ mode: 'core', apiUrl: connection.origin }, network, nativeRefreshVault(connection.origin));
+    const resumeStored = services.mode === 'core' ? createStoredSessionResume(
+      () => checkCoreHealth(new HttpClient(connection.origin, network)), () => services.session.resume(),
+    ) : null;
+    return { services, resumeStored };
   });
-  const attempted = useRef(false);
+  const eligible = useRef(false);
+  const optedOut = useRef(false);
   useEffect(() => {
-    if (wifi !== true || attempted.current || services.mode !== 'core') return;
-    attempted.current = true;
-    void services.session.resume();
-  }, [services, wifi]);
+    if (services.mode !== 'core') return;
+    // Never resurrect an earlier session after the user starts a new one or signs out.
+    const observe = () => { if (services.session.getSnapshot().status !== 'anonymous') optedOut.current = true; };
+    observe();
+    return services.session.subscribe(observe);
+  }, [services]);
+  useEffect(() => {
+    if (!restore || wifi !== true || services.mode !== 'core' || !resumeStored) return;
+    eligible.current = true;
+    const attempt = () => { void resumeStored(() => eligible.current && !optedOut.current
+      && services.session.getSnapshot().status === 'anonymous').catch(() => undefined); };
+    attempt();
+    window.addEventListener(mobileReadRefresh, attempt);
+    return () => {
+      eligible.current = false;
+      window.removeEventListener(mobileReadRefresh, attempt);
+    };
+  }, [restore, resumeStored, services, wifi]);
   if (services.mode !== 'core') return null;
   return <CoreWorkspace services={services} mobile={{
-    address: connection.origin, onChangeConnection: onChange,
+    address: connection.origin, onChangeConnection: () => { optedOut.current = true; return onChange(); },
     rememberedHouse: accountId => {
       const item = remembered();
       return item?.origin === connection.origin && item.accountId === accountId ? item.houseId ?? null : null;
