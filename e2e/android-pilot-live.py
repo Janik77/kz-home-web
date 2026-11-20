@@ -327,6 +327,22 @@ def has_validated_fixture_wifi():
         connectivity))
 
 
+def fixture_app_at_front():
+    activities = adb('shell', 'dumpsys', 'activity', 'activities')
+    marker = next((line for line in activities.splitlines()
+                   if 'topResumedActivity=' in line or 'mResumedActivity:' in line), None)
+    return None if marker is None else PACKAGE + '/' in marker
+
+
+async def wait_for_fixture_foreground(wanted):
+    end = time.monotonic() + 8
+    while time.monotonic() < end:
+        if await asyncio.to_thread(fixture_app_at_front) is wanted:
+            return
+        await asyncio.sleep(.2)
+    raise AssertionError(f'Disposable Android app foreground transition did not reach {wanted}')
+
+
 async def verify_cold_restore(mutations, health_events, authenticated_reads, faults, withheld, violations):
     def refresh_count():
         return mutations.count(('POST', '/auth/refresh'))
@@ -340,17 +356,35 @@ async def verify_cold_restore(mutations, health_events, authenticated_reads, fau
     faults['health_unavailable'] = True
     await asyncio.to_thread(adb, 'shell', 'am', 'force-stop', PACKAGE)
     for attempt in range(1, 3):
-        await asyncio.to_thread(adb, 'shell', 'am', 'start', '-W', '-n', f'{PACKAGE}/.MainActivity')
-        await wait_for_evidence(lambda: len(health_events) >= health_before + attempt,
-                                'APK did not issue anonymous health GET while proxy was unavailable')
-        await asyncio.to_thread(node, 'Вход в дом')
-        assert health_events[health_before:] == [503] * attempt
-        assert refresh_count() == refresh_before
-        assert (await fixture_vault()).findtext("./string[@name='refresh']") == original_ciphertext
-        assert await asyncio.to_thread(has_validated_fixture_wifi), 'Wi-Fi changed during backend fault'
-        await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '3')
+        print(f'Starting native unavailable-Core health attempt {attempt}', flush=True)
+        try:
+            await asyncio.to_thread(adb, 'shell', 'am', 'start', '-W', '-n', f'{PACKAGE}/.MainActivity')
+            await wait_for_fixture_foreground(True)
+            await wait_for_evidence(lambda: len(health_events) >= health_before + attempt,
+                                    f'APK did not issue anonymous health GET on unavailable attempt {attempt}')
+            # The sign-in UI is context only, never the proof of eligibility or a probe.
+            await asyncio.to_thread(node, 'Вход в дом')
+            assert health_events[health_before:] == [503] * attempt
+            assert refresh_count() == refresh_before
+            assert (await fixture_vault()).findtext("./string[@name='refresh']") == original_ciphertext
+            assert await asyncio.to_thread(has_validated_fixture_wifi), 'Wi-Fi changed during backend fault'
+            await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '3')
+            await wait_for_fixture_foreground(False)
+        except AssertionError:
+            facts = {
+                'attempt': attempt, 'health_statuses': health_events[health_before:],
+                'refresh_posts': refresh_count() - refresh_before,
+                'validated_wifi': await asyncio.to_thread(has_validated_fixture_wifi),
+                'app_in_foreground': await asyncio.to_thread(fixture_app_at_front),
+                'same_encrypted_refresh': (await fixture_vault()).findtext("./string[@name='refresh']") == original_ciphertext,
+            }
+            (OUT/'android-cold-fault.json').write_text(json.dumps(facts, indent=2))
+            await asyncio.to_thread(screenshot, 'android-cold-fault.png')
+            print(f'Native cold-start failure evidence: {facts}', flush=True)
+            raise
     faults['health_unavailable'] = False
     await asyncio.to_thread(adb, 'shell', 'am', 'start', '-W', '-n', f'{PACKAGE}/.MainActivity')
+    await wait_for_fixture_foreground(True)
     await asyncio.to_thread(node, 'Комнаты')
     assert health_events[health_before:] == [503, 503, 200]
     assert refresh_count() == refresh_before + 1
