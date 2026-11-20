@@ -107,3 +107,48 @@ describe('memory-only Core session', () => {
     expect(session.getSnapshot().status).toBe('authenticated');
   });
 });
+
+describe('Android refresh vault contract', () => {
+  function mobile(initial: string | null = null) {
+    let stored = initial;
+    const trace: string[] = [];
+    const vault = {
+      take: vi.fn(async () => { const value = stored; stored = null; trace.push('take'); return value; }),
+      save: vi.fn(async (key: string) => { stored = key; trace.push('save'); }),
+      clear: vi.fn(async () => { stored = null; trace.push('clear'); }),
+    };
+    const transport = vi.fn<typeof fetch>();
+    const fetcher: typeof fetch = async (url, config) => { trace.push(String(url)); return transport(url, config); };
+    const session = new CoreSession(new HttpClient('/core-api', fetcher), Date.now, vault);
+    return { trace, vault, transport, session, stored: () => stored };
+  }
+  it('restores once by taking the old refresh before network, checks owner then holds the rotated refresh only', async () => {
+    const h = mobile(tokenPair.refresh_token);
+    h.transport.mockResolvedValueOnce(Response.json(rotated)).mockResolvedValueOnce(Response.json(coreUser));
+    await Promise.all([h.session.resume(), h.session.resume()]);
+    expect(h.trace).toEqual(['take', '/core-api/auth/refresh', '/core-api/auth/me', 'save']);
+    expect(h.stored()).toBe(rotated.refresh_token);
+    expect(h.session.getSnapshot()).toMatchObject({ status: 'authenticated', user: { id: coreUser.id } });
+    expect(JSON.stringify(h.session.getSnapshot())).not.toContain(rotated.refresh_token);
+  });
+  it('requires login after a lost refresh without retry or saving the uncertain token', async () => {
+    const h = mobile(tokenPair.refresh_token);
+    h.transport.mockRejectedValueOnce(new TypeError('network'));
+    await h.session.resume();
+    await h.session.resume();
+    expect(h.trace).toEqual(['take', '/core-api/auth/refresh', 'take']);
+    expect(h.stored()).toBeNull();
+    expect(h.session.getSnapshot().status).toBe('anonymous');
+  });
+  it('clears the vault before remote logout even when offline', async () => {
+    const h = mobile();
+    h.transport.mockResolvedValueOnce(Response.json(tokenPair)).mockResolvedValueOnce(Response.json(coreUser));
+    await h.session.login('homeowner@example.test', 'test-input');
+    expect(h.stored()).toBe(tokenPair.refresh_token);
+    h.transport.mockRejectedValueOnce(new TypeError('network'));
+    await h.session.logout();
+    expect(h.trace.slice(-2)).toEqual(['clear', '/core-api/auth/logout']);
+    expect(h.stored()).toBeNull();
+    expect(h.session.getSnapshot().status).toBe('anonymous');
+  });
+});

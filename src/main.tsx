@@ -1,4 +1,5 @@
-import { StrictMode } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { StrictMode, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '@fontsource-variable/manrope';
@@ -18,17 +19,20 @@ import { CoreWorkspace } from './app/core-workspace';
 import { StatePanel } from './components/ui/state-panel';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false }, mutations: { retry: false } } });
-function configure() {
+// eslint-disable-next-line react-refresh/only-export-components -- entry-point-only lazy native shell
+const AndroidWorkspace = lazy(() => import('./mobile/android-workspace').then(module => ({ default: module.AndroidWorkspace })));
+function configure(): { services?: ReturnType<typeof createServices>; error?: string } {
   try { return { services: createServices(parseEnvironment(import.meta.env)) }; }
   catch (error) { return { error: error instanceof Error ? error.message : 'Check frontend configuration.' }; }
 }
-const configuration = configure();
+const android = Capacitor.getPlatform() === 'android' && Capacitor.isNativePlatform();
+const configuration = android ? {} : configure();
 const root = document.getElementById('root');
 if (!root) throw new Error('KZ Home root element is missing.');
 
 createRoot(root).render(<StrictMode><ErrorBoundary><ThemeProvider><QueryClientProvider client={queryClient}>
-  {configuration.services ? configuration.services.mode === 'mock'
+  {android ? <Suspense fallback={<main className="session-page"><p role="status">Открываем KZ Home…</p></main>}><AndroidWorkspace /></Suspense> : configuration.services ? configuration.services.mode === 'mock'
     ? <RepositoryProvider value={configuration.services.repository}><App /></RepositoryProvider>
     : <CoreWorkspace services={configuration.services} />
-    : <main className="session-page"><StatePanel kind="error" title="Connection configuration needs attention" description={configuration.error} /></main>}
+    : <main className="session-page"><StatePanel kind="error" title="Connection configuration needs attention" description={configuration.error ?? 'Check frontend configuration.'} /></main>}
 </QueryClientProvider></ThemeProvider></ErrorBoundary></StrictMode>);
