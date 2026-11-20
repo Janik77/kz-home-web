@@ -19,6 +19,7 @@ import { CoreWorkspace } from './app/core-workspace';
 import { StatePanel } from './components/ui/state-panel';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false }, mutations: { retry: false } } });
+// eslint-disable-next-line react-refresh/only-export-components -- entry-point-only lazy native shell
 const AndroidWorkspace = lazy(() => import('./mobile/android-workspace').then(module => ({ default: module.AndroidWorkspace })));
 function configure(): { services?: ReturnType<typeof createServices>; error?: string } {
   try { return { services: createServices(parseEnvironment(import.meta.env)) }; }

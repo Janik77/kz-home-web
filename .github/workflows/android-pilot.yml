@@ -7,6 +7,9 @@ on:
       - 'capacitor.config.ts'
       - 'package*.json'
       - '.github/workflows/android-pilot.yml'
+      - 'scripts/android-*.sh'
+      - 'scripts/android-pilot-trust.py'
+      - 'e2e/android-pilot-live.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -29,17 +32,12 @@ jobs:
           export PATH="$JAVA_HOME/bin:$PATH"
           java -version
           export ANDROID_HOME="$RUNNER_TEMP/kz-android-sdk"
-          tool_url=https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip
-          curl --fail --location --silent --show-error --max-time 180 "$tool_url" -o "$RUNNER_TEMP/kz-sdk-tools.zip"
-          printf '%s  %s\n' 7ec965280a073311c339e571cd5de778b9975026cfcbe79f2b1cdcb1e15317ee "$RUNNER_TEMP/kz-sdk-tools.zip" | sha256sum -c -
-          mkdir -p "$ANDROID_HOME/cmdline-tools"
-          unzip -q "$RUNNER_TEMP/kz-sdk-tools.zip" -d "$ANDROID_HOME/cmdline-tools"
-          mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/19.0"
-          manager="$ANDROID_HOME/cmdline-tools/19.0/bin/sdkmanager"
-          "$manager" --licenses < <(yes) >/dev/null
-          "$manager" 'platforms;android-36' 'build-tools;36.0.0' 'platform-tools' >/dev/null
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+          bash scripts/android-ci-sdk.sh
           npm ci
-          npm run typecheck && npm run lint && npm test
+          npm run typecheck
+          npm run lint
+          npm test
           npm run android:sync
           (cd android && ./gradlew --no-daemon assembleDebug lintDebug)
           mkdir -p apk-evidence
@@ -53,3 +51,75 @@ jobs:
           name: kz-home-android-pilot-${{ github.event.pull_request.head.sha || github.sha }}
           path: apk-evidence/
           if-no-files-found: error
+  emulator:
+    needs: assemble
+    runs-on: ubuntu-24.04
+    timeout-minutes: 42
+    env:
+      KZ_PILOT_CORE_SHA: 80770e8a3f59d0bd7fb825345f0ca7589dd26f23
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: web
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: Janik77/kz-home-core
+          ref: ${{ env.KZ_PILOT_CORE_SHA }}
+          path: core
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - name: Confirm hardware virtualization in disposable runner
+        run: |
+          test -c /dev/kvm || { echo 'Android emulation unavailable: runner has no /dev/kvm'; exit 1; }
+          if [[ ! -r /dev/kvm || ! -w /dev/kvm ]]; then
+            command -v setfacl >/dev/null || { echo 'Runner KVM access unavailable'; exit 1; }
+            sudo setfacl -m "u:$(id -un):rw" /dev/kvm
+          fi
+      - name: Prepare exact-CA fixture APK and Android emulator
+        working-directory: web
+        run: |
+          export JAVA_HOME="$JAVA_HOME_21_X64" ANDROID_HOME="$RUNNER_TEMP/kz-android-sdk" ANDROID_USER_HOME="$RUNNER_TEMP/kz-android-user"
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+          export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
+          mkdir -p "$ANDROID_USER_HOME"
+          bash scripts/android-ci-sdk.sh emulator 'system-images;android-35;google_apis;x86_64'
+          printf 'no\n' | "$ANDROID_HOME/cmdline-tools/19.0/bin/avdmanager" create avd -n kz-ci -k 'system-images;android-35;google_apis;x86_64' --force
+          "$ANDROID_HOME/emulator/emulator" -avd kz-ci -no-window -no-snapshot -no-audio -gpu swiftshader_indirect -accel on > "$RUNNER_TEMP/kz-emulator.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/kz-emulator.pid"
+          bash scripts/android-ci-cert.sh "$RUNNER_TEMP/kz-android-fixture-cert"
+          python scripts/android-pilot-trust.py --host 10.0.2.2 --ca "$RUNNER_TEMP/kz-android-fixture-cert/ca.pem" --output "$RUNNER_TEMP/kz-android-trust"
+          npm ci
+          npm run android:sync
+          (cd android && ./gradlew --no-daemon "-PkzHomeTrustDir=$RUNNER_TEMP/kz-android-trust" assembleDebug)
+          timeout 150 adb wait-for-device
+          timeout 150 bash -c 'until [[ "$(adb shell getprop sys.boot_completed | tr -d "\r")" == 1 ]]; do sleep 2; done'
+          adb shell input keyevent 82
+      - name: Verify installed Android against same Core + browser, not the owner network
+        working-directory: web
+        run: |
+          export PATH="$RUNNER_TEMP/kz-android-sdk/platform-tools:$PATH"
+          export KZ_PILOT_CORE="$GITHUB_WORKSPACE/core" KZ_PILOT_EMULATOR_CERT="$RUNNER_TEMP/kz-android-fixture-cert"
+          export KZ_PILOT_FIXTURE_APK="$PWD/android/app/build/outputs/apk/debug/app-debug.apk" KZ_PILOT_EVIDENCE="$PWD/android-evidence"
+          python -m pip install -r ../core/requirements-dev.txt
+          python -m pip install playwright==1.65.0
+          python -B e2e/android-pilot-live.py
+      - name: Stop only the fixture emulator
+        if: always()
+        run: |
+          if [[ -f "$RUNNER_TEMP/kz-emulator.pid" ]]; then kill "$(cat "$RUNNER_TEMP/kz-emulator.pid")" || true; fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: kz-home-android-emulator-evidence-${{ github.event.pull_request.head.sha || github.sha }}
+          path: web/android-evidence/
+          if-no-files-found: ignore
