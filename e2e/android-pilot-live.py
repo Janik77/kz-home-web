@@ -37,9 +37,10 @@ def adb(*args, binary=False):
                                    text=not binary, timeout=20)
 
 
-def node(selector, timeout=25, field=None):
+def node(selector, timeout=25, field=None, stable=False, prefix=False):
     end = time.monotonic() + timeout
     last_structure = []
+    previous_center = None
     labels = {'core-address': 'Адрес Core', 'login-email': 'Электронная почта', 'login-password': 'Пароль'}
     while time.monotonic() < end:
         try:
@@ -56,18 +57,27 @@ def node(selector, timeout=25, field=None):
                     return ((numbers[0] + numbers[2]) // 2, (numbers[1] + numbers[3]) // 2)
                 return None
 
+            candidates = []
             for item in elements:
                 if item.get('package') != PACKAGE or field is not None and not item.get('class','').endswith('EditText'):
                     continue
                 description = item.get('content-desc', '')
                 resource = item.get('resource-id', '').rsplit('/',1)[-1]
-                matches = selector in (item.get('text'), description, resource)
+                accessible = (item.get('text', ''), description)
+                matches = selector in (*accessible, resource) or prefix and any(value.startswith(selector + ' ') for value in accessible)
                 if field is not None:
                     label = labels[selector]
                     matches = matches or any((value or '').startswith(label) for value in (description, item.get('text')))
                 result = center(item)
                 if matches and result:
+                    candidates.append((item.get('clickable') == 'true', result))
+            if candidates:
+                result = max(candidates, key=lambda item: item[0])[1]
+                if not stable or result == previous_center:
                     return result
+                previous_center = result
+            else:
+                previous_center = None
             # Some WebView versions omit DOM IDs and label the form but not
             # individual nodes. Only choose in a known, separately checked app screen.
             if field is not None:
@@ -87,8 +97,8 @@ def node(selector, timeout=25, field=None):
     raise AssertionError(f'Visible Android UI element not found: {selector}')
 
 
-def tap(selector):
-    x, y = node(selector)
+def tap(selector, stable=False, prefix=False):
+    x, y = node(selector, stable=stable, prefix=prefix)
     adb('shell', 'input', 'tap', str(x), str(y))
 
 
@@ -100,6 +110,13 @@ def enter(selector, text):
     if not re.fullmatch(r'[A-Za-z0-9_@.:/\-]+', text):
         raise AssertionError('Unexpected emulator fixture input')
     adb('shell', 'input', 'text', text)
+
+
+def close_ime():
+    adb('shell', 'input', 'keyevent', '4')
+    # Wait through the OS IME settle animation. The next tap also requires the
+    # same visible button center over two actual accessibility dumps.
+    time.sleep(.8)
 
 
 def connect_fixture_wifi():
@@ -126,6 +143,7 @@ def screenshot(name):
 def tls_proxy(baseurl):
     upstream = urlsplit(baseurl)
     mutations = []
+    health_events = []
     class Proxy(BaseHTTPRequestHandler):
         def log_message(self, *_):
             pass
@@ -143,6 +161,8 @@ def tls_proxy(baseurl):
                     {h: self.headers[h] for h in ('Authorization', 'Content-Type', 'Idempotency-Key', 'Accept')
                      if h in self.headers})
                 response = connection.getresponse()
+                if self.command == 'GET' and urlsplit(self.path).path == '/health':
+                    health_events.append(response.status)
                 data = response.read()
                 self.send_response(response.status)
                 for name in ('Content-Type', 'Retry-After'):
@@ -162,7 +182,7 @@ def tls_proxy(baseurl):
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
-        yield mutations
+        yield mutations, health_events
     finally:
         server.shutdown()
         server.server_close()
@@ -207,7 +227,7 @@ async def acceptance(values):
             cwd=WEB, env={**os.environ, 'VITE_DATA_MODE': 'core', 'VITE_API_URL': '/core-api',
                           'CORE_DEV_PROXY_TARGET': api.base}, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
-            with tls_proxy(api.base) as mutations, contextlib.ExitStack() as recorder_cleanup:
+            with tls_proxy(api.base) as (mutations, health_events), contextlib.ExitStack() as recorder_cleanup:
                 async with async_playwright() as playwright:
                     browser = await playwright.chromium.launch(channel='chrome', chromium_sandbox=True)
                     page = await browser.new_page(viewport={'width': 1060, 'height': 800})
@@ -237,25 +257,27 @@ async def acceptance(values):
                         # Still before any password or token was entered.
                         await asyncio.to_thread(screenshot, 'android-first-use-failure.png')
                         raise
-                    await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '4')  # close keyboard
-                    await asyncio.to_thread(tap, 'Продолжить')
+                    await asyncio.to_thread(close_ime)
+                    await asyncio.to_thread(tap, 'Продолжить', stable=True)
                     try:
                         await asyncio.to_thread(node, 'Вход в дом')
                     except AssertionError:
                         # Network/TLS failure capture precedes all credentials.
                         await asyncio.to_thread(screenshot, 'android-prelogin-failure.png')
+                        print(f'Native synthetic HTTPS health response codes before timeout: {health_events}', flush=True)
                         raise
+                    assert health_events == [200], health_events
                     print('Native APK completed TLS health verification; login screen is visible', flush=True)
                     await asyncio.to_thread(enter, 'login-email', 'owner@example.test')
-                    await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '4')  # real system Back closes IME
+                    await asyncio.to_thread(close_ime)  # real system Back closes IME
                     await asyncio.to_thread(node, 'Вход в дом')
                     await asyncio.to_thread(enter, 'login-password', seed['password'])
-                    await asyncio.to_thread(adb, 'shell', 'input', 'keyevent', '4')
-                    await asyncio.to_thread(tap, 'Войти')
+                    await asyncio.to_thread(close_ime)
+                    await asyncio.to_thread(tap, 'Войти', stable=True)
                     await asyncio.to_thread(node, 'Комнаты')
                     print('Native APK authenticated to Core and displayed the selected home', flush=True)
                     await asyncio.to_thread(tap, 'Комнаты')
-                    await asyncio.to_thread(tap, 'Room')
+                    await asyncio.to_thread(tap, 'Room', prefix=True)
                     recorder = subprocess.Popen(['adb','shell','screenrecord','--time-limit','90',
                         '/data/local/tmp/kz-pilot.mp4'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                     recorder_cleanup.callback(lambda: recorder.terminate() if recorder.poll() is None else None)
@@ -263,6 +285,8 @@ async def acceptance(values):
                     await wait_value(api, True)
                     await asyncio.to_thread(node, 'Включено')
                     await page.get_by_role('link', name='Главная', exact=True).click()
+                    await page.get_by_role('button', name='Обновить данные', exact=True).click()
+                    await page.get_by_role('link', name='Устройства', exact=True).click()
                     await expect(card.get_by_text('Включено', exact=True)).to_be_visible(timeout=15_000)
                     print('Phone command confirmed, desktop observed same state', flush=True)
                     await page.screenshot(path=OUT/'desktop-same-ack.png')
