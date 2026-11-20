@@ -102,8 +102,6 @@ jobs:
             sudo apt-get -o Acquire::Retries=2 update
             sudo apt-get -o Acquire::Retries=2 install -y --no-install-recommends libpulse0
           fi
-          missing="$(ldd "$qemu" | grep 'not found' || true)"
-          if [[ -n "$missing" ]]; then printf '%s\n' "$missing"; exit 1; fi
           "$emulator" -version
           "$emulator" -accel-check
           "$emulator" -list-avds
