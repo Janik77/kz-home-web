@@ -61,7 +61,8 @@ it('backs off errors without unmounting drafts or claiming success, then recover
   expect(screen.getByLabelText('draft')).toHaveValue('keep me');
 });
 
-it('limits live subscription to Home and a device detail', () => {
+it('limits live subscription to Home, room controls and device detail', () => {
   expect(isLiveHomePage('/')).toBe(true); expect(isLiveHomePage('/devices/relay')).toBe(true);
-  for (const path of ['/devices', '/automations', '/scenes', '/settings', '/rooms']) expect(isLiveHomePage(path)).toBe(false);
+  expect(isLiveHomePage('/rooms/room-a')).toBe(true); expect(isLiveHomePage('/rooms/room-a/')).toBe(true);
+  for (const path of ['/devices', '/automations', '/scenes', '/settings', '/rooms', '/rooms/room-a/other']) expect(isLiveHomePage(path)).toBe(false);
 });

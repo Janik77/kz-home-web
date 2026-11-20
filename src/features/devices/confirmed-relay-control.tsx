@@ -33,7 +33,7 @@ export function ConfirmedRelayControl({ device, everyday = false, explicitPower 
   const home = useHome();
   const control = repository.relayControl;
   const client = useQueryClient();
-  const eligibility = useQuery({ queryKey: ['relay-eligibility'], queryFn: ({ signal }) => control!.eligible(signal), enabled: !!control, retry: false, staleTime: 0 });
+  const eligibility = useQuery({ queryKey: ['relay-eligibility'], queryFn: ({ signal }) => control!.eligible(signal), enabled: !!control && device.connection === 'online' && !home.isError, retry: false, staleTime: 0 });
   const running = useRef<AbortController | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');

@@ -38,9 +38,11 @@ test('LIVE room → delayed light → favorite → F5 → scene → journal, wit
   await expect(page.getByText(/Адрес открытого экрана сохраняется/)).toBeVisible();
   expect(sends).toHaveLength(1); await login(); await expect(page).toHaveURL(/\/rooms\/fixture_room$/);
   await expect(page.getByRole('button', { name: 'Убрать из избранного: Software relay', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await control('offline'); await expect(page.getByText('Устройство не в сети', { exact: true })).toBeVisible({ timeout: 15000 });
+  await control('offline'); await expect.poll(async () => (await control('device')).online).toBe(false);
+  await expect(page.getByText('Устройство не в сети', { exact: true })).toBeVisible({ timeout: 15000 });
   await expect(page.getByRole('button', { name: 'Выключить', exact: true })).toBeDisabled(); expect(sends).toHaveLength(1);
-  await control('online'); await control('refresh'); await expect(page.getByRole('button', { name: 'Выключить', exact: true })).toBeEnabled({ timeout: 15000 });
+  await control('online'); await control('refresh'); await expect.poll(async () => (await control('device')).online).toBe(true);
+  await expect(page.getByRole('button', { name: 'Выключить', exact: true })).toBeEnabled({ timeout: 15000 });
   await nav('Сценарии'); await page.getByRole('button', { name: 'Создать сценарий', exact: true }).click();
   const name = info.project.name === 'mobile' ? 'Ушёл из дома' : 'Ушёл из дома · компьютер';
   await page.getByLabel('Название сценария', { exact: true }).fill(name);

@@ -9,7 +9,7 @@ const controlsKey = ['home-controls'] as const;
 // Only the shell owns the timer. Other consumers share this query/cache.
 export const liveHomeInterval = 5_000;
 export function isLiveHomePage(pathname: string) {
-  return pathname === '/' || /^\/devices\/[^/]+\/?$/.test(pathname);
+  return pathname === '/' || /^\/(?:devices|rooms)\/[^/]+\/?$/.test(pathname);
 }
 
 export function useHome({ live = false }: { live?: boolean } = {}) {

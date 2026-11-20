@@ -98,3 +98,23 @@ it('everyday single action retains state while awaiting ACK and state, then chan
   expect(screen.getByRole('status')).toHaveTextContent('Выполнено · состояние обновлено');
   expect(screen.queryByText(/Core/)).toBeNull();
 });
+
+it('checks fresh control eligibility when an offline relay returns, without issuing a command', async () => {
+  let client!: QueryClient;
+  function Probe() { client = useQueryClient(); return null; }
+  const offlineHome = { ...initialHome, devices: [{ ...device, connection: 'offline' as const }] };
+  const base = createMockHomeRepository(offlineHome, 0);
+  const run = vi.fn<RelayControl['run']>();
+  const eligible = vi.fn<RelayControl['eligible']>().mockResolvedValue([device.id]);
+  renderHome({ ...base, relayControl: { eligible, run } }, home => <>
+    <Probe /><ConfirmedRelayControl device={home.devices[0]!} everyday />
+  </>);
+  const on = await screen.findByRole('button', { name: 'Включить' });
+  expect(on).toBeDisabled();
+  expect(screen.getByText('Устройство не в сети')).toBeVisible();
+  expect(eligible).not.toHaveBeenCalled();
+  act(() => client.setQueryData(homeKey, { ...offlineHome, devices: [device] }));
+  await waitFor(() => expect(on).toBeEnabled());
+  expect(eligible).toHaveBeenCalledTimes(1);
+  expect(run).not.toHaveBeenCalled();
+});
