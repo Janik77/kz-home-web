@@ -91,28 +91,60 @@ jobs:
           export JAVA_HOME="$JAVA_HOME_21_X64" ANDROID_HOME="$RUNNER_TEMP/kz-android-sdk" ANDROID_USER_HOME="$RUNNER_TEMP/kz-android-user"
           export ANDROID_SDK_ROOT="$ANDROID_HOME"
           export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
-          mkdir -p "$ANDROID_USER_HOME"
+          export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+          mkdir -p "$ANDROID_USER_HOME" "$ANDROID_AVD_HOME"
           bash scripts/android-ci-sdk.sh emulator 'system-images;android-35;google_apis;x86_64'
           printf 'no\n' | "$ANDROID_HOME/cmdline-tools/19.0/bin/avdmanager" create avd -n kz-ci -k 'system-images;android-35;google_apis;x86_64' --force
-          "$ANDROID_HOME/emulator/emulator" -avd kz-ci -no-window -no-snapshot -no-audio -gpu swiftshader_indirect -accel on > "$RUNNER_TEMP/kz-emulator.log" 2>&1 &
-          echo "$!" > "$RUNNER_TEMP/kz-emulator.pid"
+          emulator="$ANDROID_HOME/emulator/emulator"
+          "$emulator" -version
+          "$emulator" -accel-check
+          "$emulator" -list-avds
+          adb start-server
+          "$emulator" -avd kz-ci -port 5554 -no-window -no-snapshot -no-audio -no-boot-anim -gpu swiftshader -accel on > "$RUNNER_TEMP/kz-emulator.log" 2>&1 &
+          emulator_pid=$!
+          echo "$emulator_pid" > "$RUNNER_TEMP/kz-emulator.pid"
+          # Check actual process state and adb, not a blind wait-for-device timeout.
+          booted=false
+          for _ in {1..100}; do
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then
+              echo 'Android emulator process exited before boot'
+              tail -100 "$RUNNER_TEMP/kz-emulator.log"
+              exit 1
+            fi
+            if [[ "$(adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == 1 ]]; then
+              booted=true
+              break
+            fi
+            sleep 3
+          done
+          adb devices -l
+          if [[ "$booted" != true ]]; then
+            tail -100 "$RUNNER_TEMP/kz-emulator.log"
+            exit 1
+          fi
+          adb -s emulator-5554 shell input keyevent 82
           bash scripts/android-ci-cert.sh "$RUNNER_TEMP/kz-android-fixture-cert"
           python scripts/android-pilot-trust.py --host 10.0.2.2 --ca "$RUNNER_TEMP/kz-android-fixture-cert/ca.pem" --output "$RUNNER_TEMP/kz-android-trust"
           npm ci
           npm run android:sync
           (cd android && ./gradlew --no-daemon "-PkzHomeTrustDir=$RUNNER_TEMP/kz-android-trust" assembleDebug)
-          timeout 150 adb wait-for-device
-          timeout 150 bash -c 'until [[ "$(adb shell getprop sys.boot_completed | tr -d "\r")" == 1 ]]; do sleep 2; done'
-          adb shell input keyevent 82
       - name: Verify installed Android against same Core + browser, not the owner network
         working-directory: web
         run: |
           export PATH="$RUNNER_TEMP/kz-android-sdk/platform-tools:$PATH"
+          export ANDROID_SERIAL=emulator-5554
           export KZ_PILOT_CORE="$GITHUB_WORKSPACE/core" KZ_PILOT_EMULATOR_CERT="$RUNNER_TEMP/kz-android-fixture-cert"
           export KZ_PILOT_FIXTURE_APK="$PWD/android/app/build/outputs/apk/debug/app-debug.apk" KZ_PILOT_EVIDENCE="$PWD/android-evidence"
           python -m pip install -r ../core/requirements-dev.txt
           python -m pip install playwright==1.65.0
           python -B e2e/android-pilot-live.py
+      - name: Preserve only emulator startup diagnostics
+        if: failure()
+        run: |
+          if [[ -f "$RUNNER_TEMP/kz-emulator.log" ]]; then
+            mkdir -p web/android-evidence
+            cp "$RUNNER_TEMP/kz-emulator.log" web/android-evidence/emulator-boot.log
+          fi
       - name: Stop only the fixture emulator
         if: always()
         run: |
