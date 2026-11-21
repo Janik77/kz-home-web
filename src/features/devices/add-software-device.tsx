@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { useRepository } from '../../app/services';
@@ -14,6 +14,7 @@ const label = { relay: 'Программное реле', temperature_sensor: '�
 const inactive = (error: unknown) => error instanceof CoreError && ['not-found', 'forbidden'].includes(error.kind);
 
 export function AddSoftwareDevice({ home }: { home: HomeSnapshot }) {
+  const formId = useId();
   const api = useRepository().softwareOnboarding;
   const client = useQueryClient();
   const key = ['software-device-candidates', home.house.id] as const;
@@ -62,18 +63,18 @@ export function AddSoftwareDevice({ home }: { home: HomeSnapshot }) {
       <fieldset disabled={busy || !!unknown}>
         <legend>Тестовый стенд: программное устройство</legend>
         <p>Способ подключения: MQTT. Этот шаг не подключает физические устройства.</p>
-        <label>Устройство<select required value={selected} onChange={event => setSelected(event.target.value)}>
+        <label htmlFor={formId + "-device"}><span id={formId + "-device-label"}>Устройство</span><select id={formId + "-device"} aria-labelledby={formId + "-device-label"} required value={selected} onChange={event => setSelected(event.target.value)}>
           <option value="">Выберите устройство</option>{candidates.data?.map(item => <option key={item.id} value={item.id}>{label[item.type]} · {item.id}</option>)}
         </select></label>
         {candidates.isError && !inactive(candidates.error) && <p role="alert">Список устройств недоступен. <Button variant="quiet" onClick={() => void candidates.refetch()}>Обновить список</Button></p>}
         {candidates.isError && inactive(candidates.error) && <p role="alert">Добавление сейчас недоступно.</p>}
         {candidates.isSuccess && !candidates.data.length && <p>На этом стенде нет свободных программных устройств.</p>}
-        <label>Дом<input readOnly value={home.house.name} /></label>
-        <label>Комната<select required value={roomId} onChange={event => setRoomId(event.target.value)}>
+        <label htmlFor={formId + "-house"}><span id={formId + "-house-label"}>Дом</span><input id={formId + "-house"} aria-labelledby={formId + "-house-label"} readOnly value={home.house.name} /></label>
+        <label htmlFor={formId + "-room"}><span id={formId + "-room-label"}>Комната</span><select id={formId + "-room"} aria-labelledby={formId + "-room-label"} required value={roomId} onChange={event => setRoomId(event.target.value)}>
           <option value="">Выберите комнату</option>{home.rooms.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}
         </select></label>
         {!home.rooms.length && <Link to="/rooms">Сначала добавьте комнату</Link>}
-        <label>Название<input required maxLength={255} value={name} onChange={event => setName(event.target.value)} /></label>
+        <label htmlFor={formId + "-name"}><span id={formId + "-name-label"}>Название</span><input id={formId + "-name"} aria-labelledby={formId + "-name-label"} required maxLength={255} value={name} onChange={event => setName(event.target.value)} /></label>
       </fieldset>
       <div className="definition-buttons">
         {unknown ? <Button disabled={busy} onClick={() => void run(true)}>Проверить привязку</Button>

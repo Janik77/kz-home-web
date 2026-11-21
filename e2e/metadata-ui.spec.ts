@@ -16,6 +16,7 @@ for (const theme of ['light', 'dark']) test(`metadata rename, move and conflict 
  let writes = 0;
  await page.route('**/core-api/**', async route => {
   const req = route.request(), url = new URL(req.url()), path = url.pathname.replace('/core-api', '') + url.search;
+  if (route.request().method() === 'GET' && /^\/v1\/houses\/house-[ab]\/software-device-candidates$/.test(path)) return route.fulfill({status:404});
   if (path.endsWith('/me/permissions')) return route.fulfill({ json: { house_id: 'house-a', permissions: ['house.read', 'house.manage', 'device.read', 'device.manage', 'event.read'] } });
   if (path.includes('/me/device-favorites')) return route.fulfill({ json: { device_ids: [] } });
   if (path.startsWith('/events') || path === '/automations') return route.fulfill({ json: [] });

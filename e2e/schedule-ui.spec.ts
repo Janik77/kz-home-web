@@ -9,6 +9,7 @@ for (const theme of ['light', 'dark']) test(`schedule UI ${theme}`, async ({ pag
  let rule: Record<string, unknown> | null=null;
  await page.route('**/core-api/**',async route=> {
   const req=route.request(),url=new URL(req.url()),path=url.pathname.replace('/core-api','')+url.search;
+  if (route.request().method() === 'GET' && /^\/v1\/houses\/house-[ab]\/software-device-candidates$/.test(path)) return route.fulfill({status:404});
   if(path.endsWith('/me/permissions')) return route.fulfill({json:{house_id:'house-a',permissions:['device.read','automation.read','automation.manage','house.read','house.manage']}});
   if(path.includes('/me/device-favorites')) return route.fulfill({json:{device_ids:[]}});
   if(path==='/houses/house-a') { if(req.method()==='PATCH') {const body=req.postDataJSON();expect(body.expected_timezone_revision).toBe(revision);timezone=body.timezone;revision++;} return route.fulfill({json:{id:'house-a',name:'Family home',timezone,timezone_revision:revision}}); }
