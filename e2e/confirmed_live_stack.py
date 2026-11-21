@@ -30,7 +30,8 @@ def docker(*args, check=True, **kwargs):
 
 
 class Services:
-    def __init__(self):
+    def __init__(self, *, sensor=False):
+        self.sensor = sensor
         self.name = "kz-control-lab-" + uuid4().hex[:12]
         self.directory = Path(tempfile.mkdtemp(prefix=self.name + "-"))
         # Mosquitto drops to its own UID inside the container on Linux.
@@ -97,6 +98,9 @@ openssl req -x509 -newkey rsa:2048 -nodes -keyout wrong.key -out wrong.crt -days
         acl += f"topic read {prefix}/set\n" + "\n".join(
             f"topic write {prefix}/{kind}" for kind in ("ack", "state", "status")
         ) + "\n"
+        if self.sensor:
+            acl += "".join(f"topic write kzhome/v1/fixture_house/fixture_temp/{kind}\n"
+                           for kind in ("status", "state"))
         (self.directory / "acl").write_text(acl, encoding="utf-8")
         (self.directory / "mosquitto.conf").write_text(
             """listener 8883
@@ -242,7 +246,7 @@ log_type all
 
 
 @asynccontextmanager
-async def stack(core, *, postgres_gate=None, software_onboarding=False):
+async def stack(core, *, postgres_gate=None, software_onboarding=False, sensor_restart=None):
     from alembic import command
     from alembic.config import Config as AlembicConfig
     from alembic.script import ScriptDirectory
@@ -257,7 +261,10 @@ async def stack(core, *, postgres_gate=None, software_onboarding=False):
     from simulator.mqtt_relay import Config
     import uvicorn
 
-    services = Services()
+    if sensor_restart is not None and not software_onboarding:
+        raise ValueError("Sensor restart requires an explicitly enabled disposable onboarding lab")
+    services = Services(sensor=sensor_restart is not None)
+    port = 0
     engine = server = serve_task = sock = None
     try:
         services.start()
@@ -304,33 +311,53 @@ async def stack(core, *, postgres_gate=None, software_onboarding=False):
         finally:
             os.environ.clear()
             os.environ.update(environment)
+        sensor_devices = (("fixture_house", "fixture_temp"),) if services.sensor else ()
+        sensor_candidates = tuple((*device, "temperature_sensor") for device in sensor_devices)
         settings = Settings(database_url=app_db_url, app_env="test" if software_onboarding else "production",
             auth_jwt_secret=jwt_secret, mqtt_enabled=True, mqtt_host="localhost",
             mqtt_port=services.mqtt_port, mqtt_tls_enabled=True,
             mqtt_client_id=services.name + "-core", mqtt_username="core_lab",
             mqtt_password=services.password,
-            mqtt_software_devices=(("fixture_house", "fixture_relay"),),
-            **({"software_device_candidates": (("fixture_house", "fixture_relay", "relay"),)}
+            mqtt_software_devices=(("fixture_house", "fixture_relay"),) + sensor_devices,
+            **({"software_device_candidates": (("fixture_house", "fixture_relay", "relay"),) + sensor_candidates}
                if software_onboarding else {}))
-        wire = AiomqttClient(host="localhost", port=services.mqtt_port,
-            username="core_lab", password=services.password, tls_enabled=True,
-            keepalive=15, client_id=settings.mqtt_client_id)
-        # Supply the disposable CA; hostname/certificate verification stays on.
-        wire._options["tls_context"] = ssl.create_default_context(
-            cafile=str(services.directory / "ca.crt"))
-        app = create_app(settings, run_simulator=False, mqtt_client=wire)
-        server = uvicorn.Server(uvicorn.Config(app, log_level="warning",
-            access_log=False, lifespan="on", loop="asyncio"))
-        sock = socket.socket()
-        sock.bind(("127.0.0.1", 0))
-        port = sock.getsockname()[1]
-        serve_task = asyncio.create_task(server.serve(sockets=[sock]))
-        async with asyncio.timeout(30):
-            while not server.started or not app.state.mqtt_gateway.connected:
-                if serve_task.done():
-                    await serve_task
-                    raise RuntimeError("Owned Core exited before MQTT readiness")
-                await asyncio.sleep(0.05)
+        previous_core = [None]
+        async def start_core():
+            nonlocal server, serve_task, sock, port
+            wire = AiomqttClient(host="localhost", port=services.mqtt_port,
+                username="core_lab", password=services.password, tls_enabled=True,
+                keepalive=15, client_id=settings.mqtt_client_id)
+            # Supply the disposable CA; hostname/certificate verification stays on.
+            wire._options["tls_context"] = ssl.create_default_context(
+                cafile=str(services.directory / "ca.crt"))
+            app = create_app(settings, run_simulator=False, mqtt_client=wire)
+            try:
+                assert app.state is not previous_core[0], "Core application was not rebuilt"
+            finally:
+                previous_core[0] = app.state
+            server = uvicorn.Server(uvicorn.Config(app, log_level="warning",
+                access_log=False, lifespan="on", loop="asyncio"))
+            sock = socket.socket()
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind(("127.0.0.1", port))
+            port = sock.getsockname()[1]
+            serve_task = asyncio.create_task(server.serve(sockets=[sock]))
+            async with asyncio.timeout(30):
+                while not server.started or not app.state.mqtt_gateway.connected:
+                    if serve_task.done():
+                        await serve_task
+                        raise RuntimeError("Owned Core exited before MQTT readiness")
+                    await asyncio.sleep(0.05)
+
+        async def restart_core():
+            server.should_exit = True
+            await asyncio.wait_for(serve_task, 15)
+            sock.close()
+            await start_core()
+
+        await start_core()
+        if sensor_restart is not None:
+            sensor_restart.append(restart_core)
         config = Config("localhost", services.mqtt_port, "software_lab",
             services.password, str(services.directory / "ca.crt"),
             "fixture_house", "fixture_relay", services.name + "-relay")
