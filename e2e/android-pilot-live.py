@@ -442,11 +442,8 @@ async def wait_value(api, wanted):
 async def acceptance(values, postgres_gate):
     config, seed, ids, api, sql, schema = values
     assert schema == '0018_scene_drafts'
-    await provision(api, ids, seed)
-    await api.request('POST', '/scenes', {
-        'id': 'run_away', 'house_id': 'fixture_house', 'name': 'Ушёл из дома',
-        'actions': [{'type': 'device_state', 'device_id': 'fixture_relay', 'state': {'on': False}}],
-    })
+    await provision(api, ids, seed, preseed_relay=False)
+    assert await api.request('GET', '/devices?house_id=fixture_house') == []
     received = []
     release_first_ack = asyncio.Event()
     first_mqtt = asyncio.Event()
@@ -472,9 +469,6 @@ async def acceptance(values, postgres_gate):
                     await asyncio.wait_for(release_second_ack.wait(), 25)
                 await relay.handle(str(item.topic), bytes(item.payload), item.retain)
         task = asyncio.create_task(receive())
-        await relay.send(TopicKind.STATUS, relay.status(True))
-        await relay.state('initial-state')
-        await wait_value(api, False)
         vite = subprocess.Popen(['npm', 'run', 'dev', '--', '--port', '4178', '--strictPort'],
             cwd=WEB, env={**os.environ, 'VITE_DATA_MODE': 'core', 'VITE_API_URL': '/core-api',
                           'CORE_DEV_PROXY_TARGET': api.base}, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -498,6 +492,33 @@ async def acceptance(values, postgres_gate):
                     await page.get_by_role('button', name='Войти', exact=True).click()
                     await page.get_by_role('link', name='Устройства', exact=True).click()
                     card = page.get_by_role('article', name='Software relay · Room')
+                    await expect(card).to_have_count(0)
+                    await page.get_by_role('button', name='Добавить устройство', exact=True).click()
+                    await page.get_by_label('Устройство', exact=True).select_option('fixture_relay')
+                    await page.get_by_label('Комната', exact=True).select_option('fixture_room')
+                    await page.get_by_label('Название', exact=True).fill('Software relay')
+                    await page.screenshot(path=OUT/'desktop-onboarding.png')
+                    async with page.expect_response(lambda reply: reply.request.method == 'POST' and
+                        urlsplit(reply.url).path == '/core-api/v1/houses/fixture_house/software-device-candidates/fixture_relay/claim') as claim:
+                        await page.get_by_role('button', name='Подтвердить привязку', exact=True).click()
+                    assert (await claim.value).status == 201
+                    await expect(page.get_by_role('link', name='Открыть комнату')).to_be_visible()
+                    item = await api.request('GET', '/devices/fixture_relay')
+                    assert (item['name'], item['room_id'], item['type'], item['online'], item['state']) == (
+                        'Software relay', 'fixture_room', 'relay', False, {})
+                    assert received == []
+                    await page.get_by_role('link', name='Открыть комнату').click()
+                    await expect(page.get_by_role('heading', name='Room', exact=True)).to_be_visible()
+                    await relay.send(TopicKind.STATUS, relay.status(True))
+                    await relay.state('initial-state')
+                    await wait_value(api, False)
+                    await api.request('POST', '/scenes', {
+                        'id': 'run_away', 'house_id': 'fixture_house', 'name': 'Ушёл из дома',
+                        'actions': [{'type': 'device_state', 'device_id': 'fixture_relay', 'state': {'on': False}}],
+                    })
+                    await page.get_by_role('link', name='Главная', exact=True).click()
+                    await page.get_by_role('button', name='Обновить данные', exact=True).click()
+                    await page.get_by_role('link', name='Устройства', exact=True).click()
                     await expect(card.get_by_text('Выключено', exact=True)).to_be_visible()
                     await page.screenshot(path=OUT/'desktop-before.png')
 
@@ -570,6 +591,8 @@ async def acceptance(values, postgres_gate):
                         'core': os.environ['KZ_PILOT_CORE_SHA'],
                         'web': subprocess.check_output(['git','rev-parse','HEAD'], cwd=WEB, text=True).strip(),
                         'device': 'isolated MQTT software relay', 'native_http_posts': 1, 'mqtt_commands': 1,
+                        'initial_room_empty': True, 'device_claimed_via_desktop_form': True,
+                        'claimed_room_id': 'fixture_room', 'registration_offline_until_mqtt': True,
                         'before': False, 'confirmed': True, 'core_ack_received': True, 'core_state_received': True,
                         'native_confirmed': True, 'desktop_confirmed': True,
                     }, indent=2))
@@ -655,7 +678,7 @@ async def main():
     OUT.mkdir(parents=True, exist_ok=True)
     assert subprocess.check_output(['git','rev-parse','HEAD'], cwd=CORE, text=True).strip() == os.environ['KZ_PILOT_CORE_SHA']
     with LoopbackPostgresGate() as postgres_gate:
-        async with stack(CORE, postgres_gate=postgres_gate) as values:
+        async with stack(CORE, postgres_gate=postgres_gate, software_onboarding=True) as values:
             await acceptance(values, postgres_gate)
 
 

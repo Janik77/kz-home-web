@@ -242,7 +242,7 @@ log_type all
 
 
 @asynccontextmanager
-async def stack(core, *, postgres_gate=None):
+async def stack(core, *, postgres_gate=None, software_onboarding=False):
     from alembic import command
     from alembic.config import Config as AlembicConfig
     from alembic.script import ScriptDirectory
@@ -304,12 +304,14 @@ async def stack(core, *, postgres_gate=None):
         finally:
             os.environ.clear()
             os.environ.update(environment)
-        settings = Settings(database_url=app_db_url, app_env="production",
+        settings = Settings(database_url=app_db_url, app_env="test" if software_onboarding else "production",
             auth_jwt_secret=jwt_secret, mqtt_enabled=True, mqtt_host="localhost",
             mqtt_port=services.mqtt_port, mqtt_tls_enabled=True,
             mqtt_client_id=services.name + "-core", mqtt_username="core_lab",
             mqtt_password=services.password,
-            mqtt_software_devices=(("fixture_house", "fixture_relay"),))
+            mqtt_software_devices=(("fixture_house", "fixture_relay"),),
+            **({"software_device_candidates": (("fixture_house", "fixture_relay", "relay"),)}
+               if software_onboarding else {}))
         wire = AiomqttClient(host="localhost", port=services.mqtt_port,
             username="core_lab", password=services.password, tls_enabled=True,
             keepalive=15, client_id=settings.mqtt_client_id)
@@ -361,7 +363,7 @@ async def stack(core, *, postgres_gate=None):
             services.close()
 
 
-async def provision(api, ids, seed):
+async def provision(api, ids, seed, *, preseed_relay=True):
     api.token = (await api.request("POST", "/auth/login", {
         "email": "owner@example.test", "password": seed["password"]
     }))["access_token"]
@@ -372,6 +374,7 @@ async def provision(api, ids, seed):
         "floor_id": "fixture_floor", "name": "Room"})
     await api.request("POST", "/houses/fixture_house/members", {
         "user_id": ids["resident"], "role": "resident"})
-    await api.request("POST", "/devices", {"id": "fixture_relay",
-        "room_id": "fixture_room", "name": "Software relay", "type": "relay",
-        "capabilities": ["on_off"], "state": {}, "online": False})
+    if preseed_relay:
+        await api.request("POST", "/devices", {"id": "fixture_relay",
+            "room_id": "fixture_room", "name": "Software relay", "type": "relay",
+            "capabilities": ["on_off"], "state": {}, "online": False})
