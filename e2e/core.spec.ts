@@ -10,6 +10,7 @@ async function interceptCore(page: Page, overrides: Record<string, unknown> = {}
     const request = route.request();
     const url = new URL(request.url());
     const path = url.pathname.replace('/core-api', '') + url.search;
+  if (route.request().method() === 'GET' && /^\/v1\/houses\/house-[ab]\/software-device-candidates$/.test(path)) return route.fulfill({status:404});
     requests.push({ path, method: request.method() });
     if (path.includes('/me/device-favorites')) return route.fulfill({json:{device_ids:[]}});
     if (path.endsWith('/me/permissions')) return route.fulfill({ json: {house_id: path.split('/')[3], permissions: []} });

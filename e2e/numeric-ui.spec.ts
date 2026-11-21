@@ -8,6 +8,7 @@ for (const theme of ['light', 'dark']) test(`numeric UI ${theme}`, async ({ page
   const sensor = { ...coreDevice, id: 'sensor', name: 'Климат гостиной', type: 'temperature_sensor', capabilities: ['temperature', 'humidity', 'illuminance'], state: { temperature: 24.5, humidity: 47, illuminance: 98 }, numeric_observed_at: { temperature: new Date().toISOString(), humidity: null, illuminance: new Date(Date.now() - 180000).toISOString() } };
   await page.route('**/core-api/**', async route => {
     const url = new URL(route.request().url()), path = url.pathname.replace('/core-api', '') + url.search;
+  if (route.request().method() === 'GET' && /^\/v1\/houses\/house-[ab]\/software-device-candidates$/.test(path)) return route.fulfill({status:404});
     if (path.endsWith('/me/permissions')) return route.fulfill({ json: { house_id: 'house-a', permissions: ['device.read', 'automation.read', 'automation.manage'] } });
     if (path.includes('/me/device-favorites')) return route.fulfill({ json: { device_ids: ['sensor'] } });
     if (path === '/automations' || path.startsWith('/events')) return route.fulfill({ json: [] });

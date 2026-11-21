@@ -4,6 +4,7 @@ import { createHouseClock } from './schedules';
 import { createAutomations } from './automations';
 import { createDeviceFavorites } from './favorites';
 import { createStructure } from './structure';
+import { createSoftwareOnboarding } from './software-onboarding';
 import { createSceneRuns } from './scene-runs';
 import type { HomeRepository } from '../home-repository';
 import type { AccessibleHouse } from '../../domain/session';
@@ -29,6 +30,7 @@ export function createCoreHomeRepository(session: CoreSession, houseId: string):
     automations: createAutomations(session, houseId),
     favorites: createDeviceFavorites(session, houseId),
     structure: createStructure(session, houseId),
+    softwareOnboarding: createSoftwareOnboarding(session, houseId),
     sceneRuns: createSceneRuns(session, houseId),
     definitions: createDefinitions(session, houseId),
     activity: createHomeActivity(session, houseId),

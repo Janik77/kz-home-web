@@ -8,6 +8,7 @@ for(const theme of ['light','dark']) test(`durable scene ${theme}`,async({page},
  let scene:Record<string,unknown>|null=null; let cancelled=false;
  await page.route('**/core-api/**',async route=>{
   const req=route.request(),u=new URL(req.url()),path=u.pathname.replace('/core-api','')+u.search;
+  if (route.request().method() === 'GET' && /^\/v1\/houses\/house-[ab]\/software-device-candidates$/.test(path)) return route.fulfill({status:404});
   if(path.endsWith('/me/permissions'))return route.fulfill({json:{house_id:'house-a',permissions:['device.read','device.control','scene.read','scene.manage','scene.run','house.read']}});
   if(path.includes('/me/device-favorites'))return route.fulfill({json:{device_ids:[]}});
   if(path==='/scenes') {if(req.method()==='POST'){scene={...req.postDataJSON(),revision:1};expect(scene!.actions).toEqual([{type:'device_state',device_id:coreDevice.id,state:{on:true}},{type:'durable_wait',seconds:5},{type:'device_state',device_id:coreDevice.id,state:{on:false}}]);}return route.fulfill({status:req.method()==='POST'?201:200,json:req.method()==='POST'?scene:scene?[scene]:[]});}

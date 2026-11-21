@@ -66,13 +66,18 @@ jobs:
           node-version: 24
       - name: Preserve capture script
         run: cp scripts/capture.mjs "$RUNNER_TEMP/kz-capture.mjs"
+      - name: Check out exact PR base without persisting credentials
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
       - name: Capture accepted PR base
         if: github.event_name == 'pull_request'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          git fetch origin "$BASE_SHA"
-          git checkout --detach "$BASE_SHA"
+          test "$(git rev-parse HEAD)" = "$BASE_SHA"
           npm ci
           npx playwright install --with-deps chrome
           CAPTURE_DIR="$RUNNER_TEMP/kz-visual/before" node "$RUNNER_TEMP/kz-capture.mjs"

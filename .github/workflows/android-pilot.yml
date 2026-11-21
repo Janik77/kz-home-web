@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 42
     env:
-      KZ_PILOT_CORE_SHA: 80770e8a3f59d0bd7fb825345f0ca7589dd26f23
+      KZ_PILOT_CORE_SHA: b897b93726ef4d02e596e0b83c568df269e29bcc
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
